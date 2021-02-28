@@ -1,0 +1,48 @@
+<!DOCTYPE html><html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Microtonal Calculator</title>
+<link rel="stylesheet" href="style.css" />
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script type="text/javascript" src="microtonal-utils.js"></script>
+<script type="text/javascript" src="index.js"></script>
+</head>
+<body>
+<h2><h2>
+<h2>Matt's microtonal calculator</h2>
+<input type="text" spellcheck="false" id="expr" class="exprInput" placeholder="e.g. 6/5 * m3^7"></input>
+<div class="buttons">
+<div class="alignleft"><!--
+  --><div class="button-container"><button id="undo" title="Undo">⟲</button></div><!--
+  --><div class="button-container"><button id="redo" title="Redo">⟳</button></div><!--
+--></div>
+<div class="aligncenter"><!--
+  --><div class="button-container"><button id="add_dbl_flat" title="Add double flat">𝄫</button></div><!--
+  --><div class="button-container"><button id="add_flat" title="Add flat">♭</button></div><!--
+  --><div class="button-container"><button id="add_nat" title="Add natural">♮</button></div><!--
+  --><div class="button-container"><button id="add_sharp" title="Add sharp">♯</button></div><!--
+  --><div class="button-container"><button id="add_dbl_sharp" title="Add double sharp">𝄪</button></div><!--
+--></div>
+<div class="alignright"><!--
+  --><div class="button-container"><button id="enter" title="Enter">Enter</button></div><!--
+--></div>
+</div>
+
+<div id="results">
+</div>
+<!-- M3^5_7 + cents(5/4) + C♯\12 + (Anat + ^m3)\15 where A = 432hz -->
+
+<!-- <br><br><br><br>
+
+<p class="content">
+  What is this?
+   asdflk
+   adf ak
+
+   falkfas
+</p> -->
+
+<br>
+
+<p class="content" style="text-align: center"><a href="https://www.yacavone.net" class=grey>Back to my website</a></p>
+</body>
+</html>
