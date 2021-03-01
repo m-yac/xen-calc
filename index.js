@@ -30,6 +30,7 @@ var primeLimit;
 var oddLimit  ;
 var loEDO     ;
 var hiEDO     ;
+var sortRat   ;
 var sortEDO   ;
 
 function primeLimitDropdown() {
@@ -45,15 +46,20 @@ function oddLimitDropdown() {
 function loEDODropdown() {
   let opts = [];
   for (let e = 1; e < hiEDO; e++) { opts.push(e); }
-  return dropdown(opts, loEDO, "loEDO", "Low EDO", "threeDigitSelect");
+  return dropdown(opts, loEDO, "loEDO", "Lowest EDO", "threeDigitSelect");
 }
 function hiEDODropdown() {
   let opts = [];
   for (let e = loEDO+1; e <= 120; e++) { opts.push(e); }
-  return dropdown(opts, hiEDO, "hiEDO", "High EDO", "threeDigitSelect");
+  return dropdown(opts, hiEDO, "hiEDO", "Highest EDO", "threeDigitSelect");
+}
+function sortRatDropdown() {
+  return dropdown( ["height", "denominator", "difference"], sortRat, "sortRat"
+                 , "Sort best rational approximations", "sortRatSelect");
 }
 function sortEDODropdown() {
-  return dropdown(["EDO", "cents"], "EDO", "sortEDO", "Sort by EDO or cents", "fiveDigitSelect");
+  return dropdown( ["EDO", "difference"], sortEDO, "sortEDO"
+                 , "Sort best EDO approximations", "sortEDOSelect");
 }
 
 // Given an array `[n, edo]` returns the string "n\edo"
@@ -188,12 +194,13 @@ function updateResults() {
       ratApproxsDesc.append(oddLimitDropdown());
       ratApproxsDesc.append("-odd-limit, ");
       const cutoff = res.edoSteps ? 600/res.edoSteps[1] : 50;
-      ratApproxsDesc.append("cutoff at ±" + fmtCents(cutoff,1) + ", ")
-      ratApproxsDesc.append("sorted by height");
+      ratApproxsDesc.append("cutoff at ±" + fmtCents(cutoff,1) + ", sorted by ");
+      ratApproxsDesc.append(sortRatDropdown());
       $('#results').append(ratApproxsDesc);
       $('#results').append($('<div id="ratTableDiv">'));
       $('#primeLimit').on("change", updateRatApproxs);
       $('#oddLimit')  .on("change", updateRatApproxs);
+      $('#sortRat')   .on("change", updateRatApproxs);
       updateRatApproxs();
       // add best EDO approximations
       $('#results').append($('<h4>').html('Best EDO approximations'));
@@ -201,7 +208,7 @@ function updateResults() {
       edoApproxsDesc.append(loEDODropdown());
       edoApproxsDesc.append("-EDO to ");
       edoApproxsDesc.append(hiEDODropdown());
-      edoApproxsDesc.append("-EDO, sorted by ");
+      edoApproxsDesc.append("-EDO, cutoff at ±50c, sorted by ");
       edoApproxsDesc.append(sortEDODropdown());
       $('#results').append(edoApproxsDesc);
       $('#results').append($('<div id="edoTableDiv">'));
@@ -218,9 +225,10 @@ function updateResults() {
 }
 
 function updateRatApproxs() {
-  const [oldPrimeLimit, oldOddLimit] = [primeLimit, oddLimit];
+  const [oldPrimeLimit, oldOddLimit, oldSortRat] = [primeLimit, oddLimit, sortRat];
   primeLimit = ensureIntOrUndefined($('#primeLimit').val());
   oddLimit   = ensureIntOrUndefined($('#oddLimit')  .val());
+  sortRat = $('#sortRat').val();
   $('#ratTableDiv').empty();
   const cutoff = res.edoSteps ? microtonal_utils.Interval(2).pow(1,2*res.edoSteps[1])
                               : undefined;
@@ -246,6 +254,7 @@ function updateRatApproxs() {
   }
   if (primeLimit != oldPrimeLimit) { updateURLWithParam("primeLimit", primeLimit); }
   if (oddLimit   != oldOddLimit  ) { updateURLWithParam("oddLimit"  , oddLimit  ); }
+  if (sortRat    != oldSortRat   ) { updateURLWithParam("sortRat"   , sortRat   ); }
 }
 
 function updateEDOApproxs() {
@@ -255,11 +264,11 @@ function updateEDOApproxs() {
   sortEDO = $('#sortEDO').val();
   $('#edoTableDiv').empty();
   const params = {startEDO: loEDO, endEDO: hiEDO};
-  const fn = sortEDO == "cents" ? microtonal_utils.bestEDOApproxsByDiff
-                                : microtonal_utils.bestEDOApproxsByEDO;
-  const edoApproxs = fn(res.intv, params).slice(0,10);
+  const fn = sortEDO == "difference" ? microtonal_utils.bestEDOApproxsByDiff
+                                     : microtonal_utils.bestEDOApproxsByEDO;
+  const edoApproxs = fn(res.intv, params);
   let edoTable = $('<table id="edoTable">').addClass("approxsTable");
-  for (let {steps, diff} of edoApproxs) {
+  for (let {steps, diff} of edoApproxs.slice(0,10)) {
     let row = $('<tr>');
     let firstNonZero = steps.findIndex(step => step[0] != 0);
     if (firstNonZero == -1) { firstNonZero = steps.length; }
@@ -274,7 +283,9 @@ function updateEDOApproxs() {
     edoTable.append(row);
   }
   $('#edoTableDiv').append(edoTable);
-  $('#edoTableDiv').append("<i>show more</i>");
+  if (edoTable.length > 10) {
+    $('#edoTableDiv').append("<i>show more</i>");
+  }
   if (loEDO != oldLoEDO) {
     updateURLWithParam("loEDO", loEDO);
     $('#hiEDO').empty();
@@ -305,6 +316,7 @@ function setStateFromURL(e) {
   $('#expr').val(urlParams.has('expr') ? urlParams.get('expr') : "");
   primeLimit = urlParams.has('primeLimit') ? urlParams.get('primeLimit') : 13;
   oddLimit   = urlParams.has('oddLimit')   ? urlParams.get('oddLimit')   : 81;
+  sortRat    = urlParams.has('sortRat')    ? urlParams.get('sortRat')    : "height";
   loEDO      = urlParams.has('loEDO')      ? urlParams.get('loEDO')      : 5;
   hiEDO      = urlParams.has('hiEDO')      ? urlParams.get('hiEDO')      : 60;
   sortEDO    = urlParams.has('sortEDO')    ? urlParams.get('sortEDO')    : "EDO";
@@ -312,6 +324,7 @@ function setStateFromURL(e) {
     $('#results').html(e.state);
     $('#primeLimit').on("change", updateRatApproxs);
     $('#oddLimit')  .on("change", updateRatApproxs);
+    $('#sortRat')   .on("change", updateRatApproxs);
     $('#loEDO')     .on("change", updateEDOApproxs);
     $('#hiEDO')     .on("change", updateEDOApproxs);
     $('#sortEDO')   .on("change", updateEDOApproxs);

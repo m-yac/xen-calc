@@ -216,11 +216,18 @@ button:active {
   width: 55px;
 }
 
-.fiveDigitSelect select {
-  width: 70px;
+.sortRatSelect select {
+  width: 109px;
 }
-.fiveDigitSelect {
-  width: 70px;
+.sortRatSelect {
+  width: 109px;
+}
+
+.sortEDOSelect select {
+  width: 90px;
+}
+.sortEDOSelect {
+  width: 90px;
 }
 
 
