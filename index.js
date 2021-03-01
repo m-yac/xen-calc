@@ -1,5 +1,5 @@
-function ensureIntOrUndefined(x) {
-  return isNaN(x) ? undefined : parseInt(x);
+function tryParseInt(x) {
+  return isNaN(x) ? x : parseInt(x);
 }
 
 // Focuses '#expr' and adds the given string at the current cursor position
@@ -226,13 +226,15 @@ function updateResults() {
 
 function updateRatApproxs() {
   const [oldPrimeLimit, oldOddLimit, oldSortRat] = [primeLimit, oddLimit, sortRat];
-  primeLimit = ensureIntOrUndefined($('#primeLimit').val());
-  oddLimit   = ensureIntOrUndefined($('#oddLimit')  .val());
+  primeLimit = tryParseInt($('#primeLimit').val());
+  oddLimit   = tryParseInt($('#oddLimit')  .val());
   sortRat = $('#sortRat').val();
   $('#ratTableDiv').empty();
   const cutoff = res.edoSteps ? microtonal_utils.Interval(2).pow(1,2*res.edoSteps[1])
                               : undefined;
-  const params = {cutoff: cutoff, primeLimit: primeLimit, oddLimit: oddLimit};
+  const params = { cutoff: cutoff
+                 , primeLimit: isNaN(primeLimit) ? undefined : primeLimit
+                 , oddLimit  : isNaN(oddLimit)   ? undefined : oddLimit };
   const ratApproxs = microtonal_utils.bestRationalApproxs(res.intv, params);
   let ratTable = $('<table id="ratTable">').addClass("approxsTable");
   for (const {ratio, diff} of ratApproxs[1]) {
@@ -247,23 +249,23 @@ function updateRatApproxs() {
   }
   $('#ratTableDiv').append(ratTable);
   if (!ratApproxs[0]) {
-    $('#ratTableDiv').append("<i>show more</i>");
+    $('#ratTableDiv').append("<i>search for more</i>");
   }
   else if (ratApproxs[1].length == 0) {
     $('#ratTableDiv').append("<i>no results</i>");
   }
-  if (primeLimit != oldPrimeLimit) { updateURLWithParam("primeLimit", primeLimit); }
-  if (oddLimit   != oldOddLimit  ) { updateURLWithParam("oddLimit"  , oddLimit  ); }
+  if (primeLimit != oldPrimeLimit) { updateURLWithParam("primeLimit", primeLimit || "–"); }
+  if (oddLimit   != oldOddLimit  ) { updateURLWithParam("oddLimit"  , oddLimit   || "–"); }
   if (sortRat    != oldSortRat   ) { updateURLWithParam("sortRat"   , sortRat   ); }
 }
 
 function updateEDOApproxs() {
   const [oldLoEDO, oldHiEDO, oldSortEDO] = [loEDO, hiEDO, sortEDO];
-  loEDO   = ensureIntOrUndefined($('#loEDO')  .val());
-  hiEDO   = ensureIntOrUndefined($('#hiEDO')  .val());
+  loEDO   = parseInt($('#loEDO').val());
+  hiEDO   = parseInt($('#hiEDO').val());
   sortEDO = $('#sortEDO').val();
   $('#edoTableDiv').empty();
-  const params = {startEDO: loEDO, endEDO: hiEDO};
+  const params = { startEDO: loEDO, endEDO: hiEDO };
   const fn = sortEDO == "difference" ? microtonal_utils.bestEDOApproxsByDiff
                                      : microtonal_utils.bestEDOApproxsByEDO;
   const edoApproxs = fn(res.intv, params);
@@ -283,7 +285,7 @@ function updateEDOApproxs() {
     edoTable.append(row);
   }
   $('#edoTableDiv').append(edoTable);
-  if (edoTable.length > 10) {
+  if (edoApproxs.length > 10) {
     $('#edoTableDiv').append("<i>show more</i>");
   }
   if (loEDO != oldLoEDO) {
