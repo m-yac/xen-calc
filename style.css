@@ -7,22 +7,18 @@
 }
 
 @font-face {
-  font-family: heji;
-  src: url(HEJI2Bravura.otf);
-}
-
-@font-face {
-  font-family: tilde;
-  src: Arial Unicode MS;
-  unicode-range: U+007E;
-}
-
-* {
-  font-family: tilde, cmu, Arial Unicode MS;
+  font-family: specialChars;
+  src: local(Helvetica Light);
+  unicode-range: U+005F, U+007E;
 }
 
 html {
   background-color: #EEE;
+  font-family: specialChars, cmu, Arial Unicode MS;
+}
+
+body, table, tr, td, input, button, select, option {
+  font-family: inherit;
 }
 
 body {
@@ -34,7 +30,6 @@ body {
    padding: 1px 50px;
    padding-bottom: 25px;
    text-align: center;
-   font-family: tilde, cmu, Arial Unicode MS;;
    font-size: 110%;
 }
 
