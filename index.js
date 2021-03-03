@@ -127,15 +127,15 @@ function getResults() {
     typeStr = "Note results";
     ret.push(["Frequency in hertz:", fmtHertz(res.hertz, 5)]);
     ret.push(["Tuning meter read-out:", res.tuningMeter]);
-    const refSymb = microtonal_utils.pyNote(res.ref.intvToA4);
     if (!res.intvToRef.equals(1)) {
+      const refSymb = microtonal_utils.pyNote(res.ref.intvToA4);
       if (res.edoStepsToRef) {
-        ret.push(["Interval to reference:",
-                  fmtEDOStep(res.edoStepsToRef[0]) + " + " + refSymb]);
+        ret.push(["Interval to reference " + refSymb + ":",
+                  fmtEDOStep(res.edoStepsToRef[0])]);
       }
       else {
-        ret.push(["Interval to reference:",
-                  res.intvToRef.toNthRootString() + " * " + refSymb]);
+        ret.push(["Interval to reference " + refSymb + ":",
+                  res.intvToRef.toNthRootString()]);
       }
     }
   }
