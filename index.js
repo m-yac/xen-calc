@@ -6,8 +6,10 @@ function xenWikiPageExists(title) {
   const xenAPI = "https://en.xen.wiki/api.php?origin=*";
   const params = "&action=query&format=json&prop=&list=search&srsearch=";
   const url = xenAPI + params + title;
-  return fetch(url).then(function(res) { return res.json(); })
-                   .then(function(res) { return !!res.query.searchinfo.totalhits; })
+  try {
+    return fetch(url).then(function(res) { return res.json(); })
+                     .then(function(res) { return !!res.query.searchinfo.totalhits; })
+  } catch (e) {}
 }
 
 // Focuses '#expr' and adds the given string at the current cursor position
@@ -110,6 +112,15 @@ function fmtExpression(intv, prefEDO) {
   catch (err) {}
   return fmtFactorization(intv);
 }
+// Wrap a given string in an <a> tag which when clicked, opens the calculator
+//  in a new window/tab with the given expression
+function fmtExtExprLink(str, newTab) {
+  let link = $('<a>').attr("href", "?expr=" + encodeURIComponent(str)).html(str);
+  if (newTab) {
+    link.attr("target", "_blank");
+  }
+  return link;
+}
 
 var res = {};
 
@@ -119,21 +130,21 @@ function getResults() {
   // Add interval-specific rows
   if (res.type == "interval") {
     typeStr = "Interval results";
-    ret.push(["Size in cents:", fmtCents(res.cents, 5)]);
+    ret.push(["Size in cents:", fmtExtExprLink(fmtCents(res.cents, 5))]);
     if (res.ratio) {
-      ret.push(["Ratio:", $('<span id="resRatio">').append(res.ratio.toFraction())]);
+      ret.push(["Ratio:", fmtExtExprLink(res.ratio.toFraction())]);
     }
     else {
       try {
         if (res.intv.toNthRoot().n <= 6) {
-          ret.push(["Expression:", res.intv.toNthRootString()]);
+          ret.push(["Expression:", fmtExtExprLink(res.intv.toNthRootString())]);
         }
       }
       catch (err) {}
     }
     const fact = fmtFactorization(res.intv);
     if (fact.length > 0) {
-      ret.push(["Factorization:", fact]);
+      ret.push(["Factorization:", fmtExtExprLink(fact)]);
       let monzo = res.intv.toMonzo();
       if (res.intv.isFrac()) {
         ret.push(["Monzo:", "|" + monzo.join(", ") + "⟩"]);
@@ -144,13 +155,13 @@ function getResults() {
       }
     }
     if (res.edoSteps) {
-      ret.push(["EDO steps:", fmtEDOStep(res.edoSteps)]);
+      ret.push(["EDO steps:", fmtExtExprLink(fmtEDOStep(res.edoSteps))]);
     }
   }
   // Add note-specific rows
   if (res.type == "note") {
     typeStr = "Note results";
-    ret.push(["Frequency in hertz:", fmtHertz(res.hertz, 5)]);
+    ret.push(["Frequency in hertz:", fmtExtExprLink(fmtHertz(res.hertz, 5))]);
     ret.push(["Tuning meter read-out:", res.tuningMeter]);
   }
   // Add any symbols
@@ -159,16 +170,18 @@ function getResults() {
         // for now we only have integer accidentals, since I'm not sure how
         //  useful showing non-integer accidentals actually is
         !(res.symb["FJS"].includes("root") || res.symb["FJS"].includes("sqrt"))) {
-      ret.push(["FJS name:", res.symb["FJS"]]);
+      ret.push(["FJS name:", fmtExtExprLink(res.symb["FJS"])]);
     }
     if (res.symb["NFJS"] &&
         // for now we only have integer accidentals, since I'm not sure how
         //  useful showing non-integer accidentals actually is
         !(res.symb["NFJS"].includes("root") || res.symb["NFJS"].includes("sqrt"))) {
-      ret.push(["Neutral FJS name:", res.symb["NFJS"]]);
+      ret.push(["Neutral FJS name:", fmtExtExprLink(res.symb["NFJS"])]);
+      // TODO fix the above link if the base interval is not neutral ^
     }
     if (res.symb["ups-and-downs"]) {
-      ret.push(["Ups-and-downs notation:", res.symb["ups-and-downs"].join(", ")]);
+      const symbs = res.symb["ups-and-downs"].map(symb => fmtExtExprLink(symb).prop('outerHTML'));
+      ret.push(["Ups-and-downs notation:", symbs.join(", ")]);
     }
   }
   const addS = res.english && res.english.length > 1 ? "(s):" : ":";
@@ -182,11 +195,11 @@ function getResults() {
     const refSymb = microtonal_utils.pyNote(res.ref.intvToA4);
     if (res.edoStepsToRef) {
       ret.push(["Interval to reference note:",
-                fmtEDOStep(res.edoStepsToRef)]);
+                fmtExtExprLink(fmtEDOStep(res.edoStepsToRef))]);
     }
     else {
       ret.push(["Interval to reference note:",
-                fmtExpression(res.intvToRef)]);
+                fmtExtExprLink(fmtExpression(res.intvToRef))]);
     }
     ret.push(["Reference note and frequency:", refSymb + " = " + fmtHertz(res.ref.hertz, 2)])
   }
@@ -220,15 +233,22 @@ function updateResults() {
     $('#results').append(resTable);
     // add xen wiki link
     if (res.ratio) {
-      const xenPageName = res.ratio.toFraction().replace("/", "%2F")
+      const xenPageName = res.ratio.toFraction();
       const xenURL = "https://en.xen.wiki/w/" + xenPageName;
-      xenWikiPageExists(xenPageName).then(function(exists) {
-        if (exists) {
-          let link = $('<a class=alt>').attr("href", xenURL)
-                                       .append($('#resRatio').html());
-          $('#resRatio').html(link);
-        }
-      });
+      const pageExists = xenWikiPageExists(xenPageName);
+      if (pageExists) {
+        pageExists.then(function(exists) {
+          if (exists) {
+            let link = $('<a>').attr("href", xenURL)
+                               .append(xenURL);
+            // $('#resRatio').html(link);
+            let row = $('<tr>');
+            row.append($('<td>').addClass("resLeftColumn").html("Xenharmonic wiki page:"));
+            row.append($('<td>').addClass("resRightColumn").html(link));
+            $('#resTable').append(row);
+          }
+        });
+      }
     }
     if (res.type == "interval") {
       // add best rational approximations
@@ -284,7 +304,8 @@ function updateRatApproxs() {
   let ratTable = $('<table id="ratTable">').addClass("approxsTable");
   for (const {ratio, diff} of ratApproxs[1]) {
     let row = $('<tr>');
-    row.append($('<td>').addClass("approxsLeftColumn").html(ratio.toFraction()));
+    const lhs = fmtExtExprLink(ratio.toFraction(), true);
+    row.append($('<td>').addClass("approxsLeftColumn").html(lhs));
     let diffStr = "exact";
     if (diff != 0) {
       diffStr = (diff > 0 ? "+" : "-") + fmtCents(Math.abs(diff), 3, true);
@@ -323,7 +344,8 @@ function updateEDOApproxs() {
     if (firstNonZero >= 4) {
       stepStrs = stepStrs.slice(0,2).concat(["..."]).concat(stepStrs.slice(firstNonZero-1));
     }
-    row.append($('<td>').addClass("approxsLeftColumn").html(stepStrs.join(", ")));
+    const lhs = fmtExtExprLink(stepStrs.join(", "), true);
+    row.append($('<td>').addClass("approxsLeftColumn").html(lhs));
     let diffStr = diff == 0 ? "exact" : (diff < 0 ? "+" : "-") +
                                         fmtCents(Math.abs(diff), 3, true);
     row.append($('<td>').addClass("approxsRightColumn").html(diffStr));
