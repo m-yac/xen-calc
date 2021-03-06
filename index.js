@@ -2,6 +2,14 @@ function tryParseInt(x) {
   return isNaN(x) ? x : parseInt(x);
 }
 
+function xenWikiPageExists(title) {
+  const xenAPI = "https://en.xen.wiki/api.php?origin=*";
+  const params = "&action=query&format=json&prop=&list=search&srsearch=";
+  const url = xenAPI + params + title;
+  return fetch(url).then(function(res) { return res.json(); })
+                   .then(function(res) { return !!res.query.searchinfo.totalhits; })
+}
+
 // Focuses '#expr' and adds the given string at the current cursor position
 function insertAtCursor(str) {
   $('#expr').focus();
@@ -113,7 +121,7 @@ function getResults() {
     typeStr = "Interval results";
     ret.push(["Size in cents:", fmtCents(res.cents, 5)]);
     if (res.ratio) {
-      ret.push(["Ratio:", res.ratio.toFraction()]);
+      ret.push(["Ratio:", $('<span id="resRatio">').append(res.ratio.toFraction())]);
     }
     else {
       try {
@@ -210,6 +218,18 @@ function updateResults() {
     }
     $("#results").append($('<h4>').html(typeStr));
     $('#results').append(resTable);
+    // add xen wiki link
+    if (res.ratio) {
+      const xenPageName = res.ratio.toFraction().replace("/", "%2F")
+      const xenURL = "https://en.xen.wiki/w/" + xenPageName;
+      xenWikiPageExists(xenPageName).then(function(exists) {
+        if (exists) {
+          let link = $('<a class=alt>').attr("href", xenURL)
+                                       .append($('#resRatio').html());
+          $('#resRatio').html(link);
+        }
+      });
+    }
     if (res.type == "interval") {
       // add best rational approximations
       $('#results').append($('<h4>').html('Best rational approximations</b>'));
