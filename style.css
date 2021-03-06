@@ -17,7 +17,7 @@ html {
   font-family: specialChars, cmu, Arial Unicode MS;
 }
 
-body, table, tr, td, input, button, select, option {
+body, table, tr, td, input, button, select, option, code {
   font-family: inherit;
 }
 
@@ -34,8 +34,17 @@ body {
 }
 
 .content {
-  font-size: 87.5%;
+  font-size: 93%;
   text-align: left;
+  margin-top: 60px;
+}
+
+ul {
+  padding-left: 25px;
+}
+
+li {
+  margin: 4px 0;
 }
 
 .buttons {
@@ -69,12 +78,17 @@ body {
 h1,h2,h3 {
   font-weight: lighter;
 }
-h2{ font-size: 210%; }
+h1{ font-size: 210%; font-weight: normal; }
+h2{ font-size: 190%; }
 h3{ font-size: 175%; }
 
 h4 {
   font-size: 115%;
   font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.results {
   margin-bottom: 10px;
 }
 
@@ -225,7 +239,6 @@ button:active {
   width: 90px;
 }
 
-
 .exprInput  {
   background-color: #f2e4ce;
   box-sizing: border-box;
@@ -276,6 +289,25 @@ a.grey:focus,
 a.grey:visited:hover,
 a.grey:visited:focus {
   color: #F3470F;
+}
+
+a.expr,
+a.expr:visited,
+a.expr:hover,
+a.expr:focus,
+a.expr:visited:hover,
+a.expr:visited:focus {
+  padding-left: 4px;
+  padding-right: 4px;
+  margin-top: 1px;
+  margin-bottom: 1px;
+  background-color: #f2e4ce;
+  border-radius: 5px;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  border: 1px solid #BCBEC0;
+  display: inline-block;
+  white-space: nowrap;
 }
 
 .centerimg {

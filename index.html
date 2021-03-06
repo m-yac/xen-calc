@@ -7,9 +7,9 @@
 <script type="text/javascript" src="index.js"></script>
 </head>
 <body>
-<h2><h2>
-<h2>Matt's microtonal calculator</h2>
-<input type="text" spellcheck="false" id="expr" class="exprInput" placeholder="e.g. 6/5 * m3^7"></input>
+<h1><h1>
+<h1>Matt's microtonal calculator</h1>
+<input type="text" spellcheck="false" id="expr" class="exprInput" placeholder="e.g. 7/5 / m3^7"></input>
 <div class="buttons">
 <div class="alignleft"><!--
   --><div class="button-container"><button id="undo" title="Undo">⟲</button></div><!--
@@ -27,8 +27,120 @@
 --></div>
 </div>
 
-<div id="results">
+<div id="results" class="results">
 </div>
+
+<div class="content">
+
+<h2>What is this?</h2>
+
+<p>
+  This page is my attempt at making a general purpose calculator/converter for microtonal music.
+  If you have suggestions for other functionality I should add, send me an email!
+</p>
+
+<p>
+  At the moment, this calculator can:
+</p>
+
+<ul>
+  <li>
+    Convert between
+    cents (e.g. <a class="expr" href="?expr=400c">400c</a>),
+    just ratios (e.g. <a class="expr" href="?expr=5%2F4">5/4</a>),
+    EDO steps (e.g. <a class="expr" href="?expr=4\12">4\12</a>),
+    intervals in FJS notation (e.g. <a class="expr" href="?expr=M3^5">M3^5</a>), and
+    intervals in ups-and-downs notation (e.g. <a class="expr" href="?expr=vM3\22">vM3\22</a>).
+  </li>
+  <li>
+    Compute multiplication, division, and exponentiation of just ratios
+    (e.g. <a class="expr" href="?expr=80%2F81+*+(9%2F8)^2">80/81 * (9/8)^2</a>)
+    as well as with intervals in EDO step, FJS, and ups-and-downs notation
+    (e.g. <a class="expr" href="?expr=3%2F2+%2F+4\12">3/2 / 4\12</a>,
+          <a class="expr" href="?expr=(M3^5)^2">(M3^5)^2</a>,
+          <a class="expr" href="?expr=vM3\22+*+m2_5">vM3\22 * m2_5</a>).
+  </li>
+  <li>
+    Compute addition, subtraction, and scaling of cents values
+    as well as with intervals in EDO step, FJS, and ups-and-downs notation
+    (e.g. <a class="expr" href="?expr=-22c+%2B+2+x+200c">P1^5 + 2 x 100c</a>,
+          <a class="expr" href="?expr=700c+-+4\12">700c - 4\12</a>,
+          <a class="expr" href="?expr=(M3^5)+x+2">(M3^5) x 2</a>,
+          <a class="expr" href="?expr=vM3\22+%2B+m2_5">vM3\22 + m2_5</a>).
+  </li>
+  <li>
+    List best rational approximations and best EDO approximations of an interval.
+  </li>
+  <li>
+    Do analogous versions of the above with notes:
+    <ul>
+      <li>
+        Convert between
+        hertz (e.g. <a class="expr" href="?expr=370Hz">370Hz</a>),
+        notes in FJS notation (e.g. <a class="expr" href="?expr=F♯^5">F♯^5</a>), and
+        notes in ups-and-downs notation (e.g. <a class="expr" href="?expr=vF♯\22">vF♯\22</a>).
+      </li>
+      <li>
+        Compute multiplication of a note in hertz, FJS, or ups-and-downs notation
+        by a just interval or an interval in EDO step, FJS, or ups-and-downs notation
+        (e.g. <a class="expr" href="?expr=C4+*+5%2F4">C4 * 5/4</a>,
+              <a class="expr" href="?expr=Ab\22+*+M2^5">Ab\22 * M2^5</a>).
+      </li>
+      <li>
+        Compute addition of a note in FJS or ups-and-downs notation
+        with a cents value or an interval in EDO step, FJS, or ups-and-downs notation
+        (e.g. <a class="expr" href="?expr=C4+%2B+5%2F4">C4 + 400c</a>,
+              <a class="expr" href="?expr=Ab\22+%2B+M2^5">Ab\22 + M2^5</a>).
+      </li>
+      <li>
+        Take the ratio of two notes in hertz, FJS, or ups-and-downs notation to get
+        an interval (e.g. <a class="expr" href="?expr=E4^5+%2F+C4">E4^5 / C4</a>)
+        or subtract two notes in FJS or ups-and-downs notation to get an interval.
+      </li>
+    </ul>
+  </li>
+  <li>
+    Set a reference note and tuning
+    (e.g. <a class="expr" href="?expr=C4+where+A+=+432hz">C4 where A = 432hz</a>)
+    or set a reference note with automatically chosen tuning
+    (e.g. <a class="expr" href="?expr=F♯\12+%2F+D+where+D+=+D\12">F♯\12 / D where D = D\12</a>)
+  </li>
+  <li>
+    Compute a number of useful functions:
+    <ul>
+      <li>
+        Octave-reduce or balanced octave-reduce any interval
+        (e.g. <a class="expr" href="?expr=red(7%23)">red(7/3)</a>,
+              <a class="expr" href="?expr=reb(16%2F9)">reb(16/9)</a>).
+      </li>
+      <li>
+        Reduce or balanced reduce any interval by any other interval
+        (e.g. <a class="expr" href="?expr=red(M6%2C+3%2F2)">red(M6, 3/2)</a>).
+      </li>
+      <li>
+        Take the mediant of two just intervals
+        (e.g. <a class="expr" href="?expr=med(5%2F4,+9%2F7)">med(5/4, 9/7)</a>).
+      </li>
+      <li>
+        Find the best approximation of an interval in a given EDO
+        (e.g. <a class="expr" href="?expr=approx(5%2F4,+41)">approx(5/4, 41)</a>).
+      </li>
+      <li>
+        Convert a just interval to its value in cents
+        (e.g. <a class="expr" href="?expr=cents(5%2F4)+%2B+100c">cents(5/4) + 100c</a>).
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<!-- <a class="expr" href="?expr=red((3%2F2)^2)+*+P1_7">red((3/2)^2) * P1_7</a>
+<a class="expr" href="?expr=2+x+reb((3%2F2)^2%2C+3)+%2B+200c">2 x reb((3/2)^2, 3)+ 200c</a> -->
+
+<!-- <a class="expr" href="?expr=5^(1/4)">5^(1/4)</a>,
+<a class="expr" href="?expr=sqrt(3/2)">sqrt(P5)</a> -->
+
+</div>
+
 <!-- M3^5_7 + cents(5/4) + C♯\12 + (Anat + ^m3)\15 where A = 432hz -->
 
 <!-- <br><br><br><br>

@@ -82,6 +82,26 @@ function fmtHertz(cents, decimalPlaces, trailingZeros) {
   if (trailingZeros) { return  cents.toFixed(decimalPlaces) + "Hz"; }
   else               { return +cents.toFixed(decimalPlaces) + "Hz"; }
 }
+// Given an interval, returns its factorization as a string
+function fmtFactorization(intv) {
+  let fact = [];
+  for (const [p,e] of Object.entries(intv)) {
+    fact.push(p + "^" + (e.d == 1 ? e.s*e.n : "(" + e.toFraction() + ")"));
+  }
+  return fact.join(" * ");
+}
+// Given an interval, returns it formatted as a ratio if it's a ratio, an
+//  nth root if its an nth root for n <= 6 or n equal to the second argument, or
+//  otherwise its factorization
+function fmtExpression(intv, prefEDO) {
+  try {
+    if (intv.toNthRoot().n <= 6) {
+      return intv.toNthRootString();
+    }
+  }
+  catch (err) {}
+  return fmtFactorization(intv);
+}
 
 var res = {};
 
@@ -103,12 +123,9 @@ function getResults() {
       }
       catch (err) {}
     }
-    let fact = [];
-    for (const [p,e] of Object.entries(res.intv)) {
-      fact.push(p + "^" + (e.d == 1 ? e.s*e.n : "(" + e.toFraction() + ")"));
-    }
+    const fact = fmtFactorization(res.intv);
     if (fact.length > 0) {
-      ret.push(["Factorization:", fact.join(" * ")]);
+      ret.push(["Factorization:", fact]);
       let monzo = res.intv.toMonzo();
       if (res.intv.isFrac()) {
         ret.push(["Monzo:", "|" + monzo.join(", ") + "⟩"]);
@@ -127,17 +144,6 @@ function getResults() {
     typeStr = "Note results";
     ret.push(["Frequency in hertz:", fmtHertz(res.hertz, 5)]);
     ret.push(["Tuning meter read-out:", res.tuningMeter]);
-    if (!res.intvToRef.equals(1)) {
-      const refSymb = microtonal_utils.pyNote(res.ref.intvToA4);
-      if (res.edoStepsToRef) {
-        ret.push(["Interval to reference " + refSymb + ":",
-                  fmtEDOStep(res.edoStepsToRef[0])]);
-      }
-      else {
-        ret.push(["Interval to reference " + refSymb + ":",
-                  res.intvToRef.toNthRootString()]);
-      }
-    }
   }
   // Add any symbols
   if (res.symb) {
@@ -162,12 +168,31 @@ function getResults() {
     const end = res.english.length > 1 ? "(s):" : ":";
     ret.push(["(Possible) English name" + end, res.english.join("<br>")]);
   }
+  // Add a note's interval reference
+  if (res.type == "note" && !res.intvToRef.equals(1)) {
+    ret.push([]);
+    const refSymb = microtonal_utils.pyNote(res.ref.intvToA4);
+    if (res.edoStepsToRef) {
+      ret.push(["Interval to reference note:",
+                fmtEDOStep(res.edoStepsToRef)]);
+    }
+    else {
+      ret.push(["Interval to reference note:",
+                fmtExpression(res.intvToRef)]);
+    }
+    ret.push(["Reference note and frequency:", refSymb + " = " + fmtHertz(res.ref.hertz, 2)])
+  }
   return [typeStr, ret];
 }
 
 function updateURLWithParam(param, val) {
   const url = new URL(window.location);
-  if (val != undefined) { url.searchParams.set(param, val); }
+  if (val != undefined && (!val.trim || val.trim() !== "")) {
+    url.searchParams.set(param, val);
+  }
+  else {
+    url.searchParams.delete(param);
+  }
   history.pushState($("#results").html(), $("#expr").val(), url);
 }
 
