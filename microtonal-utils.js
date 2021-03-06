@@ -30,9 +30,10 @@ function applySignPerm(sp, intv) {
 
 /**
   * Finds best rational approximations of the given interval, sorted by Tenney
-  * harmonic distance. Returns a pair whose first element is true iff no better
-  * approximaions can be found - i.e. if either an exact approximation is found
-  * or there are no more intervals in the given odd-limit to check.
+  * height, or equivalently, Tenney harmonic distance. Returns a pair whose
+  * first element is true iff no better approximaions can be found - i.e. if
+  * either an exact approximation is found or there are no more intervals in
+  * the given odd-limit to check.
   *
   * @param {Interval} i
   * @param {Object} [opts]
@@ -45,7 +46,7 @@ function applySignPerm(sp, intv) {
   *                                       of each 'diff' property
   * @returns {Pair.<boolean, Array.<{ratio: Fraction, diff: (number|Interval)}>>}
   */
-function bestRationalApproxs(a,b, opts) {
+function bestRationalApproxsByHeight(a,b, opts) {
   // if only two arguments are given, the second one may be `opts`!
   if (!opts) {
     if (typeof b == 'object' && b != null) {
@@ -56,7 +57,7 @@ function bestRationalApproxs(a,b, opts) {
     }
   }
   const intv = Interval(a,b);
-  console.time("rationalApprox");
+  // console.time("bestRationalApproxsByHeight");
   let {cutoff, primeLimit, oddLimit, startIteration, numIterations, useExactDiffs} = opts;
   let [hitOddLimitMax, foundExact] = [false, false];
 
@@ -132,9 +133,72 @@ function bestRationalApproxs(a,b, opts) {
       }
     }
   }
-  console.timeEnd("rationalApprox");
+  // console.timeEnd("bestRationalApproxsByHeight");
   if (hitOddLimitMax || foundExact) { console.log("rationalApprox: exhausted") }
   return [hitOddLimitMax || foundExact, ret];
+}
+
+/**
+  * Finds best rational approximations in the given odd limit of the given
+  * interval, sorted by error.
+  *
+  * @param {Interval} i
+  * @param {Object} opts
+  * @param {integer} [opts.primeLimit]
+  * @param {integer} opts.oddLimit
+  * @param {boolean} [opts.useExactDiffs] defaults to false, controls the type
+  *                                       of each 'diff' property
+  * @returns {Array.<{ratio: Fraction, diff: (number|Interval)}>}
+  */
+function bestRationalApproxsByDiff(a,b, opts) {
+  // if only two arguments are given, the second one may be `opts`!
+  if (!opts) {
+    if (typeof b == 'object' && b != null) {
+      opts = b;
+      b = undefined;
+    } else {
+      opts = {};
+    }
+  }
+  const intv = Interval(a,b);
+  // console.time("bestRationalApproxsByDiff");
+  let {primeLimit, oddLimit, useExactDiffs} = opts;
+  if (!isFinite(oddLimit) || oddLimit < 0) {
+    throw "no valid odd limit given to bestRationalApproxsByDiff!"
+  }
+
+  let ret = [];
+  for (let a = 1; a <= oddLimit; a += 2) {
+    for (let b = 1; b < a; b += 2) {
+      const r = Fraction(a,b);
+      // skip all cases where a/b is not reduced
+      if (r.n != a || r.d != b) {
+        continue;
+      }
+      for (const j of [Interval(r), Interval(r).recip()]) {
+        if (primeLimit && Object.keys(j).some(p => p > primeLimit)) {
+          continue;
+        }
+        const diff = j.div(intv).reb();
+        const abs_diff = diff.compare(1) < 0 ? diff.recip() : diff;
+        const to_add = { ratio: intv.mul(diff).toFrac(), diff: diff, abs_diff: abs_diff };
+        let added = false;
+        for (let i = 0; !added && i < ret.length; i++) {
+          const cmp_abs_diffs = abs_diff.compare(ret[i].abs_diff)
+          if ((cmp_abs_diffs == 0 && diff.compare(ret[i].diff) < 0)
+              || cmp_abs_diffs < 0) {
+            ret.splice(i, 0, to_add);
+            added = true;
+          }
+        }
+        if (!added) {
+          ret.push(to_add);
+        }
+      }
+    }
+  }
+  // console.timeEnd("bestRationalApproxsByDiff");
+  return ret.map(x => ({ ratio: x.ratio, diff: useExactDiffs ? x.diff : x.diff.toCents() }));
 }
 
 /**
@@ -240,8 +304,9 @@ function bestEDOApproxsByDiff(a,b, opts) {
   return ret.map(x => ({ steps: x.steps, diff: useExactDiffs ? x.diff : x.diff.toCents() }));
 }
 
-module.exports.bestRationalApproxs = bestRationalApproxs;
-module.exports.bestEDOApproxsByEDO = bestEDOApproxsByEDO;
+module.exports.bestRationalApproxsByHeight = bestRationalApproxsByHeight;
+module.exports.bestRationalApproxsByDiff   = bestRationalApproxsByDiff;
+module.exports.bestEDOApproxsByEDO  = bestEDOApproxsByEDO;
 module.exports.bestEDOApproxsByDiff = bestEDOApproxsByDiff;
 
 },{"./edo.js":2,"./interval.js":6,"fraction.js":12,"primes-and-factors":16}],2:[function(require,module,exports){
@@ -1017,7 +1082,7 @@ const parse = function(a, b) {
   * As a convention, all functions which have a JSDoc parameter of type
   * `Interval` should be able to accept any of these argument combinations in
   * place of that parameter. For example, `mul` in this file, or
-  * `bestRationalApproxs` in `approx.js`.
+  * `bestRationalApproxsByHeight` in `approx.js`.
   *
   * If both arguments are omitted, the result is `Interval(1)`.
   *
@@ -3738,7 +3803,7 @@ var MathUtils = module.exports = {
             var lines = buffer
                 .split("\n")
                 .slice(
-                    Math.max(0, this.line - 5), 
+                    Math.max(0, this.line - 5),
                     this.line
                 );
 
@@ -3945,7 +4010,7 @@ var MathUtils = module.exports = {
         lines.push("");
         return lines.join("\n");
     }
-    
+
     Parser.prototype.displayStateStack = function(stateStack, lines) {
         var lastDisplay;
         var sameDisplayCount = 0;

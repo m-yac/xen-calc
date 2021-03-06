@@ -50,7 +50,7 @@ function primeLimitDropdown() {
 function oddLimitDropdown() {
   let opts = [];
   for (let o = 3; o <= 99; o += 2) { opts.push(o); }
-  opts.push("–");
+  if (sortRat !== "difference") { opts.push("–"); }
   return dropdown(opts, oddLimit, "oddLimit", "Odd limit", "twoDigitSelect");
 }
 function loEDODropdown() {
@@ -64,7 +64,9 @@ function hiEDODropdown() {
   return dropdown(opts, hiEDO, "hiEDO", "Highest EDO", "threeDigitSelect");
 }
 function sortRatDropdown() {
-  return dropdown( ["height", "denominator", "difference"], sortRat, "sortRat"
+  let opts = ["Tenney height"];
+  if (oddLimit !== "-") { opts.push("difference"); }
+  return dropdown( opts, sortRat, "sortRat"
                  , "Sort best rational approximations", "sortRatSelect");
 }
 function sortEDODropdown() {
@@ -128,7 +130,7 @@ function getResults() {
   res = microtonal_utils.parseCvt($('#expr').val());
   let [typeStr, ret] = ["", []];
   // Add interval-specific rows
-  if (res.type == "interval") {
+  if (res.type === "interval") {
     typeStr = "Interval results";
     ret.push(["Size in cents:", fmtExtExprLink(fmtCents(res.cents, 5))]);
     if (res.ratio) {
@@ -159,7 +161,7 @@ function getResults() {
     }
   }
   // Add note-specific rows
-  if (res.type == "note") {
+  if (res.type === "note") {
     typeStr = "Note results";
     ret.push(["Frequency in hertz:", fmtExtExprLink(fmtHertz(res.hertz, 5))]);
     ret.push(["Tuning meter read-out:", res.tuningMeter]);
@@ -190,7 +192,7 @@ function getResults() {
     ret.push(["(Possible) English name" + end, res.english.join("<br>")]);
   }
   // Add a note's interval reference
-  if (res.type == "note" && !res.intvToRef.equals(1)) {
+  if (res.type === "note" && !res.intvToRef.equals(1)) {
     ret.push([]);
     const refSymb = microtonal_utils.pyNote(res.ref.intvToA4);
     if (res.edoStepsToRef) {
@@ -219,7 +221,7 @@ function updateURLWithParam(param, val) {
 
 function updateResults() {
   $("#results").empty();
-  if ($('#expr').val().trim() == "") { return; }
+  if ($('#expr').val().trim() === "") { return; }
   try {
     const [typeStr, rows] = getResults();
     let resTable = $('<table id="resTable">').addClass("resTable");
@@ -250,7 +252,7 @@ function updateResults() {
         });
       }
     }
-    if (res.type == "interval") {
+    if (res.type === "interval") {
       // add best rational approximations
       $('#results').append($('<h4>').html('Best rational approximations</b>'));
       let ratApproxsDesc = $('<div>').addClass("approxsDesc");
@@ -300,9 +302,13 @@ function updateRatApproxs() {
   const params = { cutoff: cutoff
                  , primeLimit: isNaN(primeLimit) ? undefined : primeLimit
                  , oddLimit  : isNaN(oddLimit)   ? undefined : oddLimit };
-  const ratApproxs = microtonal_utils.bestRationalApproxs(res.intv, params);
+  const fn = sortRat === "difference" ? microtonal_utils.bestRationalApproxsByDiff
+                                      : microtonal_utils.bestRationalApproxsByHeight;
+  const ratApproxsOut = fn(res.intv, params);
+  let ratApproxs = sortRat === "difference" ? ratApproxsOut.slice(0,10)
+                                            : ratApproxsOut[1];
   let ratTable = $('<table id="ratTable">').addClass("approxsTable");
-  for (const {ratio, diff} of ratApproxs[1]) {
+  for (const {ratio, diff} of ratApproxs) {
     let row = $('<tr>');
     const lhs = fmtExtExprLink(ratio.toFraction(), true);
     row.append($('<td>').addClass("approxsLeftColumn").html(lhs));
@@ -314,12 +320,14 @@ function updateRatApproxs() {
     ratTable.append(row);
   }
   $('#ratTableDiv').append(ratTable);
-  if (!ratApproxs[0]) {
-    $('#ratTableDiv').append("<i>search for more</i>");
+  let toAppend = "no results"
+  if (sortRat === "difference" && ratApproxsOut.length > 10) {
+    toAppend = "show more";
   }
-  else if (ratApproxs[1].length == 0) {
-    $('#ratTableDiv').append("<i>no results</i>");
+  if (sortRat !== "difference" && !ratApproxsOut[0]) {
+    toAppend = "search for more";
   }
+  $('#ratTableDiv').append("<i>" + toAppend + "</i>");
   if (primeLimit != oldPrimeLimit) { updateURLWithParam("primeLimit", primeLimit || "–"); }
   if (oddLimit   != oldOddLimit  ) { updateURLWithParam("oddLimit"  , oddLimit   || "–"); }
   if (sortRat    != oldSortRat   ) { updateURLWithParam("sortRat"   , sortRat   ); }
@@ -332,8 +340,8 @@ function updateEDOApproxs() {
   sortEDO = $('#sortEDO').val();
   $('#edoTableDiv').empty();
   const params = { startEDO: loEDO, endEDO: hiEDO };
-  const fn = sortEDO == "difference" ? microtonal_utils.bestEDOApproxsByDiff
-                                     : microtonal_utils.bestEDOApproxsByEDO;
+  const fn = sortEDO === "difference" ? microtonal_utils.bestEDOApproxsByDiff
+                                      : microtonal_utils.bestEDOApproxsByEDO;
   const edoApproxs = fn(res.intv, params);
   let edoTable = $('<table id="edoTable">').addClass("approxsTable");
   for (let {steps, diff} of edoApproxs.slice(0,10)) {
@@ -385,7 +393,7 @@ function setStateFromURL(e) {
   $('#expr').val(urlParams.has('expr') ? urlParams.get('expr') : "");
   primeLimit = urlParams.has('primeLimit') ? urlParams.get('primeLimit') : 13;
   oddLimit   = urlParams.has('oddLimit')   ? urlParams.get('oddLimit')   : 81;
-  sortRat    = urlParams.has('sortRat')    ? urlParams.get('sortRat')    : "height";
+  sortRat    = urlParams.has('sortRat')    ? urlParams.get('sortRat')    : "Tenney height";
   loEDO      = urlParams.has('loEDO')      ? urlParams.get('loEDO')      : 5;
   hiEDO      = urlParams.has('hiEDO')      ? urlParams.get('hiEDO')      : 60;
   sortEDO    = urlParams.has('sortEDO')    ? urlParams.get('sortEDO')    : "EDO";

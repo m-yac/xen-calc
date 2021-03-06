@@ -199,6 +199,8 @@ button:active {
   vertical-align: middle;
   text-align: left;
   position: relative;
+  margin-top: 1px;
+  margin-bottom: 1px;
 }
 .selectIcon {
   position: absolute;
@@ -226,10 +228,10 @@ button:active {
 }
 
 .sortRatSelect select {
-  width: 109px;
+  width: 120px;
 }
 .sortRatSelect {
-  width: 109px;
+  width: 120px;
 }
 
 .sortEDOSelect select {
