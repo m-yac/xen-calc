@@ -1468,7 +1468,23 @@ Interval.prototype = {
   },
 
   /**
-   * Converts an interval to its Tenney harmonic distance, or Tenney height.
+   * Converts an interval to its Benedetti height
+   *
+   * e.g. `Interval(3,2).benedettiHeight()` gives `6`
+   *
+   * @returns {number}
+   */
+  "benedettiHeight": function() {
+    let ret = Interval(1);
+    for (const i in keys(this)) {
+      ret[i] = this[i].abs();
+    }
+    return ret.valueOf();
+  },
+
+  /**
+   * Converts an interval to its Tenney harmonic distance, or Tenney height,
+   * the log base 2 of its Benedetti height
    *
    * e.g. `Interval(3,2).tenneyHD()` gives `2.584962500721156`
    *
@@ -1653,10 +1669,10 @@ function parse(str) {
  * @property {number} cents the resulting interval converted to cents
  * @property {Interval} intv the resulting interval object
  * @property {Fraction=} ratio the resulting interval as a JI ratio
- * @property {number=} tenneyHD the Tenney harmonic distance of the resulting
- *                              interval as a JI ratio
  * @property {Pair.<integer,integer>=} edoSteps the resulting interval as some
  *                                              number of EDO steps
+ * @property {Object.<string,number>=} height various heights for the resulting
+                                              interval as a JI ratio
  * @property {Object.<string,string>} symb various symbols for the resulting
  *                                         interval, including FJS,
  *                                         Neutral FJS, and ups-and-downs
@@ -1701,7 +1717,9 @@ function parseCvt(str) {
     ret.intv = intv;
     try {
       ret.ratio = intv.toFrac();
-      ret.tenneyHD = intv.tenneyHD();
+      let heights = { benedetti: intv.benedettiHeight()
+                    , tenney:    intv.tenneyHD() }
+      ret.height = heights;
     } catch (_) {}
     if (prefEDO) {
       let e2 = (intv['2'] || Fraction(0)).mul(prefEDO);

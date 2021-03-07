@@ -4,11 +4,14 @@ function tryParseInt(x) {
 
 function xenWikiPageExists(title) {
   const xenAPI = "https://en.xen.wiki/api.php?origin=*";
-  const params = "&action=query&format=json&prop=&list=search&srsearch=";
-  const url = xenAPI + params + title;
+  const params = "&action=query&format=json&titles=";
+  const url = xenAPI + params + encodeURIComponent(title);
   try {
     return fetch(url).then(function(res) { return res.json(); })
-                     .then(function(res) { return !!res.query.searchinfo.totalhits; })
+                     .then(function(res) {
+                       const results = Object.values(res.query.pages);
+                       return results[0].missing !== "";
+                     })
   } catch (e) {}
 }
 
@@ -156,6 +159,9 @@ function getResults() {
         ret.push(["Fractional monzo:", "|" + monzo.join(", ") + "⟩"]);
       }
     }
+    if (res.ratio) {
+      ret.push(["Tenney height:", +res.height.tenney.toFixed(5) + " (log2(" + res.height.benedetti + "))"])
+    }
     if (res.edoSteps) {
       ret.push(["EDO steps:", fmtExtExprLink(fmtEDOStep(res.edoSteps))]);
     }
@@ -241,7 +247,8 @@ function updateResults() {
       if (pageExists) {
         pageExists.then(function(exists) {
           if (exists) {
-            let link = $('<a>').attr("href", xenURL)
+            let link = $('<a>').attr("target", "_blank")
+                               .attr("href", xenURL)
                                .append(xenURL);
             // $('#resRatio').html(link);
             let row = $('<tr>');
