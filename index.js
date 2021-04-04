@@ -305,6 +305,9 @@ function addXenWikiLink(xenPageName) {
 // current value of the dropdowns, and call `updateURLWithParams` on the
 // given argument, if an argument is given
 function updateRatApproxs(toUpdate) {
+  if (moreRat < 1 || (toUpdate && toUpdate !== "moreRat")) {
+    moreRat = defaultMoreRat;
+  }
 
   const primeLimit = tryParseInt($('#primeLimit').val());
   const oddLimit   = tryParseInt($('#oddLimit')  .val());
@@ -317,11 +320,12 @@ function updateRatApproxs(toUpdate) {
                               : undefined;
   const params = { cutoff: cutoff
                  , primeLimit: isNaN(primeLimit) ? undefined : primeLimit
-                 , oddLimit  : isNaN(oddLimit)   ? undefined : oddLimit };
+                 , oddLimit  : isNaN(oddLimit)   ? undefined : oddLimit
+                 , numIterations: moreRat };
   const fn = sortRat === "difference" ? microtonal_utils.bestRationalApproxsByDiff
                                       : microtonal_utils.bestRationalApproxsByHeight;
   const ratApproxsOut = fn(res.intv, params);
-  const ratApproxs = sortRat === "difference" ? ratApproxsOut.slice(0,10)
+  const ratApproxs = sortRat === "difference" ? ratApproxsOut.slice(0,10*moreRat)
                                               : ratApproxsOut[1];
   $('#ratTable').empty();
   for (const {ratio, diff} of ratApproxs) {
@@ -336,22 +340,30 @@ function updateRatApproxs(toUpdate) {
     $('#ratTable').append(row);
   }
 
-  let moreText = "";
-  if (sortRat === "difference" && ratApproxsOut.length > 10) {
-    moreText = "show more";
+  if (sortRat === "difference" && ratApproxsOut.length > 10*moreRat) {
+    let link = $('<a>').attr("href", "javascript:void(0)")
+                       .attr("id", "ratTableMoreLink")
+                       .html("show more");
+    link.click(function() { moreRat++; updateRatApproxs("moreRat"); });
+    $('#ratTableMore').html(link);
   }
-  if (sortRat !== "difference") {
-    if (ratApproxsOut[0]) {
-      moreText = "no " + (ratApproxs.length > 0 ? "more " : "") + "results ";
-    }
-    else {
-      moreText = "search for more";
-    }
+  else if (sortRat !== "difference" && !ratApproxsOut[0]) {
+    let link = $('<a>').attr("href", "javascript:void(0)")
+                       .attr("id", "ratTableMoreLink")
+                       .html("search for more"
+                             + (moreRat > 1 ? " (x" + moreRat + ")" : ""));
+    link.click(function() { moreRat++; updateRatApproxs("moreRat"); });
+    $('#ratTableMore').html(link);
   }
-  $('#ratTableMore').html(moreText);
+  else {
+    const text = "no " + (ratApproxs.length > 0 ? "more " : "") + "results";
+    $('#ratTableMore').html(text);
+  }
 
   if (toUpdate) {
-    updateURLWithParams({[toUpdate]: $('#' + toUpdate).val()});
+    let params = {"moreRat": moreRat == defaultMoreRat ? "" : moreRat};
+    if ($('#' + toUpdate).val()) { params[toUpdate] = $('#' + toUpdate).val(); }
+    updateURLWithParams(params);
   }
 }
 
@@ -359,6 +371,9 @@ function updateRatApproxs(toUpdate) {
 // current value of the dropdowns, and call `updateURLWithParams` on the
 // given argument, if an argument is given
 function updateEDOApproxs(toUpdate) {
+  if (moreEDO < 1 || (toUpdate && toUpdate !== "moreEDO")) {
+    moreEDO = defaultMoreEDO;
+  }
 
   const loEDO   = parseInt($('#loEDO').val());
   const hiEDO   = parseInt($('#hiEDO').val());
@@ -373,7 +388,7 @@ function updateEDOApproxs(toUpdate) {
   const edoApproxs = fn(res.intv, params);
 
   $('#edoTable').empty();
-  for (let {steps, diff} of edoApproxs.slice(0,10)) {
+  for (let {steps, diff} of edoApproxs.slice(0,10*moreEDO)) {
     let row = $('<tr>');
     let firstNonZero = steps.findIndex(step => step[0] != 0);
     if (firstNonZero == -1) { firstNonZero = steps.length; }
@@ -389,14 +404,22 @@ function updateEDOApproxs(toUpdate) {
     $("#edoTable").append(row);
   }
 
-  let moreText = "";
-  if (edoApproxs.length > 10) {
-    moreText = "show more";
+  if (edoApproxs.length > 10*moreEDO) {
+    let link = $('<a>').attr("href", "javascript:void(0)")
+                       .attr("id", "edoTableMoreLink")
+                       .html("show more");
+    link.click(function() { moreEDO++; updateEDOApproxs("moreEDO"); });
+    $('#edoTableMore').html(link);
   }
-  $('#edoTableMore').html(moreText);
+  else {
+    const text = "no " + (edoApproxs.length > 0 ? "more " : "") + "results";
+    $('#edoTableMore').html(text);
+  }
 
   if (toUpdate) {
-    updateURLWithParams({[toUpdate]: $('#' + toUpdate).val()});
+    let params = {"moreEDO": moreEDO == defaultMoreEDO ? "" : moreEDO};
+    if ($('#' + toUpdate).val()) { params[toUpdate] = $('#' + toUpdate).val(); }
+    updateURLWithParams(params);
   }
 }
 
@@ -472,6 +495,8 @@ function setStateFromURL(e) {
     $('#loEDO')     .change(() => updateEDOApproxs('loEDO'));
     $('#hiEDO')     .change(() => updateEDOApproxs('hiEDO'));
     $('#sortEDO')   .change(() => updateEDOApproxs('sortEDO'));
+    $('#ratTableMoreLink').click(function() { moreRat++; updateRatApproxs("moreRat"); });
+    $('#edoTableMoreLink').click(function() { moreEdo++; updateRatApproxs("moreEDO"); });
     res = e.state.res;
     addXenWikiLink(microtonal_utils.Fraction(res.ratio).toFraction());
   }
@@ -511,6 +536,7 @@ $(document).ready(function() {
 
   // pressing enter!
   $('#enter').click(function() {
+    moreRat = defaultMoreRat; moreEDO = defaultMoreEDO;
     updateResults();
     let toUpdate = {"expr": $('#expr').val()};
     toUpdate["moreRat"] = ""; toUpdate["moreEDO"] = "";

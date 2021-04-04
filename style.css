@@ -110,6 +110,7 @@ h4 {
 .resTable {
   border-spacing: 6px 5px;
   width: 100%;
+  table-layout: fixed;
 }
 .resLeftColumn {
   width: 50%;
@@ -130,6 +131,7 @@ h4 {
   width: auto;
   margin-left: auto;
   margin-right: auto;
+  table-layout: fixed;
 }
 .approxsLeftColumn {
   max-width: 300px;
