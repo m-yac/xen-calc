@@ -222,6 +222,8 @@ function updateURLWithParam(param, val) {
   else {
     url.searchParams.delete(param);
   }
+  console.log(Date.now() + " [pushed]")
+  console.log($('#results').html());
   history.pushState($("#results").html(), $("#expr").val(), url);
 }
 
@@ -396,6 +398,7 @@ function updateEDOApproxs() {
 }
 
 function setStateFromURL(e) {
+  console.log(e);
   const urlParams = new URLSearchParams(window.location.search);
   $('#expr').val(urlParams.has('expr') ? urlParams.get('expr') : "");
   primeLimit = urlParams.has('primeLimit') ? urlParams.get('primeLimit') : 13;
@@ -404,7 +407,8 @@ function setStateFromURL(e) {
   loEDO      = urlParams.has('loEDO')      ? urlParams.get('loEDO')      : 5;
   hiEDO      = urlParams.has('hiEDO')      ? urlParams.get('hiEDO')      : 60;
   sortEDO    = urlParams.has('sortEDO')    ? urlParams.get('sortEDO')    : "EDO";
-  if (e && e.state) {
+  if (e && e.state && e.state.trim() === "") { console.log("Debug: bad popped state!"); }
+  if (e && e.state && e.state.trim() !== "") {
     $('#results').html(e.state);
     $('#primeLimit').on("change", updateRatApproxs);
     $('#oddLimit')  .on("change", updateRatApproxs);
@@ -418,10 +422,12 @@ function setStateFromURL(e) {
   }
 }
 
+window.onpopstate = function (e) { console.log(Date.now() + " [popped]"); setStateFromURL(e); };
+
 $(document).ready(function() {
+  console.log(Date.now() + " [ready]");
   history.replaceState($("#results").html(), "", new URL(window.location));
   setStateFromURL();
-  window.onpopstate = setStateFromURL;
 
   // add accidental buttons
   $('#add_dbl_flat') .click(function() { insertAtCursor("𝄫"); });

@@ -44,6 +44,7 @@ function applySignPerm(sp, intv) {
   * @param {integer} [opts.numIterations] defaults to 1
   * @param {boolean} [opts.useExactDiffs] defaults to false, controls the type
   *                                       of each 'diff' property
+  * @param {boolean} [opts.debug] defaults to false
   * @returns {Pair.<boolean, Array.<{ratio: Fraction, diff: (number|Interval)}>>}
   */
 function bestRationalApproxsByHeight(a,b, opts) {
@@ -57,9 +58,9 @@ function bestRationalApproxsByHeight(a,b, opts) {
     }
   }
   const intv = Interval(a,b);
-  // console.time("bestRationalApproxsByHeight");
-  let {cutoff, primeLimit, oddLimit, startIteration, numIterations, useExactDiffs} = opts;
+  let {cutoff, primeLimit, oddLimit, startIteration, numIterations, useExactDiffs, debug} = opts;
   let [hitOddLimitMax, foundExact] = [false, false];
+  if (debug) { console.time("bestRationalApproxsByHeight"); }
 
   // some heuristics for the iteration size, i.e. the number of odd numbers
   // to check in a given iteration
@@ -133,8 +134,12 @@ function bestRationalApproxsByHeight(a,b, opts) {
       }
     }
   }
-  // console.timeEnd("bestRationalApproxsByHeight");
-  if (hitOddLimitMax || foundExact) { console.log("rationalApprox: exhausted") }
+  if (debug) {
+    console.timeEnd("bestRationalApproxsByHeight");
+    if (hitOddLimitMax || foundExact) {
+      console.log("rationalApprox: exhausted")
+    }
+  }
   return [hitOddLimitMax || foundExact, ret];
 }
 
@@ -148,6 +153,7 @@ function bestRationalApproxsByHeight(a,b, opts) {
   * @param {integer} opts.oddLimit
   * @param {boolean} [opts.useExactDiffs] defaults to false, controls the type
   *                                       of each 'diff' property
+  * @param {boolean} [opts.debug] defaults to false
   * @returns {Array.<{ratio: Fraction, diff: (number|Interval)}>}
   */
 function bestRationalApproxsByDiff(a,b, opts) {
@@ -161,11 +167,11 @@ function bestRationalApproxsByDiff(a,b, opts) {
     }
   }
   const intv = Interval(a,b);
-  // console.time("bestRationalApproxsByDiff");
-  let {primeLimit, oddLimit, useExactDiffs} = opts;
+  let {primeLimit, oddLimit, useExactDiffs, debug} = opts;
   if (!isFinite(oddLimit) || oddLimit < 0) {
-    throw "no valid odd limit given to bestRationalApproxsByDiff!"
+    throw new Error("no valid odd limit given to bestRationalApproxsByDiff!");
   }
+  if (debug) { console.time("bestRationalApproxsByDiff"); }
 
   let ret = [];
   for (let a = 1; a <= oddLimit; a += 2) {
@@ -197,7 +203,7 @@ function bestRationalApproxsByDiff(a,b, opts) {
       }
     }
   }
-  // console.timeEnd("bestRationalApproxsByDiff");
+  if (debug) { console.timeEnd("bestRationalApproxsByDiff"); }
   return ret.map(x => ({ ratio: x.ratio, diff: useExactDiffs ? x.diff : x.diff.toCents() }));
 }
 
@@ -309,7 +315,7 @@ module.exports.bestRationalApproxsByDiff   = bestRationalApproxsByDiff;
 module.exports.bestEDOApproxsByEDO  = bestEDOApproxsByEDO;
 module.exports.bestEDOApproxsByDiff = bestEDOApproxsByDiff;
 
-},{"./edo.js":2,"./interval.js":6,"fraction.js":12,"primes-and-factors":16}],2:[function(require,module,exports){
+},{"./edo.js":2,"./interval.js":6,"fraction.js":11,"primes-and-factors":15}],2:[function(require,module,exports){
 /**
  * Functions for working with intervals in an EDO
  * @copyright 2021 Matthew Yacavone (matthew [at] yacavone [dot] net)
@@ -349,7 +355,7 @@ function edoPy(edo,a,b) {
   const g = Fraction(py.pyGenerator(i) * edoApprox(edo,3,2), 4);
   const v = py.pyOctaves(i);
   if (g.d != 1) {
-    throw edo + "-EDO has no " + py.pySymb(i,{verbosity:1}) + " interval"
+    throw new Error(edo + "-EDO has no " + py.pySymb(i,{verbosity:1}) + " interval");
   }
   return g.s*g.n + v * edo;
 }
@@ -587,7 +593,7 @@ module['exports'].updnsSymb = updnsSymb;
 module['exports'].updnsNoteCache = updnsNoteCache;
 module['exports'].updnsNote = updnsNote;
 
-},{"./interval.js":6,"./pythagorean.js":11,"fraction.js":12,"mathutils":13}],3:[function(require,module,exports){
+},{"./interval.js":6,"./pythagorean.js":10,"fraction.js":11,"mathutils":12}],3:[function(require,module,exports){
 /**
  * English names for intervals based on the Neutral FJS and ups-and-downs
  * notations (very much incomplete!)
@@ -742,7 +748,7 @@ function enNames(a,b, opts) {
 
 module.exports.enNames = enNames;
 
-},{"./edo.js":2,"./fjs.js":4,"./interval.js":6,"./pythagorean.js":11,"fraction.js":12,"primes-and-factors":16}],4:[function(require,module,exports){
+},{"./edo.js":2,"./fjs.js":4,"./interval.js":6,"./pythagorean.js":10,"fraction.js":11,"primes-and-factors":15}],4:[function(require,module,exports){
 /**
  * Functions for working with FJS intervals
  * @copyright 2021 Matthew Yacavone (matthew [at] yacavone [dot] net)
@@ -856,7 +862,7 @@ function fjsComma(p, params) {
   if (!params) { params = fjsParams; }
   p = parseInt(p);
   if (!pf.isPrime(p) || p <= 3) {
-    throw "input is not a prime interval greater than 3";
+    throw new Error ("input is not a prime interval greater than 3");
   }
   const fifthsSeqGen = params.fifthsSeq();
   for (const g of fifthsSeqGen) {
@@ -994,7 +1000,7 @@ module['exports'].fjsAccidentals = fjsAccidentals;
 module['exports'].fjsSymb = fjsSymb;
 module['exports'].fjsNote = fjsNote;
 
-},{"./interval.js":6,"./pythagorean.js":11,"fraction.js":12,"primes-and-factors":16}],5:[function(require,module,exports){
+},{"./interval.js":6,"./pythagorean.js":10,"fraction.js":11,"primes-and-factors":15}],5:[function(require,module,exports){
 // export everything from `lib/` as well as `Fraction` from fraction.js
 module['exports']['Fraction'] = require('fraction.js');
 module['exports']['Interval'] = require('./interval.js');
@@ -1005,7 +1011,7 @@ Object.assign(module['exports'], require('./approx.js'));
 Object.assign(module['exports'], require('./english.js'));
 Object.assign(module['exports'], require('./parser.js'));
 
-},{"./approx.js":1,"./edo.js":2,"./english.js":3,"./fjs.js":4,"./interval.js":6,"./parser.js":7,"./pythagorean.js":11,"fraction.js":12}],6:[function(require,module,exports){
+},{"./approx.js":1,"./edo.js":2,"./english.js":3,"./fjs.js":4,"./interval.js":6,"./parser.js":7,"./pythagorean.js":10,"fraction.js":11}],6:[function(require,module,exports){
 /**
  * The interval datatype, based on `Fraction` from `fraction.js` on npm
  * @copyright 2021 Matthew Yacavone (matthew [at] yacavone [dot] net)
@@ -1034,7 +1040,7 @@ const parse = function(a, b) {
   }
   else if (b !== undefined) {
     if (a == 0 || a < 0 || b == 0 || b < 0) {
-      throw "non-positive number cannot be converted into an interval"
+      throw new Error("non-positive number cannot be converted into an interval");
     }
     const afs = pf.getPrimeExponentObject(a);
     const bfs = pf.getPrimeExponentObject(b);
@@ -1064,7 +1070,7 @@ const parse = function(a, b) {
       if (allPrimes) {
         return ret;
       } else {
-        throw "argument is not a number, fraction, or interval"
+        throw new Error("invalid arguments to Interval: " + a + ", " + b);
       }
     }
   }
@@ -1231,7 +1237,7 @@ Interval.prototype = {
       if (this[i].d == 1) {
         ret = ret.mul(Fraction(i).pow(this[i].s * this[i].n));
       } else {
-        throw "interval does not have integer exponents";
+        throw new Error("interval does not have integer exponents");
       }
     }
     return ret;
@@ -1281,7 +1287,7 @@ Interval.prototype = {
   "toNthRootString": function() {
     const {k,n} = this.toNthRoot();
     if (!isFinite(k.n) || !isFinite(k.d)) {
-      throw "interval exponent is too large!"
+      throw new Error("interval exponent is too large!");
     }
     if (n == 1) { return k.toFraction(); }
     if (n == 2) { return "sqrt(" + k.toFraction() + ")" }
@@ -1533,7 +1539,7 @@ Interval.prototype = {
 
 module.exports = Interval;
 
-},{"fraction.js":12,"primes-and-factors":16}],7:[function(require,module,exports){
+},{"fraction.js":11,"primes-and-factors":15}],7:[function(require,module,exports){
 /**
  * Interface for parsing interval/note expressions
  * @copyright 2021 Matthew Yacavone (matthew [at] yacavone [dot] net)
@@ -1544,7 +1550,7 @@ const ne = require('nearley');
 const Fraction = require('fraction.js');
 const Interval = require('./interval.js');
 const grammar = require('./parser/grammar.js');
-const {evalExpr} = require('./parser/eval.js');
+const {ParseError, OtherError, evalExpr} = require('./parser/eval.js');
 const {isPythagorean, pySymb, pyNote} = require('./pythagorean.js');
 const {fjsSymb, fjsNote, nfjsParams} = require('./fjs.js');
 const {edoApprox, edoPy, updnsSymb, updnsNote} = require('./edo.js');
@@ -1603,28 +1609,37 @@ function expectedSymbols(parser) {
 function parse(str) {
 
   const parser = new ne.Parser(ne.Grammar.fromCompiled(grammar));
-  try { parser.feed(str); }
-  catch (err) {
-    const errStr = "\n" + str + "\n" + " ".repeat(err.offset) + "^\n"
-                 + "Parse error, " + expectedSymbols(parser);
-    throw new Error(errStr);
-  }
-  let results = parser.results;
+  let results;
 
-  for (let i = 0; i < results.length; i++) {
-    const res = evalExpr(results[i].expr, results[i].refNote);
-    results[i].val = res.val;
-    results[i].prefEDO = res.prefEDO;
-  }
-
-  if (results.length == 0) {
-    try { parser.feed("$"); }
-    catch (err) {
-      const errStr = "\n" + str + "\n" + " ".repeat(err.offset) + "^\n"
-                   + "Parse error, " + expectedSymbols(parser);
-      throw new Error(errStr);
+  try {
+    parser.feed(str);
+    results = parser.results;
+    // the below will ensure an error is thrown if the input has no parses
+    if (results.length == 0) {
+      parser.feed("$");
     }
   }
+  catch (err) {
+    if (err.name != "LocatedError") {
+      err = new ParseError(expectedSymbols(parser), err.offset);
+    }
+    throw err.toError(str);
+  }
+
+  try {
+    for (let i = 0; i < results.length; i++) {
+      const res = evalExpr(results[i].expr, results[i].refNote);
+      results[i].val = res.val;
+      results[i].prefEDO = res.prefEDO;
+    }
+  }
+  catch (err) {
+    if (err.name != "LocatedError") {
+      err = new OtherError(err.message, err.offset);
+    }
+    throw err.toError(str);
+  }
+
   if (results.some(d => d.type[0] == "interval" && d.type[1] == "symbol")) {
     results = results.filter(d => !(d.type[0] == "interval" && d.type[1] != "symbol"));
   }
@@ -1783,7 +1798,7 @@ function parseCvt(str) {
 module['exports'].parse = parse;
 module['exports'].parseCvt = parseCvt;
 
-},{"./edo.js":2,"./english.js":3,"./fjs.js":4,"./interval.js":6,"./parser/eval.js":8,"./parser/grammar.js":10,"./pythagorean.js":11,"fraction.js":12,"nearley":14}],8:[function(require,module,exports){
+},{"./edo.js":2,"./english.js":3,"./fjs.js":4,"./interval.js":6,"./parser/eval.js":8,"./parser/grammar.js":9,"./pythagorean.js":10,"fraction.js":11,"nearley":13}],8:[function(require,module,exports){
 /**
  * A function for evaluating the results of running `grammar.ne`
  * @copyright 2021 Matthew Yacavone (matthew [at] yacavone [dot] net)
@@ -1792,9 +1807,68 @@ module['exports'].parseCvt = parseCvt;
 
 const Fraction = require('fraction.js');
 const Interval = require('../interval.js');
-const {pyInterval, isPerfectDeg, baseNoteIntvToA} = require('../pythagorean.js');
+const {pyInterval, isPerfectDeg} = require('../pythagorean.js');
 const {fjsFactor} = require('../fjs.js');
 const {edoApprox, edoPy, edoHasNeutrals, edoHasSemiNeutrals} = require('../edo.js');
+
+/**
+ * Class representing an error with a location in a string
+ * @extends Error
+ */
+class LocatedError extends Error {
+  /*
+   * Create a `LocatedError`
+   * @param {string} kind e.g. "Parse error" or "Error"
+   * @param {string} message
+   * @param {integer} loc the index of where the error occurs in a string
+   */
+  constructor(kind, message, loc) {
+    super(message);
+    this.name = "LocatedError";
+    this.kind = kind;
+    this.offset = loc;
+  }
+  /*
+   * Format a `LocatedError` using the string the error is about, producing a
+   * regular `Error` with a nicely formatted `message`
+   * @param {string} str
+   */
+  toError(str) {
+    const errStr = "\n" + str + "\n" + " ".repeat(this.offset) + "^\n"
+                   + this.kind + ": " + this.message;
+    return new Error(errStr);
+  }
+}
+
+/**
+ * A `LocatedError` which is a parse error, i.e. has `kind` "Parse error"
+ * @extends LocatedError
+ */
+class ParseError extends LocatedError {
+  /*
+   * Create a `ParseError`
+   * @param {string} message
+   * @param {integer} loc the index of where the error occurs in a string
+   */
+  constructor(message, loc) {
+    super("Parse error", message, loc);
+  }
+}
+
+/**
+ * A `LocatedError` which is some other error, i.e. has `kind` "Error"
+ * @extends LocatedError
+ */
+class OtherError extends LocatedError {
+  /*
+   * Create an `OtherError`
+   * @param {string} message
+   * @param {integer} loc the index of where the error occurs in a string
+   */
+  constructor(message, loc) {
+    super("Error", message, loc);
+  }
+}
 
 function cbnEDOs(a,b) {
   return a && b ? Fraction(1,a).gcd(1,b).d : undefined
@@ -1819,45 +1893,82 @@ function evalExpr(e, r, edo) {
     if (e[0] == "!refIntvToA4") {
       return { val: r.intvToA4 };
     }
-    if (e[0] == "!refHertz") {
+    else if (e[0] == "!refHertz") {
       return { val: r.hertz };
     }
-    if (e[0] == "!med") { // `edo` should be undefined
+    else if (e[0] == "!med") { // `edo` should not be defined
       const arg0 = evalExpr(e[1],r).val;
       const arg1 = evalExpr(e[2],r).val;
       if (arg0.isFrac() && arg1.isFrac()) {
         return { val: arg0.med(arg1) };
       }
       else {
-        throw "One of the arguments to `med` is not a fraction"
+        throw new OtherError("One of the arguments to `med` is not a fraction", loc);
       }
     }
-    if (e[0] == "!cents") { // `edo` should be undefined
+    else if (e[0] == "!cents") { // `edo` should not be defined
       const arg0 = Fraction(evalExpr(e[1],r).val).div(1200);
       return { val: Interval(2).pow(arg0)
              , prefEDO: 48 % arg0.d == 0 ? 24 % arg0.d == 0 ? 12 % arg0.d == 0 ? 12 : 24 : 48 : undefined };
     }
-    if (e[0] == "!edoApprox") { // `edo` should not be defined
+    else if (e[0] == "!edoApprox") { // `edo` should not be defined
       const arg0 = evalExpr(e[1],r).val;
       const arg1 = evalExpr(e[2],r).val;
       return { val: Interval(2).pow(edoApprox(arg1, arg0)).pow(1,arg1), prefEDO: arg1 };
     }
-    if (e[0] == "!inEDO") { // `edo` should be undefined
+    else if (e[0] == "!inEDO") { // `edo` should not be defined
       const arg1 = evalExpr(e[2],r).val;
       const arg0 = evalExpr(e[1],r,arg1).val;
       return { val: Interval(2).pow(arg0).pow(1,arg1), prefEDO: arg1 };
     }
-    if (e[0] == "!edoTT") { // `edo` should be defined
+    else if (e[0] == "!edoTT") { // `edo` should be defined
+      const loc = e[1];
       if (edo % 2 == 0) {
         return { val: edo / 2 };
       }
       else {
-        throw edo + "-EDO does not have a tritone";
+        throw new OtherError(edo + "-EDO does not have a tritone", loc);
       }
     }
-    if (e[0] == "!edoPy") { // `edo` should be defined
+    else if (e[0] == "!edoPy") { // `edo` should be defined
       const arg0 = evalExpr(e[1],r,edo).val;
-      return { val: edoPy(edo, arg0) };
+      const loc = e[2];
+      try { return { val: edoPy(edo, arg0) }; }
+      catch (err) {
+        throw new OtherError(err.message, loc);
+      }
+    }
+    else if (e[0] == "!perfPyIntv") { // `edo` may be defined
+      const [d, loc] = [e[1], e[2]];
+      if (isPerfectDeg(d)) { return { val: pyInterval(d,0) }; }
+      else { throw new OtherError("P" + d + " is not a valid interval ("
+                                      + d + " is not a perfect scale degree)", loc); }
+    }
+    else if (e[0] == "!nonPerfPyIntv") { // `edo` may be defined
+      const [d, o, q, loc] = [e[1], e[2], e[3], e[4]];
+      if (!isPerfectDeg(d)) { return { val: pyInterval(d,o) }; }
+      else { throw new OtherError(q + d + " is not a valid interval ("
+                                    + d + " is a perfect scale degree)", loc); }
+    }
+    else if (e[0] == "!augOrDimPyIntv") { // `edo` may be defined
+      const [d, a, b, loc] = [e[1], e[2], e[3], e[4]];
+      const o = Fraction(a,b);
+      const o_np = o.add(o.s,2);
+      return { val: isPerfectDeg(d) ? pyInterval(d,o) : pyInterval(d,o_np) };
+    }
+    else if (e[0] == "!ensureNo2Or3") { // `edo` should not be defined
+      const [k, loc] = [e[1], e[2]];
+      if ((k['2'] && !k['2'].equals(0)) || (k['3'] && !k['3'].equals(0))) {
+        throw new OtherError("FJS accidental cannot contain a factor or 2 or 3", loc);
+      }
+      return { val: k };
+    }
+    else if (e[0] == "!fjsFactor") { // `edo` should not be defined
+      const arg0 = evalExpr(e[1],r).val;
+      return { val: fjsFactor(arg0, e[2]) };
+    }
+    else if (e[0][0] == "!") {
+      throw new LocatedError("Panic", "command " + e[0] + " not defined!", 0);
     }
 
     // for the remaining cases, we evaluate every argument
@@ -1890,55 +2001,12 @@ function evalExpr(e, r, edo) {
   return { val: e, prefEDO: e == 2 ? 1 : undefined };
 }
 
+module['exports'].LocatedError = LocatedError;
+module['exports'].ParseError = ParseError;
+module['exports'].OtherError = OtherError;
 module['exports'].evalExpr = evalExpr;
 
-},{"../edo.js":2,"../fjs.js":4,"../interval.js":6,"../pythagorean.js":11,"fraction.js":12}],9:[function(require,module,exports){
-
-const Fraction = require('fraction.js');
-const Interval = require('../interval.js');
-const {pyInterval, isPerfectDeg, baseNoteIntvToA} = require('../pythagorean.js');
-const {fjsFactor} = require('../fjs.js');
-const {edoPy, edoHasNeutrals, edoHasSemiNeutrals} = require('../edo.js');
-
-const defaultRefNote = { intvToA4: Interval(1), hertz: Interval(440) };
-
-function perfPyInterval(d,o,reject) {
-  return isPerfectDeg(d) ? pyInterval(d,o) : reject;
-}
-function nonPerfPyInterval(d,o,reject) {
-  return isPerfectDeg(d) ? reject : pyInterval(d,o);
-}
-function augOrDimPyInterval(d,a,b,reject) {
-  const o = Fraction(a,b);
-  if (o.d != b) {
-    return reject;
-  }
-  const o_np = o.add(o.s,2);
-  return isPerfectDeg(d) ? pyInterval(d,o) : pyInterval(d,o_np);
-}
-
-function ensureNo2Or3(i,reject) {
-  return (i['2'] && i['2'] != 0) || (i['3'] && i['3'] != 0) ? reject : i;
-}
-
-function cbnEDOs(a,b) {
-  if (a && b) { return Fraction(1,a).gcd(1,b).d; }
-  else { return null; }
-}
-
-function baseNoteIntvToReference(x,referenceNoteIntvToA4) {
-  return baseNoteIntvToA(x).div(referenceNoteIntvToA4);
-}
-
-module['exports'].defaultRefNote = defaultRefNote;
-module['exports'].perfPyInterval = perfPyInterval;
-module['exports'].nonPerfPyInterval = nonPerfPyInterval;
-module['exports'].augOrDimPyInterval = augOrDimPyInterval;
-module['exports'].ensureNo2Or3 = ensureNo2Or3;
-module['exports'].cbnEDOs = cbnEDOs;
-module['exports'].baseNoteIntvToReference = baseNoteIntvToReference;
-
-},{"../edo.js":2,"../fjs.js":4,"../interval.js":6,"../pythagorean.js":11,"fraction.js":12}],10:[function(require,module,exports){
+},{"../edo.js":2,"../fjs.js":4,"../interval.js":6,"../pythagorean.js":10,"fraction.js":11}],9:[function(require,module,exports){
 // Generated automatically by nearley, version 2.19.8
 // http://github.com/Hardmath123/nearley
 (function () {
@@ -1947,11 +2015,12 @@ function id(x) { return x[0]; }
 
 const Fraction = require('fraction.js');
 const Interval = require('../interval.js');
-const {pyInterval, pyRedDeg, baseNoteIntvToA} = require('../pythagorean.js');
+const {pyInterval, pyNote, pyRedDeg, baseNoteIntvToA} = require('../pythagorean.js');
 const {fjsFactor, fjsParams, nfjsParams} = require('../fjs.js');
 const {edoPy} = require('../edo.js');
-const helpers = require('./grammar-helpers.js');
-const {evalExpr} = require('./eval.js');
+const {ParseError, evalExpr} = require('./eval.js');
+
+const defaultRefNote = { intvToA4: Interval(1), hertz: Interval(440) };
 
 var grammar = {
     Lexer: undefined,
@@ -1963,23 +2032,22 @@ var grammar = {
     {"name": "__$ebnf$1", "symbols": ["__$ebnf$1", "wschar"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "__", "symbols": ["__$ebnf$1"], "postprocess": function(d) {return null;}},
     {"name": "wschar", "symbols": [/[ \t\n\v\f]/], "postprocess": id},
-    {"name": "top1", "symbols": ["_", "top2", "_"], "postprocess":  function (d,_,reject) { let d1 = Object.assign({},d[1]); // copy this!
-        d1.refNote = helpers.defaultRefNote;
+    {"name": "top1", "symbols": ["_", "top2", "_"], "postprocess":  function (d) { let d1 = Object.assign({},d[1]); // copy this!
+        d1.refNote = defaultRefNote;
         return d1; } },
     {"name": "top1$string$1", "symbols": [{"literal":"w"}, {"literal":"h"}, {"literal":"e"}, {"literal":"r"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "top1$ebnf$1", "symbols": ["hertz"], "postprocess": id},
     {"name": "top1$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "top1", "symbols": ["_", "top2", "__", "top1$string$1", "__", "pyNote", "_", {"literal":"="}, "_", "decimal", "top1$ebnf$1", "_"], "postprocess":  function (d,_,reject) { let d1 = Object.assign({},d[1]); // copy this!
+    {"name": "top1", "symbols": ["_", "top2", "__", "top1$string$1", "__", "pyNote", "_", {"literal":"="}, "_", "decimal", "top1$ebnf$1", "_"], "postprocess":  function (d) { let d1 = Object.assign({},d[1]); // copy this!
         d1.refNote = {};
-        d1.refNote.intvToA4 = evalExpr(d[5], helpers.defaultRefNote).val;
+        d1.refNote.intvToA4 = evalExpr(d[5], defaultRefNote).val;
         d1.refNote.hertz    = Interval(d[9]);
         return d1; } },
     {"name": "top1$string$2", "symbols": [{"literal":"w"}, {"literal":"h"}, {"literal":"e"}, {"literal":"r"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "top1", "symbols": ["_", "top2", "__", "top1$string$2", "__", "pyNote", "_", {"literal":"="}, "_", "pyNote", "_", {"literal":"\\"}, "_", "posInt", "_"], "postprocess":  function (d,_,reject) { let d1 = Object.assign({},d[1]); // copy this!
-        const d5 = evalExpr(d[5], helpers.defaultRefNote).val;
-        const d9 = evalExpr(d[9], helpers.defaultRefNote).val;
+    {"name": "top1", "symbols": ["_", "top2", "__", "top1$string$2", "__", "pyNote", "_", {"literal":"="}, "_", "eqPyNote", "_", {"literal":"\\"}, "_", "posInt", "_"], "postprocess":  function (d) { let d1 = Object.assign({},d[1]); // copy this!
+        const d5 = evalExpr(d[5], defaultRefNote).val;
+        const d9 = d[9](d5);
         const d13 = parseInt(d[13]);
-        if (!d5 || !d5.equals(d9)) { return reject; }
         d1.refNote = {};
         d1.refNote.intvToA4 = d9;
         d1.refNote.hertz    = Interval(2).pow(edoPy(d13,d9),d13).mul(440);
@@ -1990,6 +2058,13 @@ var grammar = {
     {"name": "top2", "symbols": ["noteSExpr1"], "postprocess": d => ({type: ["note", "symbol"], expr: d[0]})},
     {"name": "top2", "symbols": ["noteMExpr1"], "postprocess": d => ({type: ["note", "multiplicative"], expr: d[0]})},
     {"name": "top2", "symbols": ["noteAExpr1"], "postprocess": d => ({type: ["note", "additive"], expr: d[0]})},
+    {"name": "eqPyNote", "symbols": ["pyNote"], "postprocess":  (d,loc,_) => function(ref) {
+          let d0 = evalExpr(d[0], defaultRefNote).val;
+          if (!ref || !ref.equals(d0)) {
+            throw new ParseError("expected " + pyNote(ref), loc);
+          }
+          return d0;
+        } },
     {"name": "intvMExpr1", "symbols": ["intvMExpr1", "_", {"literal":"*"}, "_", "intvMExpr2"], "postprocess": d => ["mul", d[0], d[4]]},
     {"name": "intvMExpr1", "symbols": ["intvMExpr1", "_", {"literal":"/"}, "_", "intvMExpr2"], "postprocess": d => ["div", d[0], d[4]]},
     {"name": "intvMExpr1", "symbols": ["noteMExpr1", "_", {"literal":"/"}, "_", "noteMExpr2"], "postprocess": d => ["div", d[0], d[4]]},
@@ -1997,18 +2072,20 @@ var grammar = {
     {"name": "intvMExpr2", "symbols": ["intvMExpr3", "_", {"literal":"^"}, "_", "frcExpr3"], "postprocess": d => ["pow", d[0], d[4]]},
     {"name": "intvMExpr2$string$1", "symbols": [{"literal":"s"}, {"literal":"q"}, {"literal":"r"}, {"literal":"t"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$1", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["sqrt", d[4]]},
-    {"name": "intvMExpr2$string$2", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$2", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["red", d[4]]},
-    {"name": "intvMExpr2$string$3", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$3", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["reb", d[4]]},
-    {"name": "intvMExpr2$string$4", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$4", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":","}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["red", d[4], d[8]]},
-    {"name": "intvMExpr2$string$5", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$5", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":","}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["reb", d[4], d[8]]},
-    {"name": "intvMExpr2$string$6", "symbols": [{"literal":"m"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$6", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":","}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["!med", d[4], d[8]]},
-    {"name": "intvMExpr2$string$7", "symbols": [{"literal":"a"}, {"literal":"p"}, {"literal":"p"}, {"literal":"r"}, {"literal":"o"}, {"literal":"x"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$7", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":","}, "_", "posInt", "_", {"literal":")"}], "postprocess": d => ["!edoApprox", d[4], parseInt(d[8])]},
+    {"name": "intvMExpr2$string$2", "symbols": [{"literal":"r"}, {"literal":"o"}, {"literal":"o"}, {"literal":"t"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$2", "posInt", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["root", d[5], d[1]]},
+    {"name": "intvMExpr2$string$3", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$3", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["red", d[4]]},
+    {"name": "intvMExpr2$string$4", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$4", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["reb", d[4]]},
+    {"name": "intvMExpr2$string$5", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$5", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":","}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["red", d[4], d[8]]},
+    {"name": "intvMExpr2$string$6", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$6", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":","}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["reb", d[4], d[8]]},
+    {"name": "intvMExpr2$string$7", "symbols": [{"literal":"m"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$7", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":","}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!med", d[4], d[8], loc]},
+    {"name": "intvMExpr2$string$8", "symbols": [{"literal":"a"}, {"literal":"p"}, {"literal":"p"}, {"literal":"r"}, {"literal":"o"}, {"literal":"x"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$8", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":","}, "_", "posInt", "_", {"literal":")"}], "postprocess": d => ["!edoApprox", d[4], parseInt(d[8])]},
     {"name": "intvMExpr2", "symbols": ["intvSymbol"], "postprocess": id},
     {"name": "intvMExpr2", "symbols": ["intvMExpr3"], "postprocess": id},
     {"name": "intvMExpr3", "symbols": ["posInt"], "postprocess": d => Interval(d[0])},
@@ -2066,7 +2143,7 @@ var grammar = {
     {"name": "intvMEDOExpr2", "symbols": ["intvMEDOExpr3"], "postprocess": id},
     {"name": "intvMEDOExpr3", "symbols": ["upsDnsIntv"], "postprocess": id},
     {"name": "intvMEDOExpr3$string$1", "symbols": [{"literal":"T"}, {"literal":"T"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvMEDOExpr3", "symbols": ["intvMEDOExpr3$string$1"], "postprocess": d => ["!edoTT"]},
+    {"name": "intvMEDOExpr3", "symbols": ["intvMEDOExpr3$string$1"], "postprocess": d => ["!edoTT", loc]},
     {"name": "intvMEDOExpr3", "symbols": [{"literal":"("}, "_", "intvMEDOExpr1", "_", {"literal":")"}], "postprocess": d => d[2]},
     {"name": "noteMEDOExpr1", "symbols": ["noteMEDOExpr1", "_", {"literal":"*"}, "_", "intvMEDOExpr2"], "postprocess": d => ["+", d[0], d[4]]},
     {"name": "noteMEDOExpr1", "symbols": ["intvMEDOExpr1", "_", {"literal":"*"}, "_", "noteMEDOExpr2"], "postprocess": d => ["+", d[0], d[4]]},
@@ -2128,35 +2205,35 @@ var grammar = {
     {"name": "noteSymbol$string$1", "symbols": [{"literal":"N"}, {"literal":"F"}, {"literal":"J"}, {"literal":"S"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "noteSymbol", "symbols": ["noteSymbol$string$1", "_", {"literal":"("}, "_", "nfjsNote", "_", {"literal":")"}], "postprocess": d => d[4]},
     {"name": "noteSymbol", "symbols": ["npyNote"], "postprocess": id},
-    {"name": "pyIntv", "symbols": [{"literal":"P"}, "pyDeg"], "postprocess": (d,_,reject) => helpers.perfPyInterval(d[1],0,reject)},
-    {"name": "pyIntv", "symbols": [{"literal":"M"}, "pyDeg"], "postprocess": (d,_,reject) => helpers.nonPerfPyInterval(d[1],Fraction(1,2),reject)},
-    {"name": "pyIntv", "symbols": [{"literal":"m"}, "pyDeg"], "postprocess": (d,_,reject) => helpers.nonPerfPyInterval(d[1],Fraction(-1,2),reject)},
+    {"name": "pyIntv", "symbols": [{"literal":"P"}, "pyDeg"], "postprocess": (d,loc,_) => ["!perfPyIntv", d[1], loc]},
+    {"name": "pyIntv", "symbols": [{"literal":"M"}, "pyDeg"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], Fraction(1,2), "M", loc]},
+    {"name": "pyIntv", "symbols": [{"literal":"m"}, "pyDeg"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], Fraction(-1,2), "m", loc]},
     {"name": "pyIntv$ebnf$1", "symbols": [{"literal":"A"}]},
     {"name": "pyIntv$ebnf$1", "symbols": ["pyIntv$ebnf$1", {"literal":"A"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "pyIntv", "symbols": ["pyIntv$ebnf$1", "pyDeg"], "postprocess": (d,_,reject) => helpers.augOrDimPyInterval(d[1],d[0].length,1,reject)},
+    {"name": "pyIntv", "symbols": ["pyIntv$ebnf$1", "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[1], d[0].length, 1, loc]},
     {"name": "pyIntv$ebnf$2", "symbols": [{"literal":"d"}]},
     {"name": "pyIntv$ebnf$2", "symbols": ["pyIntv$ebnf$2", {"literal":"d"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "pyIntv", "symbols": ["pyIntv$ebnf$2", "pyDeg"], "postprocess": (d,_,reject) => helpers.augOrDimPyInterval(d[1],-d[0].length,1,reject)},
-    {"name": "pyIntv", "symbols": ["posInt", {"literal":"A"}, "pyDeg"], "postprocess": (d,_,reject) => helpers.augOrDimPyInterval(d[2],d[0],1,reject)},
-    {"name": "pyIntv", "symbols": ["posInt", {"literal":"d"}, "pyDeg"], "postprocess": (d,_,reject) => helpers.augOrDimPyInterval(d[2],d[0],1,reject)},
+    {"name": "pyIntv", "symbols": ["pyIntv$ebnf$2", "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[1], -d[0].length, 1, loc]},
+    {"name": "pyIntv", "symbols": ["posInt", {"literal":"A"}, "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], d[0], 1, loc]},
+    {"name": "pyIntv", "symbols": ["posInt", {"literal":"d"}, "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], d[0], 1, loc]},
     {"name": "npyIntv$subexpression$1", "symbols": [/[nN]/], "postprocess": function(d) {return d.join(""); }},
-    {"name": "npyIntv", "symbols": ["npyIntv$subexpression$1", "pyDeg"], "postprocess": (d,_,reject) => helpers.nonPerfPyInterval(d[1],0,reject)},
+    {"name": "npyIntv", "symbols": ["npyIntv$subexpression$1", "pyDeg"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], 0, "n", loc]},
     {"name": "npyIntv$string$1", "symbols": [{"literal":"s"}, {"literal":"A"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "npyIntv", "symbols": ["npyIntv$string$1", "pyDeg"], "postprocess": (d,_,reject) => helpers.augOrDimPyInterval(d[1],1,2,reject)},
+    {"name": "npyIntv", "symbols": ["npyIntv$string$1", "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[1], 1, 2, loc]},
     {"name": "npyIntv$string$2", "symbols": [{"literal":"s"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "npyIntv", "symbols": ["npyIntv$string$2", "pyDeg"], "postprocess": (d,_,reject) => helpers.augOrDimPyInterval(d[1],-1,2,reject)},
+    {"name": "npyIntv", "symbols": ["npyIntv$string$2", "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[1], -1, 2, loc]},
     {"name": "npyIntv$string$3", "symbols": [{"literal":"/"}, {"literal":"2"}, {"literal":"-"}, {"literal":"A"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "npyIntv", "symbols": ["posInt", "npyIntv$string$3", "pyDeg"], "postprocess": (d,_,reject) => helpers.augOrDimPyInterval(d[2],d[0],2,reject)},
+    {"name": "npyIntv", "symbols": ["posInt", "npyIntv$string$3", "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], d[0], 2, loc]},
     {"name": "npyIntv$string$4", "symbols": [{"literal":"/"}, {"literal":"2"}, {"literal":"-"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "npyIntv", "symbols": ["posInt", "npyIntv$string$4", "pyDeg"], "postprocess": (d,_,reject) => helpers.augOrDimPyInterval(d[2],d[0],2,reject)},
+    {"name": "npyIntv", "symbols": ["posInt", "npyIntv$string$4", "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], d[0], 2, loc]},
     {"name": "snpyIntv$string$1", "symbols": [{"literal":"s"}, {"literal":"M"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "snpyIntv", "symbols": ["snpyIntv$string$1", "pyDeg"], "postprocess": (d,_,reject) => helpers.nonPerfPyInterval(d[1],Fraction(1,4),reject)},
+    {"name": "snpyIntv", "symbols": ["snpyIntv$string$1", "pyDeg"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], Fraction(1,4), "sM", loc]},
     {"name": "snpyIntv$string$2", "symbols": [{"literal":"s"}, {"literal":"m"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "snpyIntv", "symbols": ["snpyIntv$string$2", "pyDeg"], "postprocess": (d,_,reject) => helpers.nonPerfPyInterval(d[1],Fraction(-1,4),reject)},
+    {"name": "snpyIntv", "symbols": ["snpyIntv$string$2", "pyDeg"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], Fraction(-1,4), "sm", loc]},
     {"name": "snpyIntv$string$3", "symbols": [{"literal":"/"}, {"literal":"4"}, {"literal":"-"}, {"literal":"A"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "snpyIntv", "symbols": ["posInt", "snpyIntv$string$3", "pyDeg"], "postprocess": (d,_,reject) => helpers.augOrDimPyInterval(d[2],d[0],4,reject)},
+    {"name": "snpyIntv", "symbols": ["posInt", "snpyIntv$string$3", "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], d[0], 4, loc]},
     {"name": "snpyIntv$string$4", "symbols": [{"literal":"/"}, {"literal":"4"}, {"literal":"-"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "snpyIntv", "symbols": ["posInt", "snpyIntv$string$4", "pyDeg"], "postprocess": (d,_,reject) => helpers.augOrDimPyInterval(d[2],d[0],4,reject)},
+    {"name": "snpyIntv", "symbols": ["posInt", "snpyIntv$string$4", "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], d[0], 4, loc]},
     {"name": "pyDeg", "symbols": ["posInt"], "postprocess": d => parseInt(d[0])},
     {"name": "pyDeg", "symbols": [{"literal":"-"}, "posInt"], "postprocess": d => - parseInt(d[1])},
     {"name": "pyNote", "symbols": [{"literal":"A"}], "postprocess": _ => ["recip", ["!refIntvToA4"]]},
@@ -2302,25 +2379,26 @@ var grammar = {
     {"name": "nfjsNonNeutNote$macrocall$1", "symbols": ["nfjsNonNeutNote$macrocall$3", {"literal":"^"}, "fjsAccs"], "postprocess": d => params => ["mul", d[0][0], d[2](params)]},
     {"name": "nfjsNonNeutNote$macrocall$1", "symbols": ["nfjsNonNeutNote$macrocall$3", {"literal":"_"}, "fjsAccs"], "postprocess": d => params => ["div", d[0][0], d[2](params)]},
     {"name": "nfjsNonNeutNote", "symbols": ["nfjsNonNeutNote$macrocall$1"], "postprocess": d => d[0](nfjsParams)},
-    {"name": "fjsAccs", "symbols": ["fjsAcc"], "postprocess": d => params => fjsFactor(d[0], params)},
-    {"name": "fjsAccs", "symbols": ["fjsAccs", {"literal":","}, "fjsAcc"], "postprocess": d => params => d[0](params).mul(fjsFactor(d[2], params))},
-    {"name": "fjsAcc", "symbols": ["posInt"], "postprocess": (d,_,reject) => helpers.ensureNo2Or3(Interval(d[0]),reject)},
+    {"name": "fjsAccs", "symbols": ["fjsAccOk"], "postprocess": d => params => ["!fjsFactor", d[0], params]},
+    {"name": "fjsAccs", "symbols": ["fjsAccs", {"literal":","}, "fjsAccOk"], "postprocess": d => params => ["mul", d[0](params), ["!fjsFactor", d[2], params]]},
+    {"name": "fjsAccOk", "symbols": ["fjsAcc"], "postprocess": (d,loc,_) => ["!ensureNo2Or3", d[0], loc]},
+    {"name": "fjsAcc", "symbols": ["posInt"], "postprocess": d => Interval(d[0])},
     {"name": "fjsAcc$string$1", "symbols": [{"literal":"s"}, {"literal":"q"}, {"literal":"r"}, {"literal":"t"}, {"literal":"("}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "fjsAcc", "symbols": ["fjsAcc$string$1", "fjsAcc", {"literal":")"}], "postprocess": d => d[1].sqrt()},
     {"name": "fjsAcc$string$2", "symbols": [{"literal":"r"}, {"literal":"o"}, {"literal":"o"}, {"literal":"t"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "fjsAcc", "symbols": ["fjsAcc$string$2", "posInt", {"literal":"("}, "fjsAcc", {"literal":")"}], "postprocess": d => d[3].root(d[1])},
     {"name": "fjsAcc", "symbols": [{"literal":"("}, "fjsAcc", {"literal":"^"}, "frcExpr3", {"literal":")"}], "postprocess": d => d[1].pow(d[3])},
-    {"name": "upsDnsIntv", "symbols": ["upsDns", "pyIntv"], "postprocess": d => ["+", d[0], ["!edoPy", d[1]]]},
-    {"name": "upsDnsIntv", "symbols": ["upsDns", "npyIntv"], "postprocess": d => ["+", d[0], ["!edoPy", d[1]]]},
-    {"name": "upsDnsIntv", "symbols": ["upsDns", "snpyIntv"], "postprocess": d => ["+", d[0], ["!edoPy", d[1]]]},
-    {"name": "upsDnsIntv", "symbols": ["upsDns", "posInt"], "postprocess":  (d,_,reject) => (pyRedDeg(d[1]) == 4 || pyRedDeg(d[1]) == 5) && d[0] != 0
-        ? ["+", d[0], ["!edoPy", parseIng(d[1])]] : reject },
-    {"name": "upsDnsIntv", "symbols": ["upsDns", {"literal":"~"}, "posInt"], "postprocess":  (d,_,reject) => pyRedDeg(d[2]) == 1 ? reject :
-        pyRedDeg(d[2]) == 4 ? ["+", d[0], ["!edoPy", pyInterval(d[2],1,2)]] :
-        pyRedDeg(d[2]) == 5 ? ["+", d[0], ["!edoPy", pyInterval(d[2],-1,2)]] :
-                            ["+", d[0], ["!edoPy", pyInterval(d[2],0)]] },
-    {"name": "upsDnsNote", "symbols": ["upsDns", "pyNote"], "postprocess": d => ["+", d[0], ["!edoPy", d[1]]]},
-    {"name": "upsDnsNote", "symbols": ["upsDns", "npyNote"], "postprocess": d => ["+", d[0], ["!edoPy", d[1]]]},
+    {"name": "upsDnsIntv", "symbols": ["upsDns", "pyIntv"], "postprocess": (d,loc,_) => ["+", d[0], ["!edoPy", d[1], loc]]},
+    {"name": "upsDnsIntv", "symbols": ["upsDns", "npyIntv"], "postprocess": (d,loc,_) => ["+", d[0], ["!edoPy", d[1], loc]]},
+    {"name": "upsDnsIntv", "symbols": ["upsDns", "snpyIntv"], "postprocess": (d,loc,_) => ["+", d[0], ["!edoPy", d[1], loc]]},
+    {"name": "upsDnsIntv", "symbols": ["upsDns", "posInt"], "postprocess":  (d,loc,reject) => (pyRedDeg(d[1]) == 4 || pyRedDeg(d[1]) == 5) && d[0] != 0
+        ? ["+", d[0], ["!edoPy", parseInt(d[1]), loc]] : reject },
+    {"name": "upsDnsIntv", "symbols": ["upsDns", {"literal":"~"}, "posInt"], "postprocess":  (d,loc,reject) => pyRedDeg(d[2]) == 1 ? reject :
+        pyRedDeg(d[2]) == 4 ? ["+", d[0], ["!edoPy", pyInterval(d[2],1,2), loc]] :
+        pyRedDeg(d[2]) == 5 ? ["+", d[0], ["!edoPy", pyInterval(d[2],-1,2), loc]] :
+                              ["+", d[0], ["!edoPy", pyInterval(d[2],0), loc]] },
+    {"name": "upsDnsNote", "symbols": ["upsDns", "pyNote"], "postprocess": (d,loc,_) => ["+", d[0], ["!edoPy", d[1], loc]]},
+    {"name": "upsDnsNote", "symbols": ["upsDns", "npyNote"], "postprocess": (d,loc,_) => ["+", d[0], ["!edoPy", d[1], loc]]},
     {"name": "upsDns", "symbols": [], "postprocess": d => 0},
     {"name": "upsDns$ebnf$1", "symbols": [{"literal":"^"}]},
     {"name": "upsDns$ebnf$1", "symbols": ["upsDns$ebnf$1", {"literal":"^"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
@@ -2392,7 +2470,7 @@ if (typeof module !== 'undefined'&& typeof module.exports !== 'undefined') {
 }
 })();
 
-},{"../edo.js":2,"../fjs.js":4,"../interval.js":6,"../pythagorean.js":11,"./eval.js":8,"./grammar-helpers.js":9,"fraction.js":12}],11:[function(require,module,exports){
+},{"../edo.js":2,"../fjs.js":4,"../interval.js":6,"../pythagorean.js":10,"./eval.js":8,"fraction.js":11}],10:[function(require,module,exports){
 /**
  * Functions for working with pythagorean and neutral pythagorean intervals
  * @copyright 2021 Matthew Yacavone (matthew [at] yacavone [dot] net)
@@ -2418,7 +2496,7 @@ function mod(a,n) {
 function pyInterval(d,a,b) {
   const ox4 = Fraction(a,b).mul(4 * Math.sign(d));
   if (ox4.d != 1) {
-    throw "offset does not have denominator 1, 2, or 4"
+    throw new Error("offset does not have denominator 1, 2, or 4");
   }
   const zd = d - Math.sign(d);
   const ng = mod(zd * 4 + 3, 7) - 3;
@@ -2451,7 +2529,7 @@ function pyGenerator(a,b) {
   const i = new Interval(a,b);
   const g = (i['3'] || Fraction(0)).mul(4);
   if (g.d != 1) {
-    throw "interval is not pythagorean";
+    throw new Error("interval is not pythagorean");
   }
   return g.s * g.n;
 }
@@ -2468,7 +2546,7 @@ function pyOctaves(a,b) {
   const e3 = (i['3'] || Fraction(0));
   const v = e2.add(e3);
   if (v.d != 1) {
-    throw "interval is not pythagorean";
+    throw new Error("interval is not pythagorean");
   }
   return v.s * v.n;
 }
@@ -2653,7 +2731,7 @@ function octaveOfIntvToA4(a,b) {
 function pyNote(intvToA4, useASCII) {
   const intvToF4 = Interval(intvToA4).div(baseNoteIntvToA("F"));
   if (!isPythagorean(intvToF4) || (intvToF4['3'] && intvToF4['3'].d != 1)) {
-    throw "interval is not a non-neutral pythagorean interval"
+    throw new Error("interval is not a non-neutral pythagorean interval");
   }
   const e3 = intvToF4['3'] ? intvToF4['3'].s * intvToF4['3'].n : Fraction(0);
   const zd = mod(4*e3, 7);
@@ -2713,7 +2791,7 @@ module['exports'].baseNoteIntvToA = baseNoteIntvToA;
 module['exports'].octaveOfIntvToA4 = octaveOfIntvToA4;
 module['exports'].pyNote = pyNote;
 
-},{"./interval.js":6,"fraction.js":12,"number-to-words":15,"primes-and-factors":16}],12:[function(require,module,exports){
+},{"./interval.js":6,"fraction.js":11,"number-to-words":14,"primes-and-factors":15}],11:[function(require,module,exports){
 /**
  * @license Fraction.js v4.0.12 09/09/2015
  * http://www.xarg.org/2014/03/rational-numbers-in-javascript/
@@ -3549,7 +3627,7 @@ module['exports'].pyNote = pyNote;
 
 })(this);
 
-},{}],13:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 var MathUtils = module.exports = {
 	isOdd: function(num){
 		return num & 1 === 1;
@@ -3605,7 +3683,7 @@ var MathUtils = module.exports = {
 		return arr[1];
 	}
 };
-},{}],14:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 (function(root, factory) {
     if (typeof module === 'object' && module.exports) {
         module.exports = factory();
@@ -3821,7 +3899,7 @@ var MathUtils = module.exports = {
             var lines = buffer
                 .split("\n")
                 .slice(
-                    Math.max(0, this.line - 5),
+                    Math.max(0, this.line - 5), 
                     this.line
                 );
 
@@ -4028,7 +4106,7 @@ var MathUtils = module.exports = {
         lines.push("");
         return lines.join("\n");
     }
-
+    
     Parser.prototype.displayStateStack = function(stateStack, lines) {
         var lastDisplay;
         var sameDisplayCount = 0;
@@ -4171,7 +4249,7 @@ var MathUtils = module.exports = {
 
 }));
 
-},{}],15:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 (function (global){(function (){
 /*!
  * Number-To-Words util
@@ -4184,7 +4262,7 @@ var MathUtils = module.exports = {
 !function(){"use strict";var e="object"==typeof self&&self.self===self&&self||"object"==typeof global&&global.global===global&&global||this,t=9007199254740991;function f(e){return!("number"!=typeof e||e!=e||e===1/0||e===-1/0)}function l(e){return"number"==typeof e&&Math.abs(e)<=t}var n=/(hundred|thousand|(m|b|tr|quadr)illion)$/,r=/teen$/,o=/y$/,i=/(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)$/,s={zero:"zeroth",one:"first",two:"second",three:"third",four:"fourth",five:"fifth",six:"sixth",seven:"seventh",eight:"eighth",nine:"ninth",ten:"tenth",eleven:"eleventh",twelve:"twelfth"};function h(e){return n.test(e)||r.test(e)?e+"th":o.test(e)?e.replace(o,"ieth"):i.test(e)?e.replace(i,a):e}function a(e,t){return s[t]}var u=10,d=100,p=1e3,v=1e6,b=1e9,y=1e12,c=1e15,g=9007199254740992,m=["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"],w=["zero","ten","twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety"];function x(e,t){var n,r=parseInt(e,10);if(!f(r))throw new TypeError("Not a finite number: "+e+" ("+typeof e+")");if(!l(r))throw new RangeError("Input is not a safe number, it’s either too large or too small.");return n=function e(t){var n,r,o=arguments[1];if(0===t)return o?o.join(" ").replace(/,$/,""):"zero";o||(o=[]);t<0&&(o.push("minus"),t=Math.abs(t));t<20?(n=0,r=m[t]):t<d?(n=t%u,r=w[Math.floor(t/u)],n&&(r+="-"+m[n],n=0)):t<p?(n=t%d,r=e(Math.floor(t/d))+" hundred"):t<v?(n=t%p,r=e(Math.floor(t/p))+" thousand,"):t<b?(n=t%v,r=e(Math.floor(t/v))+" million,"):t<y?(n=t%b,r=e(Math.floor(t/b))+" billion,"):t<c?(n=t%y,r=e(Math.floor(t/y))+" trillion,"):t<=g&&(n=t%c,r=e(Math.floor(t/c))+" quadrillion,");o.push(r);return e(n,o)}(r),t?h(n):n}var M={toOrdinal:function(e){var t=parseInt(e,10);if(!f(t))throw new TypeError("Not a finite number: "+e+" ("+typeof e+")");if(!l(t))throw new RangeError("Input is not a safe number, it’s either too large or too small.");var n=String(t),r=Math.abs(t%100),o=11<=r&&r<=13,i=n.charAt(n.length-1);return n+(o?"th":"1"===i?"st":"2"===i?"nd":"3"===i?"rd":"th")},toWords:x,toWordsOrdinal:function(e){return h(x(e))}};"undefined"!=typeof exports?("undefined"!=typeof module&&module.exports&&(exports=module.exports=M),exports.numberToWords=M):e.numberToWords=M}();
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 
-},{}],16:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 "use strict";
 
 var primeFactor = {
