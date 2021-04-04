@@ -420,7 +420,22 @@ function updateURLWithParams(toUpdate) {
   history.pushState(st, $("#expr").val(), url);
 }
 
-window.onpopstate = function (e) {
+function initState() {
+  const url = new URL(window.location);
+  console.log(Date.now() + " [ready] " + url.searchParams);
+  console.log(res);
+  const st = { html: $("#results").prop("outerHTML"), res: res };
+  // On my machine firefox has weird behavior on refresh, so I always pushState
+  // (which still gives weird behavior, but at least it's better)
+  if (navigator.userAgent.toLowerCase().includes("firefox")) {
+    history.pushState(st, $("#expr").val(), url);
+  }
+  else {
+    history.replaceState(st, $("#expr").val(), url);
+  }
+}
+
+window.onpopstate = function(e) {
   const url = new URL(window.location);
   console.log(Date.now() + " [popped] " + url.searchParams);
   if (e && e.state && e.state.res) { console.log(e.state.res); }
@@ -471,7 +486,7 @@ function setStateFromURL(e) {
 
 $(document).ready(function() {
   setStateFromURL();
-  updateURLWithParams({});
+  initState();
 
   // accidental buttons
   $('#add_dbl_flat') .click(function() { insertAtCursor("𝄫"); });
