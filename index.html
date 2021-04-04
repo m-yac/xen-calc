@@ -7,8 +7,9 @@
 <script type="text/javascript" src="index.js"></script>
 </head>
 <body>
-<h1><h1>
-<h1>Matt's microtonal calculator</h1>
+
+<h1>xen-calc</h1>
+
 <input type="text" spellcheck="false" id="expr" class="exprInput" placeholder="e.g. 7/5 / m3^7"></input>
 <div class="buttons">
 <div class="alignleft"><!--
@@ -35,10 +36,14 @@
 <h2>What is this?</h2>
 
 <p>
-  This page is my attempt at making a general purpose calculator/converter for microtonal music.
-  If you have suggestions for other functionality I should add, send me an email!
+  This is a general purpose calculator/converter for microtonal music, inspired
+  by (and intended to combine the features of)
+  <a class="alt" href="https://untwelve.org/interval_calc" target="_blank">untwelve's interval calculator</a>,
+  the <a class="alt" href="https://www.plainsound.org/HEJI/" target="_blank">Harmonic Space Calculator</a>,
+  <a class="alt" href="https://misotanni.github.io/fjs/en/calc.html" target="_blank">misotanni's FJS Calculators</a>,
+  and the "Interval Information" info boxes on the
+  <a class="alt" href="https://en.xen.wiki/w/Main_Page" target="_blank">Xenharmonic wiki</a>.
 </p>
-
 <p>
   At the moment, this calculator can:
 </p>
@@ -53,26 +58,23 @@
     intervals in ups-and-downs notation (e.g. <a class="expr" href="?expr=vM3\22">vM3\22</a>).
   </li>
   <li>
-    Compute multiplication, division, and exponentiation of just ratios
-    (e.g. <a class="expr" href="?expr=80%2F81+*+(9%2F8)^2">80/81 * (9/8)^2</a>)
-    as well as with intervals in EDO step, FJS, and ups-and-downs notation
+    Multiply (*), divide (/), and exponentiate (^) just ratios
+    (e.g. <a class="expr" href="?expr=64%2F63+*+(9%2F8)^2">64/63 * (9/8)^2</a>)
+    and intervals in EDO step, FJS, and ups-and-downs notation
     (e.g. <a class="expr" href="?expr=3%2F2+%2F+4\12">3/2 / 4\12</a>,
           <a class="expr" href="?expr=(M3^5)^2">(M3^5)^2</a>,
           <a class="expr" href="?expr=vM3\22+*+m2_5">vM3\22 * m2_5</a>).
   </li>
   <li>
-    Compute addition, subtraction, and scaling of cents values
-    as well as with intervals in EDO step, FJS, and ups-and-downs notation
-    (e.g. <a class="expr" href="?expr=-22c+%2B+2+x+200c">P1^5 + 2 x 100c</a>,
-          <a class="expr" href="?expr=700c+-+4\12">700c - 4\12</a>,
+    Add (+), subtract (-), and scale (x) cents values
+    (e.g. <a class="expr" href="?expr=21.5c+%2B+2+x+100c">27.3c + 2 x 100c</a>)
+    and intervals in EDO step, FJS, and ups-and-downs notation
+    (e.g. <a class="expr" href="?expr=702c+-+4\12">702c - 4\12</a>,
           <a class="expr" href="?expr=(M3^5)+x+2">(M3^5) x 2</a>,
           <a class="expr" href="?expr=vM3\22+%2B+m2_5">vM3\22 + m2_5</a>).
   </li>
   <li>
-    List best rational approximations and best EDO approximations of an interval.
-  </li>
-  <li>
-    Do analogous versions of the above with notes:
+    Combine all of the above with notes:
     <ul>
       <li>
         Convert between
@@ -81,29 +83,32 @@
         notes in ups-and-downs notation (e.g. <a class="expr" href="?expr=vF♯\22">vF♯\22</a>).
       </li>
       <li>
-        Compute multiplication of a note in hertz, FJS, or ups-and-downs notation
+        Multiply (*) a note in hertz, FJS, or ups-and-downs notation
         by a just interval or an interval in EDO step, FJS, or ups-and-downs notation
         (e.g. <a class="expr" href="?expr=C4+*+5%2F4">C4 * 5/4</a>,
               <a class="expr" href="?expr=Ab\22+*+M2^5">Ab\22 * M2^5</a>).
       </li>
       <li>
-        Compute addition of a note in FJS or ups-and-downs notation
+        Add (+) a note in FJS or ups-and-downs notation
         with a cents value or an interval in EDO step, FJS, or ups-and-downs notation
-        (e.g. <a class="expr" href="?expr=C4+%2B+5%2F4">C4 + 400c</a>,
+        (e.g. <a class="expr" href="?expr=C4+%2B+400c">C4 + 400c</a>,
               <a class="expr" href="?expr=Ab\22+%2B+M2^5">Ab\22 + M2^5</a>).
       </li>
       <li>
-        Take the ratio of two notes in hertz, FJS, or ups-and-downs notation to get
+        Divide (/) two notes in hertz, FJS, or ups-and-downs notation to get
         an interval (e.g. <a class="expr" href="?expr=E4^5+%2F+C4">E4^5 / C4</a>)
-        or subtract two notes in FJS or ups-and-downs notation to get an interval.
+        or subtract (-) two notes in FJS or ups-and-downs notation to get an interval.
       </li>
     </ul>
   </li>
   <li>
     Set a reference note and tuning
     (e.g. <a class="expr" href="?expr=C4+where+A+=+432hz">C4 where A = 432hz</a>)
-    or set a reference note with automatically chosen tuning
-    (e.g. <a class="expr" href="?expr=F♯\12+%2F+D+where+D+=+D\12">F♯\12 / D where D = D\12</a>)
+    or set a reference note with automatically set tuning
+    (e.g. <a class="expr" href="?expr=F♯\12+%2F+D+where+D+=+D\12">F♯\12 / D where D = D\12</a>).
+  </li>
+  <li>
+    List best rational approximations and best EDO approximations of an interval.
   </li>
   <li>
     Compute a number of useful functions:
@@ -133,25 +138,231 @@
   </li>
 </ul>
 
+<p>
+  Under the hood, all calculations are done using my
+  <a href="https://github.com/m-yac/microtonal-utils" class="alt" target="_blank">microtonal-utils</a>
+  javascript library. You can also find the latest version of this page's source
+  code
+  <a href="https://github.com/m-yac/xen-calc" class="alt" target="_blank">on my Github</a>.
+</p>
+
+<p>
+  Here are a few useful tips:
+</p>
+
+<ol>
+  <li>
+    For accidentals, you can either click the 𝄫/♭/♮/♯/𝄪 buttons below
+    the main input field to insert the chosen symbol at your current
+    cursor position, or use their non-unicode counterparts: bb, b, nat, #, X.
+  </li>
+  <li>
+    <a class="expr" href="?expr=A4">A4</a> is always interpreted as an
+    augmented fourth interval, not the A note above middle C. To type the
+    latter, use <a class="expr" href="?expr=A♮4">A♮4</a> or
+    <a class="expr" href="?expr=Anat4">Anat4</a>  (or in this case, just
+    <a class="expr" href="?expr=A">A</a> works).
+    The same goes for
+    <a class="expr" href="?expr=A3">A3</a> vs.
+    <a class="expr" href="?expr=A♮3">A♮3</a>, etc.
+  </li>
+  <li id="tipMulAddExprs">
+    There are two types expressions that this calculator understands:
+    multiplicative expressions, which are written using *, /, and ^, and
+    additive expressions, which are written using +, -, and x. By using the
+    cents function on just ratios and replacing every * with +, / with -, and
+    ^ with x, every multiplicative expression can also be written additively,
+    e.g. <a class="expr" href="?expr=3%2F2+%2F+(M2)^2+*+P1^7">3/2 / (M2)^2 * P1^7</a> and
+         <a class="expr" href="?expr=cents(3%2F2)+-+2+x+M2+%2B+P1^7">cents(3/2) - 2 x M2 + P1^7</a>
+         represent the same interval.
+    The "^7" does not change in this example because it is an FJS accidental, not
+    exponentation.
+  </li>
+  <li>
+    If all the parts of an additive expression are in the same EDO, you can
+    avoid duplication by using parentheses, e.g.
+    <a class="expr" href="?expr=2+x+M3\22+%2B+m2\22+-+2\22">2 x M3\22 + m2\22 - 2\22</a> and
+    <a class="expr" href="?expr=(2+x+M3+%2B+m2+-+2)\22">(2 x M3 + m2 - 2)\22</a>
+    represent the same interval.
+    You can also do the same for multiplicative expressions, so long as they
+    do not contain any intervals in EDO step notation, e.g.
+    <a class="expr" href="?expr=(M3\22)^2+*+m2\22">(M3\22)^2 * m2\22</a> and
+    <a class="expr" href="?expr=((M3)^2+*+m2)\22">((M3)^2 * m2)\22</a>
+    represent the same interval.
+  </li>
+  <li>
+    You can exponentiate (^) or scale (x) by fractional values to equally
+    divide intervals, e.g.
+    <a class="expr" href="?expr=2^(1%2F12)">2^(1/12)</a>,
+    <a class="expr" href="?expr=P8+x+1%2F12">P8 x 1/12</a>, and
+    <a class="expr" href="?expr=P8+x+1%2F12">1\12</a> all represent the same
+    interval. For multiplicative expressions, you can also use nth root
+    notation, e.g.
+    <a class="expr" href="?expr=root12(2)">root12(2)</a>,
+    <a class="expr" href="?expr=sqrt(3%2F2)">sqrt(3/2)</a>.
+  </li>
+</ol>
+
+<h3>Examples</h3>
+
+<p>
+Here are a few examples of ways you can use this tool beyond just
+conversion:
+</p>
+
+<ol>
+  <li>
+    <p>
+      Checking non-microtonal interval arithmetic:
+    </p>
+    <ul>
+      <li>
+        We can confirm that a minor second plus a major third is a perfect fourth:
+        <a class="expr" href="?expr=m2+%2B+M3">m2 + M3</a>.
+      </li>
+      <li>
+        We can also confirm things specific to 12-EDO, like the fact that two
+        major thirds is a minor sixth:
+        <a class="expr" href="?expr=(2+x+M3)\12">(2 x M3)\12</a>.
+        Without the "\12", we get the equally correct answer of an augmented
+        fifth.
+      </li>
+    </ul>
+  </li>
+  <li>
+    <p>
+      Suppose we wanted to find just ratios for a neutral third. The
+      <a href="https://en.wikipedia.org/wiki/Neutral_third" class="alt" target="_blank">Wikipedia page for neutral third</a>
+      can tell us, but suppose we want to figure it out ourselves. A neutral
+      third is an interval roughly halfway between a major third and minor
+      third, so I would start by typing in something like
+      <a class="expr" href="?expr=1%2F2+x+(M3+%2B+m3)"> 1/2 x (M3 + m3)</a><a href="#ex2Note">*</a>.
+      This gives us the interval "halfway between" M3 and m3 in the same way
+      that 1/2 x (3 + 4) gives us the number halfway between 3 and 4.
+    </p>
+    <p>
+      After entering that expression, the "Best Rational Approximations" section
+      gives us our answers. The first result, 5/4, is definitely not a neutal
+      third and is off by 35 cents, but the rest are all known neutral thirds,
+      at least according to the Xenharmonic wiki. The simplest two of these,
+      <a class="expr" href="?expr=11%2F9">11/9</a> and
+      <a class="expr" href="?expr=16%2F13">16/13</a>, are listed on Wikipedia.
+      By default, these intervals are sorted by Tenney height, which is a
+      measure of their harmonic complexity, but they can also be sorted by their
+      cents difference, giving us a more complete list.
+    </p>
+    <p id="ex2Note">
+      * It is worth noting that you could also write this same expression
+      <a href="#tipMulAddExprs" class="alt">multiplicatively</a> as
+      <a class="expr" href="?expr=(M3+*+m3)^(1%2F2)">(M3 * m3)^(1/2)</a>, which
+      is a hint for why the calculator says both expressions are equal to
+      <a class="expr" href="?expr=sqrt(3/2)">sqrt(3/2)</a>. Another thing to
+      notice is that we also get the same expression if we replace the
+      Pythagorean M3 and m3 with any pair of corresponding major and minor
+      thirds, for example
+      the septimal major third (<a class="expr" href="?expr=9%2F7">9/7</a> or
+                                <a class="expr" href="?expr=M3_7">M3_7</a>) and
+      the septimal minor third (<a class="expr" href="?expr=7%2F6">7/6</a> or
+                                <a class="expr" href="?expr=m3^7">m3^7</a>).
+    </p>
+  </li>
+  <li>
+    <p>
+      The following is a quote from the fantastic Youtube video
+      <a href="https://www.youtube.com/watch?v=7EveJYDloAc" class="alt" target="_blank">Analyzing The Saxophone Solo From Dolphin Shoals</a>
+      (at <a href="https://www.youtube.com/watch?v=7EveJYDloAc&t=514s" class="alt" target="_blank">8:34</a>).
+    </p>
+    <blockquote cite="https://www.youtube.com/watch?v=7EveJYDloAc">
+        Another
+        example of stepping outside of the
+        written harmony is at the climax of the
+        solo, where Katsuta wails on this high G
+        flat over the B flat sus and E flat
+        major chords.
+        It's actually not quite a G flat, it's
+        kind of halfway between a G flat and a G
+        natural. This kind of third that's
+        halfway between a major third and a
+        minor third is called a blue note after
+        its extensive use in the blues genre.
+    </blockquote>
+    <p>
+      The
+      <a href="https://en.wikipedia.org/wiki/Blue_note" class="alt" target="_blank">Wikipedia page for blue note</a>,
+      seems to suggest that this blue "lowered third" ought to be around
+      <a class="expr" href="?expr=6%2F5">6/5</a>, or possibly somewhere in the
+      neutral third range when slurred with
+      <a class="expr" href="?expr=5%2F4">5/4</a>.
+    </p>
+    <p>
+      So what interval does Katsuta actually play? I used a spectrum analyzer
+      (specifically
+      <a href="https://www.sonicvisualiser.org/" class="alt" target="_blank">Sonic Visualizer</a>,
+      but any will do) and found that this note starts at around 1500Hz,
+      stays at 1513Hz for a good chunk of the middle, and ends at around
+      1520Hz. I also checked a couple other notes and it seems like the piece
+      is otherwise in standard tuning (A = 440Hz). To find what intervals these
+      notes correspond to in the key of E flat, we need to take the ratio of
+      these frequencies to an (equally-tempered) E flat. We can then either wrap
+      the whole thing in "red()" to octave-reduce the interval, or just make
+      sure to compare the note to an E flat in the right octave, in this case
+      <a class="expr" href="?expr=Eb6\12">Eb6\12</a>.
+    </p>
+    <ul>
+      <li>
+        At the start, Katsuta plays roughly the interval
+        <a class="expr" href="?expr=1500Hz+%2F+Eb6\12">1500Hz / Eb6\12</a>,
+        which is not too far from <a class="expr" href="?expr=6%2F5">6/5</a>.
+      </li>
+      <li>
+        By the end, and in certain peaks, he plays roughly the interval
+        <a class="expr" href="?expr=1520Hz+%2F+Eb6\12">1520Hz / Eb6\12</a>,
+        which is almost exactly <a class="expr" href="?expr=11%2F9">11/9</a>, a
+        neutral third.
+      </li>
+      <li>
+        <p style="margin: 0 0 0.5em 0">
+          But for most of the note, he plays roughly the interval
+          <a class="expr" href="?expr=1513Hz+%2F+Eb6\12&primeLimit=17">1513Hz / Eb6\12</a>.
+          If you type this in yourself, it might seem like this interval
+          is not close to any nice ratio. This is because,
+          by default, all the best rational approximations shown are in the
+          13-limit, meaning no prime factors greater than 13 are allowed. If
+          you increase this prime limit from 13-limit to to 17-limit (as I did for
+          the link above) one finds that this interval is almost exactly
+          <a class="expr" href="?expr=17%2F14">17/14</a>. This
+          ratio is notable for being the mediant of
+          <a class="expr" href="?expr=6%2F5">6/5</a> and
+          <a class="expr" href="?expr=11%2F9">11/9</a>, which, in this case, means
+          it is the simplest just ratio which lies between the two.
+        </p>
+        <p style="margin: 0.5em 0 0 0">
+          That being said, I doubt 17/14 is really a simple enough interval to
+          be played on an E flat saxophone like Katsuta is using, and I suspect
+          its appearance here is a coincidence - perhaps just because it is
+          quite close to
+          <a class="expr" href="?expr=sqrt(6%2F5+*+11%2F9)&primeLimit=17">sqrt(6/5 * 11/9)</a>,
+          the halfway point between 6/5 and 11/9.
+        </p>
+      </li>
+    </ul>
+    <p>
+      So, I conclude that Katsuta's blue note is a slur between 6/5 and 11/9
+      which lingers mostly halfway between the two. I suspect others will come
+      up with slightly different answers - so try the whole experiment yourself!
+    </p>
+  </li>
+</ol>
+
 <!-- <a class="expr" href="?expr=red((3%2F2)^2)+*+P1_7">red((3/2)^2) * P1_7</a>
 <a class="expr" href="?expr=2+x+reb((3%2F2)^2%2C+3)+%2B+200c">2 x reb((3/2)^2, 3)+ 200c</a> -->
 
 <!-- <a class="expr" href="?expr=5^(1/4)">5^(1/4)</a>,
 <a class="expr" href="?expr=sqrt(3/2)">sqrt(P5)</a> -->
 
-</div>
-
 <!-- M3^5_7 + cents(5/4) + C♯\12 + (Anat + ^m3)\15 where A = 432hz -->
 
-<!-- <br><br><br><br>
-
-<p class="content">
-  What is this?
-   asdflk
-   adf ak
-
-   falkfas
-</p> -->
+</div>
 
 <br>
 

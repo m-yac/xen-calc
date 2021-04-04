@@ -252,7 +252,6 @@ function updateResults() {
             let link = $('<a>').attr("target", "_blank")
                                .attr("href", xenURL)
                                .append(xenURL);
-            // $('#resRatio').html(link);
             let row = $('<tr>');
             row.append($('<td>').addClass("resLeftColumn").html("Xenharmonic wiki page:"));
             row.append($('<td>').addClass("resRightColumn").html(link));
@@ -268,10 +267,11 @@ function updateResults() {
       ratApproxsDesc.append(primeLimitDropdown());
       ratApproxsDesc.append("-limit, ");
       ratApproxsDesc.append(oddLimitDropdown());
-      ratApproxsDesc.append("-odd-limit, ");
-      const cutoff = res.edoSteps ? 600/res.edoSteps[1] : 50;
-      ratApproxsDesc.append("cutoff at ±" + fmtCents(cutoff,1) + ", sorted by ");
+      ratApproxsDesc.append("-odd-limit, sorted by ");
       ratApproxsDesc.append(sortRatDropdown());
+      ratApproxsDesc.append(", cutoff at ");
+      const cutoff = res.edoSteps ? 600/res.edoSteps[1] : 50;
+      ratApproxsDesc.append("±" + fmtCents(cutoff,1));
       $('#results').append(ratApproxsDesc);
       $('#results').append($('<div id="ratTableDiv">'));
       $('#primeLimit').on("change", updateRatApproxs);
@@ -284,8 +284,9 @@ function updateResults() {
       edoApproxsDesc.append(loEDODropdown());
       edoApproxsDesc.append("-EDO to ");
       edoApproxsDesc.append(hiEDODropdown());
-      edoApproxsDesc.append("-EDO, cutoff at ±50c, sorted by ");
+      edoApproxsDesc.append("-EDO, sorted by ");
       edoApproxsDesc.append(sortEDODropdown());
+      edoApproxsDesc.append(", cutoff at ±50c");
       $('#results').append(edoApproxsDesc);
       $('#results').append($('<div id="edoTableDiv">'));
       $('#loEDO')  .on("change", updateEDOApproxs);
@@ -319,7 +320,7 @@ function updateRatApproxs() {
   let ratTable = $('<table id="ratTable">').addClass("approxsTable");
   for (const {ratio, diff} of ratApproxs) {
     let row = $('<tr>');
-    const lhs = fmtExtExprLink(ratio.toFraction(), true);
+    const lhs = fmtExtExprLink(ratio.toFraction());
     row.append($('<td>').addClass("approxsLeftColumn").html(lhs));
     let diffStr = "exact";
     if (diff != 0) {
@@ -361,7 +362,7 @@ function updateEDOApproxs() {
     if (firstNonZero >= 4) {
       stepStrs = stepStrs.slice(0,2).concat(["..."]).concat(stepStrs.slice(firstNonZero-1));
     }
-    const lhs = fmtExtExprLink(stepStrs.join(", "), true);
+    const lhs = fmtExtExprLink(stepStrs.join(", "));
     row.append($('<td>').addClass("approxsLeftColumn").html(lhs));
     let diffStr = diff == 0 ? "exact" : (diff < 0 ? "+" : "-") +
                                         fmtCents(Math.abs(diff), 3, true);

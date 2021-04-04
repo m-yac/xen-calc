@@ -26,7 +26,7 @@ body {
    color: #222;
    margin: 0 auto;
    margin-bottom: 0;
-   max-width: 720px;
+   max-width: 750px;
    padding: 1px 50px;
    padding-bottom: 25px;
    text-align: center;
@@ -39,12 +39,23 @@ body {
   margin-top: 60px;
 }
 
-ul {
+ul, ol {
   padding-left: 25px;
 }
 
 li {
+  margin: 8px 0;
+}
+ol ul li {
   margin: 4px 0;
+}
+
+blockquote {
+  font-style: italic;
+}
+
+:target {
+   background-color: #ffd;
 }
 
 .buttons {
@@ -80,7 +91,7 @@ h1,h2,h3 {
 }
 h1{ font-size: 210%; font-weight: normal; }
 h2{ font-size: 190%; }
-h3{ font-size: 175%; }
+h3{ font-size: 160%; }
 
 h4 {
   font-size: 115%;
