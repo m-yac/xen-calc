@@ -427,9 +427,9 @@ function updateEDOApproxs(toUpdate) {
 // Handling the URL and browser state
 // ================================================================
 
-function updateURLWithParams(toUpdate) {
+function updateURLWithParams(paramsToUpdate) {
   const url = new URL(window.location);
-  for (const [param, val] of Object.entries(toUpdate)) {
+  for (const [param, val] of Object.entries(paramsToUpdate)) {
     if (val != undefined && (!val.trim || val.trim() !== "")) {
       url.searchParams.set(param, val);
     }
@@ -437,10 +437,14 @@ function updateURLWithParams(toUpdate) {
       url.searchParams.delete(param);
     }
   }
-  console.log(Date.now() + " [pushed] " + url.searchParams);
+  updateURLTo(url);
+}
+
+function updateURLTo(newURL) {
+  console.log(Date.now() + " [pushed] " + newURL.searchParams);
   console.log(res);
   const st = { html: $("#results").prop("outerHTML"), res: res };
-  history.pushState(st, $("#expr").val(), url);
+  history.pushState(st, $("#expr").val(), newURL);
 }
 
 function initState() {
@@ -467,10 +471,14 @@ window.onpopstate = function(e) {
 };
 
 function setStateFromURL(e) {
+  const urlParams = new URLSearchParams(window.location.search);
+  setStateFromParams(urlParams, e);
+}
+
+function setStateFromParams(urlParams, e) {
   function getWithDefault(urlParams, param, deflt) {
     return urlParams.has(param) ? urlParams.get(param) : deflt;
   }
-  const urlParams = new URLSearchParams(window.location.search);
   const expr       = getWithDefault(urlParams, 'expr'      , "");
   const primeLimit = getWithDefault(urlParams, 'primeLimit', defaultPrimeLimit);
   const oddLimit   = getWithDefault(urlParams, 'oddLimit'  , defaultOddLimit);
@@ -513,6 +521,16 @@ $(document).ready(function() {
   setStateFromURL();
   initState();
 
+  // reset button
+  $('#reset').click(function () {
+    setStateFromParams(new URLSearchParams());
+    const url = new URL(window.location);
+    for (const [param,_] of [...url.searchParams.entries()]) {
+      url.searchParams.delete(param);
+    }
+    updateURLTo(url);
+  });
+
   // accidental buttons
   $('#add_dbl_flat') .click(function() { insertAtCursor("𝄫"); });
   $('#add_flat')     .click(function() { insertAtCursor("♭"); });
@@ -538,9 +556,9 @@ $(document).ready(function() {
   $('#enter').click(function() {
     moreRat = defaultMoreRat; moreEDO = defaultMoreEDO;
     updateResults();
-    let toUpdate = {"expr": $('#expr').val()};
-    toUpdate["moreRat"] = ""; toUpdate["moreEDO"] = "";
-    updateURLWithParams(toUpdate);
+    let params = {"expr": $('#expr').val()};
+    params["moreRat"] = ""; params["moreEDO"] = "";
+    updateURLWithParams(params);
   });
 
   // results dropdowns (must be re-set on state change)
