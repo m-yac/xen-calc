@@ -33,6 +33,10 @@ body {
    font-size: 110%;
 }
 
+.hidden {
+  display: none;
+}
+
 .content {
   font-size: 93%;
   text-align: left;

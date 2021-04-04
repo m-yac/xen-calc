@@ -28,7 +28,63 @@
 --></div>
 </div>
 
-<div id="results" class="results">
+<div id="errors" class="hidden">
+</div>
+
+<div id="results" class="results hidden">
+
+  <h4 id="resHeader"></h4>
+
+  <table id="resTable" class="resTable"></table>
+
+  <div id="resApproxs" class="hidden">
+
+    <h4>Best rational approximations</h4>
+
+    <div class="approxsDesc">
+      <div id="primeLimitContainer" class="selectContainer twoDigitSelect">
+        <select id="primeLimit" title="Prime limit"></select>
+        <div class="selectIcon">▽</div>
+      </div>-limit,
+      <div id="oddLimitContainer" class="selectContainer twoDigitSelect">
+        <select id="oddLimit" title="Odd limit"></select>
+        <div class="selectIcon">▽</div>
+      </div>-odd-limit, sorted by
+      <div id="sortRatContainer" class="selectContainer sortRatSelect">
+        <select id="sortRat" title="Sort best rational approximations"></select>
+        <div class="selectIcon">▽</div>
+      </div>, cutoff at <span id="cutoffRat"></span>
+    </div>
+
+    <div id="ratTableDiv">
+      <table id="ratTable" class="approxsTable"></table>
+      <i id="ratTableMore"></i>
+    </div>
+
+    <h4>Best EDO approximations</h4>
+
+    <div class="approxsDesc">
+      <div id="loEDOContainer" class="selectContainer threeDigitSelect">
+        <select id="loEDO" title="Lowest EDO"></select>
+        <div class="selectIcon">▽</div>
+      </div>-EDO to
+      <div id="hiEDOContainer" class="selectContainer threeDigitSelect">
+        <select id="hiEDO" title="Highest EDO"></select>
+        <div class="selectIcon">▽</div>
+      </div>-EDO, sorted by
+      <div id="sortEDOContainer" class="selectContainer sortEDOSelect">
+        <select id="sortEDO" title="Sort best EDO approximations"></select>
+        <div class="selectIcon">▽</div>
+      </div>, cutoff at <span id="cutoffEDO"></span>
+    </div>
+
+    <div id="edoTableDiv">
+      <table id="edoTable" class="approxsTable"></table>
+      <i id="edoTableMore"></i>
+    </div>
+
+  </div>
+
 </div>
 
 <div class="content">

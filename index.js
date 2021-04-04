@@ -1,5 +1,15 @@
+
+// ================================================================
+// Utility functions
+// ================================================================
+
 function tryParseInt(x) {
   return isNaN(x) ? x : parseInt(x);
+}
+
+// From: https://stackoverflow.com/a/44957114
+function range(start, stop, step = 1) {
+  return Array(Math.ceil((stop - start) / step)).fill(start).map((x, y) => x + y * step);
 }
 
 function xenWikiPageExists(title) {
@@ -25,57 +35,66 @@ function insertAtCursor(str) {
   $('#expr')[0].selectionEnd   = caret + str.length;
 }
 
-// Makes a nicely-formatted dropdown menu
-function dropdown(opts, selected, id, title, cls) {
-  let sel = $('<select>').attr("id", id).attr("title", title);
+// Empty the given `<select>` then fill it with the given options, setting the
+// given value as selected
+function updateDropdown(dropdown, opts, selected) {
+  dropdown.empty();
   for (const str of opts) {
     let opt = $('<option>').attr('value', str).text(str);
     if (str == selected) { opt.attr("selected", true); }
-    sel.append(opt);
+    dropdown.append(opt);
   }
-  const icon = $('<div>').addClass("selectIcon").text("▽");
-  return $('<div>').attr("id", id + "Container")
-                   .addClass(["selectContainer", cls])
-                   .append(sel).append(icon);
 }
 
-var primeLimit;
-var oddLimit  ;
-var loEDO     ;
-var hiEDO     ;
-var sortRat   ;
-var sortEDO   ;
+// ================================================================
+// State variables
+// ================================================================
 
-function primeLimitDropdown() {
-  const opts = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, "–"];
-  return dropdown(opts, primeLimit, "primeLimit", "Prime limit", "twoDigitSelect");
+const defaultPrimeLimit = 13;
+function primeLimitOpts() {
+  return [3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, "–"];
 }
-function oddLimitDropdown() {
-  let opts = [];
-  for (let o = 3; o <= 99; o += 2) { opts.push(o); }
-  if (sortRat !== "difference") { opts.push("–"); }
-  return dropdown(opts, oddLimit, "oddLimit", "Odd limit", "twoDigitSelect");
+
+const defaultOddLimit = 81;
+function oddLimitOpts(sortRat) {
+  let opts = range(3, 100, 2); // all odd numbers from 3 to 99
+  if (sortRat !== "difference") { opts.push("-"); }
+  return opts;
 }
-function loEDODropdown() {
-  let opts = [];
-  for (let e = 1; e < hiEDO; e++) { opts.push(e); }
-  return dropdown(opts, loEDO, "loEDO", "Lowest EDO", "threeDigitSelect");
-}
-function hiEDODropdown() {
-  let opts = [];
-  for (let e = loEDO+1; e <= 120; e++) { opts.push(e); }
-  return dropdown(opts, hiEDO, "hiEDO", "Highest EDO", "threeDigitSelect");
-}
-function sortRatDropdown() {
+
+const defaultSortRat = "Tenney height";
+function sortRatOpts(oddLimit) {
   let opts = ["Tenney height"];
   if (oddLimit !== "-") { opts.push("difference"); }
-  return dropdown( opts, sortRat, "sortRat"
-                 , "Sort best rational approximations", "sortRatSelect");
+  return opts;
 }
-function sortEDODropdown() {
-  return dropdown( ["EDO", "difference"], sortEDO, "sortEDO"
-                 , "Sort best EDO approximations", "sortEDOSelect");
+
+const defaultLoEDO = 5;
+function loEDOOpts(hiEDO) {
+  return range(1, hiEDO); // all numbers from 1 to hiEDO-1
 }
+
+const defaultHiEDO = 60;
+function hiEDOOpts(loEDO) {
+  return range(loEDO+1, 121); // all numbers from loEDO+1 to 120
+}
+
+const defaultSortEDO = "EDO";
+function sortEDOOpts() {
+  return ["EDO", "difference"];
+}
+
+var moreRat;
+const defaultMoreRat = 1;
+
+var moreEDO;
+const defaultMoreEDO = 1;
+
+var res = {};
+
+// ================================================================
+// Formatting functions
+// ================================================================
 
 // Given an array `[n, edo]` returns the string "n\edo"
 function fmtEDOStep(step) {
@@ -127,8 +146,14 @@ function fmtExtExprLink(str, newTab) {
   return link;
 }
 
-var res = {};
+// ================================================================
+// Filling in the results section
+// ================================================================
 
+// Sets the `res` variable to the results of calling `parseCvt` on the current
+// expression and returns a pair whose first element should be the header of
+// the results section and whose second element is a list of pairs which
+// should be the contents of the results table
 function getResults() {
   res = microtonal_utils.parseCvt($('#expr').val());
   let [typeStr, ret] = ["", []];
@@ -214,99 +239,80 @@ function getResults() {
   return [typeStr, ret];
 }
 
-function updateURLWithParam(param, val) {
-  const url = new URL(window.location);
-  if (val != undefined && (!val.trim || val.trim() !== "")) {
-    url.searchParams.set(param, val);
-  }
-  else {
-    url.searchParams.delete(param);
-  }
-  console.log(Date.now() + " [pushed]")
-  console.log($('#results').html());
-  history.pushState($("#results").html(), $("#expr").val(), url);
-}
-
+// Updates the entire results section based on the current expression
 function updateResults() {
-  $("#results").empty();
-  if ($('#expr').val().trim() === "") { return; }
+  if ($('#expr').val().trim() === "") {
+    $('#errors').addClass("hidden");
+    $('#results').addClass("hidden");
+    return;
+  }
   try {
+    $('#errors').addClass("hidden");
+    $('#results').removeClass("hidden");
     const [typeStr, rows] = getResults();
-    let resTable = $('<table id="resTable">').addClass("resTable");
+    $('#resHeader').html(typeStr);
+    $('#resTable').empty();
     for (const [n,v] of rows) {
       let row = $('<tr>');
       row.append($('<td>').addClass("resLeftColumn").html(n));
       row.append($('<td>').addClass("resRightColumn").html(v));
-      resTable.append(row);
+      $('#resTable').append(row);
     }
-    $("#results").append($('<h4>').html(typeStr));
-    $('#results').append(resTable);
-    // add xen wiki link
     if (res.ratio) {
-      const xenPageName = res.ratio.toFraction();
-      const xenURL = "https://en.xen.wiki/w/" + xenPageName;
-      const pageExists = xenWikiPageExists(xenPageName);
-      if (pageExists) {
-        pageExists.then(function(exists) {
-          if (exists) {
-            let link = $('<a>').attr("target", "_blank")
-                               .attr("href", xenURL)
-                               .append(xenURL);
-            let row = $('<tr>');
-            row.append($('<td>').addClass("resLeftColumn").html("Xenharmonic wiki page:"));
-            row.append($('<td>').addClass("resRightColumn").html(link));
-            $('#resTable').append(row);
-          }
-        });
-      }
+      addXenWikiLink(res.ratio.toFraction());
     }
     if (res.type === "interval") {
-      // add best rational approximations
-      $('#results').append($('<h4>').html('Best rational approximations</b>'));
-      let ratApproxsDesc = $('<div>').addClass("approxsDesc");
-      ratApproxsDesc.append(primeLimitDropdown());
-      ratApproxsDesc.append("-limit, ");
-      ratApproxsDesc.append(oddLimitDropdown());
-      ratApproxsDesc.append("-odd-limit, sorted by ");
-      ratApproxsDesc.append(sortRatDropdown());
-      ratApproxsDesc.append(", cutoff at ");
+      $('#resApproxs').removeClass("hidden");
       const cutoff = res.edoSteps ? 600/res.edoSteps[1] : 50;
-      ratApproxsDesc.append("±" + fmtCents(cutoff,1));
-      $('#results').append(ratApproxsDesc);
-      $('#results').append($('<div id="ratTableDiv">'));
-      $('#primeLimit').on("change", updateRatApproxs);
-      $('#oddLimit')  .on("change", updateRatApproxs);
-      $('#sortRat')   .on("change", updateRatApproxs);
+      $('#cutoffRat').html("±" + fmtCents(cutoff,1));
       updateRatApproxs();
-      // add best EDO approximations
-      $('#results').append($('<h4>').html('Best EDO approximations'));
-      let edoApproxsDesc = $('<div>').addClass("approxsDesc");
-      edoApproxsDesc.append(loEDODropdown());
-      edoApproxsDesc.append("-EDO to ");
-      edoApproxsDesc.append(hiEDODropdown());
-      edoApproxsDesc.append("-EDO, sorted by ");
-      edoApproxsDesc.append(sortEDODropdown());
-      edoApproxsDesc.append(", cutoff at ±50c");
-      $('#results').append(edoApproxsDesc);
-      $('#results').append($('<div id="edoTableDiv">'));
-      $('#loEDO')  .on("change", updateEDOApproxs);
-      $('#hiEDO')  .on("change", updateEDOApproxs);
-      $('#sortEDO').on("change", updateEDOApproxs);
+      $('#cutoffEDO').html("±50c");
       updateEDOApproxs();
+    }
+    else {
+      $('#resApproxs').addClass("hidden");
     }
   }
   catch (err) {
-    $("#results").append($('<pre>').addClass("parseError")
-                                   .html(err.toString().replace("\n","<br>")));
+    $('#errors').removeClass("hidden");
+    $('#results').addClass("hidden");
+    $('#errors').html($('<pre>').addClass("parseError")
+                                .html(err.toString().replace("\n","<br>")));
   }
 }
 
-function updateRatApproxs() {
-  const [oldPrimeLimit, oldOddLimit, oldSortRat] = [primeLimit, oddLimit, sortRat];
-  primeLimit = tryParseInt($('#primeLimit').val());
-  oddLimit   = tryParseInt($('#oddLimit')  .val());
-  sortRat = $('#sortRat').val();
-  $('#ratTableDiv').empty();
+// Asynchronously add a Xenharmonic wiki link (if it exists) to the results
+// table
+function addXenWikiLink(xenPageName) {
+  const xenURL = "https://en.xen.wiki/w/" + xenPageName;
+  const pageExists = xenWikiPageExists(xenPageName);
+  if (pageExists) {
+    pageExists.then(function(exists) {
+      if (exists) {
+        let link = $('<a>').attr("target", "_blank")
+                           .attr("href", xenURL)
+                           .append(xenURL);
+        let row = $('<tr>');
+        row.append($('<td>').addClass("resLeftColumn").html("Xenharmonic wiki page:"));
+        row.append($('<td>').addClass("resRightColumn").html(link));
+        $('#resTable').append(row);
+      }
+    });
+  }
+}
+
+// Update the best rational approximations dropdowns and table based on the
+// current value of the dropdowns, and call `updateURLWithParams` on the
+// given argument, if an argument is given
+function updateRatApproxs(toUpdate) {
+
+  const primeLimit = tryParseInt($('#primeLimit').val());
+  const oddLimit   = tryParseInt($('#oddLimit')  .val());
+  const sortRat = $('#sortRat').val();
+  updateDropdown($('#primeLimit'), primeLimitOpts(), primeLimit);
+  updateDropdown($('#oddLimit')  , oddLimitOpts(sortRat), oddLimit);
+  updateDropdown($('#sortRat')   , sortRatOpts(oddLimit), sortRat);
+
   const cutoff = res.edoSteps ? microtonal_utils.Interval(2).pow(1,2*res.edoSteps[1])
                               : undefined;
   const params = { cutoff: cutoff
@@ -315,9 +321,9 @@ function updateRatApproxs() {
   const fn = sortRat === "difference" ? microtonal_utils.bestRationalApproxsByDiff
                                       : microtonal_utils.bestRationalApproxsByHeight;
   const ratApproxsOut = fn(res.intv, params);
-  let ratApproxs = sortRat === "difference" ? ratApproxsOut.slice(0,10)
-                                            : ratApproxsOut[1];
-  let ratTable = $('<table id="ratTable">').addClass("approxsTable");
+  const ratApproxs = sortRat === "difference" ? ratApproxsOut.slice(0,10)
+                                              : ratApproxsOut[1];
+  $('#ratTable').empty();
   for (const {ratio, diff} of ratApproxs) {
     let row = $('<tr>');
     const lhs = fmtExtExprLink(ratio.toFraction());
@@ -327,33 +333,46 @@ function updateRatApproxs() {
       diffStr = (diff > 0 ? "+" : "-") + fmtCents(Math.abs(diff), 3, true);
     }
     row.append($('<td>').addClass("approxsRightColumn").html(diffStr));
-    ratTable.append(row);
+    $('#ratTable').append(row);
   }
-  $('#ratTableDiv').append(ratTable);
-  let toAppend = "no results"
+
+  let moreText = "";
   if (sortRat === "difference" && ratApproxsOut.length > 10) {
-    toAppend = "show more";
+    moreText = "show more";
   }
-  if (sortRat !== "difference" && !ratApproxsOut[0]) {
-    toAppend = "search for more";
+  if (sortRat !== "difference") {
+    if (ratApproxsOut[0]) {
+      moreText = "no " + (ratApproxs.length > 0 ? "more " : "") + "results ";
+    }
+    else {
+      moreText = "search for more";
+    }
   }
-  $('#ratTableDiv').append("<i>" + toAppend + "</i>");
-  if (primeLimit != oldPrimeLimit) { updateURLWithParam("primeLimit", primeLimit || "–"); }
-  if (oddLimit   != oldOddLimit  ) { updateURLWithParam("oddLimit"  , oddLimit   || "–"); }
-  if (sortRat    != oldSortRat   ) { updateURLWithParam("sortRat"   , sortRat   ); }
+  $('#ratTableMore').html(moreText);
+
+  if (toUpdate) {
+    updateURLWithParams({[toUpdate]: $('#' + toUpdate).val()});
+  }
 }
 
-function updateEDOApproxs() {
-  const [oldLoEDO, oldHiEDO, oldSortEDO] = [loEDO, hiEDO, sortEDO];
-  loEDO   = parseInt($('#loEDO').val());
-  hiEDO   = parseInt($('#hiEDO').val());
-  sortEDO = $('#sortEDO').val();
-  $('#edoTableDiv').empty();
+// Update the best EDO approximations dropdowns and table based on the
+// current value of the dropdowns, and call `updateURLWithParams` on the
+// given argument, if an argument is given
+function updateEDOApproxs(toUpdate) {
+
+  const loEDO   = parseInt($('#loEDO').val());
+  const hiEDO   = parseInt($('#hiEDO').val());
+  const sortEDO = $('#sortEDO').val();
+  updateDropdown($('#loEDO')  , loEDOOpts(hiEDO), loEDO);
+  updateDropdown($('#hiEDO')  , hiEDOOpts(loEDO), hiEDO);
+  updateDropdown($('#sortEDO'), sortEDOOpts(), sortEDO);
+
   const params = { startEDO: loEDO, endEDO: hiEDO };
   const fn = sortEDO === "difference" ? microtonal_utils.bestEDOApproxsByDiff
                                       : microtonal_utils.bestEDOApproxsByEDO;
   const edoApproxs = fn(res.intv, params);
-  let edoTable = $('<table id="edoTable">').addClass("approxsTable");
+
+  $('#edoTable').empty();
   for (let {steps, diff} of edoApproxs.slice(0,10)) {
     let row = $('<tr>');
     let firstNonZero = steps.findIndex(step => step[0] != 0);
@@ -367,70 +386,94 @@ function updateEDOApproxs() {
     let diffStr = diff == 0 ? "exact" : (diff < 0 ? "+" : "-") +
                                         fmtCents(Math.abs(diff), 3, true);
     row.append($('<td>').addClass("approxsRightColumn").html(diffStr));
-    edoTable.append(row);
+    $("#edoTable").append(row);
   }
-  $('#edoTableDiv').append(edoTable);
+
+  let moreText = "";
   if (edoApproxs.length > 10) {
-    $('#edoTableDiv').append("<i>show more</i>");
+    moreText = "show more";
   }
-  if (loEDO != oldLoEDO) {
-    updateURLWithParam("loEDO", loEDO);
-    $('#hiEDO').empty();
-    let opts = [];
-    for (let e = loEDO+1; e <= 120; e++) { opts.push(e); }
-    for (const str of opts) {
-      let opt = $('<option>').attr('value', str).text(str);
-      if (str == hiEDO) { opt.attr("selected", true); }
-      $('#hiEDO').append(opt);
-    }
+  $('#edoTableMore').html(moreText);
+
+  if (toUpdate) {
+    updateURLWithParams({[toUpdate]: $('#' + toUpdate).val()});
   }
-  if (hiEDO != oldHiEDO) {
-    updateURLWithParam("hiEDO", hiEDO);
-    $('#loEDO').empty();
-    let opts = [];
-    for (let e = 1; e < hiEDO; e++) { opts.push(e); }
-    for (const str of opts) {
-      let opt = $('<option>').attr('value', str).text(str);
-      if (str == loEDO) { opt.attr("selected", true); }
-      $('#loEDO').append(opt);
-    }
-  }
-  if (sortEDO != oldSortEDO) { updateURLWithParam("sortEDO", sortEDO); }
 }
 
+// ================================================================
+// Handling the URL and browser state
+// ================================================================
+
+function updateURLWithParams(toUpdate) {
+  const url = new URL(window.location);
+  for (const [param, val] of Object.entries(toUpdate)) {
+    if (val != undefined && (!val.trim || val.trim() !== "")) {
+      url.searchParams.set(param, val);
+    }
+    else {
+      url.searchParams.delete(param);
+    }
+  }
+  console.log(Date.now() + " [pushed] " + url.searchParams);
+  console.log(res);
+  const st = { html: $("#results").prop("outerHTML"), res: res };
+  history.pushState(st, $("#expr").val(), url);
+}
+
+window.onpopstate = function (e) {
+  const url = new URL(window.location);
+  console.log(Date.now() + " [popped] " + url.searchParams);
+  if (e && e.state && e.state.res) { console.log(e.state.res); }
+  else if (e) { console.log("bad state!!"); console.log(e); }
+  setStateFromURL(e);
+};
+
 function setStateFromURL(e) {
-  console.log(e);
+  function getWithDefault(urlParams, param, deflt) {
+    return urlParams.has(param) ? urlParams.get(param) : deflt;
+  }
   const urlParams = new URLSearchParams(window.location.search);
+  const expr       = getWithDefault(urlParams, 'expr'      , "");
+  const primeLimit = getWithDefault(urlParams, 'primeLimit', defaultPrimeLimit);
+  const oddLimit   = getWithDefault(urlParams, 'oddLimit'  , defaultOddLimit);
+  const sortRat    = getWithDefault(urlParams, 'sortRat'   , defaultSortRat);
+  const loEDO      = getWithDefault(urlParams, 'loEDO'     , defaultLoEDO);
+  const hiEDO      = getWithDefault(urlParams, 'hiEDO'     , defaultHiEDO);
+  const sortEDO    = getWithDefault(urlParams, 'sortEDO'   , defaultSortEDO);
+  moreRat          = getWithDefault(urlParams, 'moreRat'   , defaultMoreRat);
+  moreEDO          = getWithDefault(urlParams, 'moreEDO'   , defaultMoreEDO);
   $('#expr').val(urlParams.has('expr') ? urlParams.get('expr') : "");
-  primeLimit = urlParams.has('primeLimit') ? urlParams.get('primeLimit') : 13;
-  oddLimit   = urlParams.has('oddLimit')   ? urlParams.get('oddLimit')   : 81;
-  sortRat    = urlParams.has('sortRat')    ? urlParams.get('sortRat')    : "Tenney height";
-  loEDO      = urlParams.has('loEDO')      ? urlParams.get('loEDO')      : 5;
-  hiEDO      = urlParams.has('hiEDO')      ? urlParams.get('hiEDO')      : 60;
-  sortEDO    = urlParams.has('sortEDO')    ? urlParams.get('sortEDO')    : "EDO";
-  if (e && e.state && e.state.trim() === "") { console.log("Debug: bad popped state!"); }
-  if (e && e.state && e.state.trim() !== "") {
-    $('#results').html(e.state);
-    $('#primeLimit').on("change", updateRatApproxs);
-    $('#oddLimit')  .on("change", updateRatApproxs);
-    $('#sortRat')   .on("change", updateRatApproxs);
-    $('#loEDO')     .on("change", updateEDOApproxs);
-    $('#hiEDO')     .on("change", updateEDOApproxs);
-    $('#sortEDO')   .on("change", updateEDOApproxs);
+  updateDropdown($('#primeLimit'), primeLimitOpts(), primeLimit);
+  updateDropdown($('#oddLimit')  , oddLimitOpts(sortRat), oddLimit);
+  updateDropdown($('#sortRat')   , sortRatOpts(oddLimit), sortRat);
+  updateDropdown($('#loEDO')     , loEDOOpts(hiEDO), loEDO);
+  updateDropdown($('#hiEDO')     , hiEDOOpts(loEDO), hiEDO);
+  updateDropdown($('#sortEDO')   , sortEDOOpts(), sortEDO);
+  if (e && e.state && e.state.html && e.state.html.trim() !== "") {
+    $('#results').replaceWith(e.state.html);
+    $('#primeLimit').change(() => updateRatApproxs('primeLimit'));
+    $('#oddLimit')  .change(() => updateRatApproxs('oddLimit'));
+    $('#sortRat')   .change(() => updateRatApproxs('sortRat'));
+    $('#loEDO')     .change(() => updateEDOApproxs('loEDO'));
+    $('#hiEDO')     .change(() => updateEDOApproxs('hiEDO'));
+    $('#sortEDO')   .change(() => updateEDOApproxs('sortEDO'));
+    res = e.state.res;
+    addXenWikiLink(microtonal_utils.Fraction(res.ratio).toFraction());
   }
   else {
     updateResults();
   }
 }
 
-window.onpopstate = function (e) { console.log(Date.now() + " [popped]"); setStateFromURL(e); };
+// ================================================================
+// Initalizing
+// ================================================================
 
 $(document).ready(function() {
-  console.log(Date.now() + " [ready]");
-  history.replaceState($("#results").html(), "", new URL(window.location));
   setStateFromURL();
+  updateURLWithParams({});
 
-  // add accidental buttons
+  // accidental buttons
   $('#add_dbl_flat') .click(function() { insertAtCursor("𝄫"); });
   $('#add_flat')     .click(function() { insertAtCursor("♭"); });
   $('#add_nat')      .click(function() { insertAtCursor("♮"); });
@@ -454,7 +497,16 @@ $(document).ready(function() {
   // pressing enter!
   $('#enter').click(function() {
     updateResults();
-    updateURLWithParam("expr", $('#expr').val());
+    let toUpdate = {"expr": $('#expr').val()};
+    toUpdate["moreRat"] = ""; toUpdate["moreEDO"] = "";
+    updateURLWithParams(toUpdate);
   });
 
+  // results dropdowns (must be re-set on state change)
+  $('#primeLimit').change(() => updateRatApproxs('primeLimit'));
+  $('#oddLimit')  .change(() => updateRatApproxs('oddLimit'));
+  $('#sortRat')   .change(() => updateRatApproxs('sortRat'));
+  $('#loEDO')     .change(() => updateEDOApproxs('loEDO'));
+  $('#hiEDO')     .change(() => updateEDOApproxs('hiEDO'));
+  $('#sortEDO')   .change(() => updateEDOApproxs('sortEDO'));
 });
