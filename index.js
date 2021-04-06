@@ -51,9 +51,8 @@ function updateDropdown(dropdown, opts, selected) {
 // ================================================================
 
 const defaultPrimeLimit = 13;
-function primeLimitOpts() {
-  return [3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, "–"];
-}
+const primeLimitOpts =
+  [3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, "–"];
 
 const defaultOddLimit = 81;
 function oddLimitOpts(sortRat) {
@@ -263,10 +262,7 @@ function updateResults() {
     }
     if (res.type === "interval") {
       $('#resApproxs').removeClass("hidden");
-      const cutoff = res.edoSteps ? 600/res.edoSteps[1] : 50;
-      $('#cutoffRat').html("±" + fmtCents(cutoff,1));
       updateRatApproxs();
-      $('#cutoffEDO').html("±50c");
       updateEDOApproxs();
     }
     else {
@@ -311,14 +307,21 @@ function updateRatApproxs(toUpdate) {
 
   const primeLimit = tryParseInt($('#primeLimit').val());
   const oddLimit   = tryParseInt($('#oddLimit')  .val());
-  const sortRat = $('#sortRat').val();
-  updateDropdown($('#primeLimit'), primeLimitOpts(), primeLimit);
+  const sortRat    = $('#sortRat').val();
+  updateDropdown($('#primeLimit'), primeLimitOpts, primeLimit);
   updateDropdown($('#oddLimit')  , oddLimitOpts(sortRat), oddLimit);
   updateDropdown($('#sortRat')   , sortRatOpts(oddLimit), sortRat);
 
-  const cutoff = res.edoSteps ? microtonal_utils.Interval(2).pow(1,2*res.edoSteps[1])
-                              : undefined;
-  const params = { cutoff: cutoff
+  const cutoff = res.edoSteps ? 600/res.edoSteps[1] : 50;
+  if (sortRat === "difference") {
+    $('#cutoffRatSpan').addClass("hidden");
+  }
+  else {
+    $('#cutoffRatSpan').removeClass("hidden");
+    $('#cutoffRat').html("±" + fmtCents(cutoff, 1));
+  }
+
+  const params = { cutoff: microtonal_utils.Interval(2).pow(cutoff, 1200)
                  , primeLimit: isNaN(primeLimit) ? undefined : primeLimit
                  , oddLimit  : isNaN(oddLimit)   ? undefined : oddLimit
                  , numIterations: moreRat };
@@ -363,7 +366,7 @@ function updateRatApproxs(toUpdate) {
   if (toUpdate) {
     let params = {"moreRat": moreRat == defaultMoreRat ? "" : moreRat};
     if ($('#' + toUpdate).val()) { params[toUpdate] = $('#' + toUpdate).val(); }
-    updateURLWithParams(params);
+    updateURLWithParams(params, moreRat != defaultMoreRat);
   }
 }
 
@@ -381,6 +384,14 @@ function updateEDOApproxs(toUpdate) {
   updateDropdown($('#loEDO')  , loEDOOpts(hiEDO), loEDO);
   updateDropdown($('#hiEDO')  , hiEDOOpts(loEDO), hiEDO);
   updateDropdown($('#sortEDO'), sortEDOOpts(), sortEDO);
+
+  if (sortEDO === "difference") {
+    $('#cutoffEDOSpan').addClass("hidden");
+  }
+  else {
+    $('#cutoffEDOSpan').removeClass("hidden");
+    $('#cutoffEDO').html("±50c");
+  }
 
   const params = { startEDO: loEDO, endEDO: hiEDO };
   const fn = sortEDO === "difference" ? microtonal_utils.bestEDOApproxsByDiff
@@ -419,7 +430,7 @@ function updateEDOApproxs(toUpdate) {
   if (toUpdate) {
     let params = {"moreEDO": moreEDO == defaultMoreEDO ? "" : moreEDO};
     if ($('#' + toUpdate).val()) { params[toUpdate] = $('#' + toUpdate).val(); }
-    updateURLWithParams(params);
+    updateURLWithParams(params, moreEDO != defaultMoreEDO);
   }
 }
 
@@ -427,7 +438,7 @@ function updateEDOApproxs(toUpdate) {
 // Handling the URL and browser state
 // ================================================================
 
-function updateURLWithParams(paramsToUpdate) {
+function updateURLWithParams(paramsToUpdate, doReplace) {
   const url = new URL(window.location);
   for (const [param, val] of Object.entries(paramsToUpdate)) {
     if (val != undefined && (!val.trim || val.trim() !== "")) {
@@ -437,29 +448,28 @@ function updateURLWithParams(paramsToUpdate) {
       url.searchParams.delete(param);
     }
   }
-  updateURLTo(url);
+  updateURLTo(url, doReplace);
 }
 
-function updateURLTo(newURL) {
-  console.log(Date.now() + " [pushed] " + newURL.searchParams);
-  console.log(res);
+function updateURLTo(newURL, doReplace) {
   const st = { html: $("#results").prop("outerHTML"), res: res };
-  history.pushState(st, $("#expr").val(), newURL);
+  if (doReplace) {
+    console.log(Date.now() + " [replaced] " + newURL.searchParams);
+    console.log(res);
+    history.replaceState(st, $("#expr").val(), newURL);
+  }
+  else {
+    console.log(Date.now() + " [pushed] " + newURL.searchParams);
+    console.log(res);
+    history.pushState(st, $("#expr").val(), newURL);
+  }
 }
 
 function initState() {
   const url = new URL(window.location);
-  console.log(Date.now() + " [ready] " + url.searchParams);
-  console.log(res);
-  const st = { html: $("#results").prop("outerHTML"), res: res };
   // On my machine firefox has weird behavior on refresh, so I always pushState
   // (which still gives weird behavior, but at least it's better)
-  if (navigator.userAgent.toLowerCase().includes("firefox")) {
-    history.pushState(st, $("#expr").val(), url);
-  }
-  else {
-    history.replaceState(st, $("#expr").val(), url);
-  }
+  updateURLTo(url, !navigator.userAgent.toLowerCase().includes("firefox"));
 }
 
 window.onpopstate = function(e) {
@@ -489,7 +499,7 @@ function setStateFromParams(urlParams, e) {
   moreRat          = getWithDefault(urlParams, 'moreRat'   , defaultMoreRat);
   moreEDO          = getWithDefault(urlParams, 'moreEDO'   , defaultMoreEDO);
   $('#expr').val(urlParams.has('expr') ? urlParams.get('expr') : "");
-  updateDropdown($('#primeLimit'), primeLimitOpts(), primeLimit);
+  updateDropdown($('#primeLimit'), primeLimitOpts, primeLimit);
   updateDropdown($('#oddLimit')  , oddLimitOpts(sortRat), oddLimit);
   updateDropdown($('#sortRat')   , sortRatOpts(oddLimit), sortRat);
   updateDropdown($('#loEDO')     , loEDOOpts(hiEDO), loEDO);
