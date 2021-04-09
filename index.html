@@ -36,6 +36,26 @@
 
   <table id="resTable" class="resTable"></table>
 
+  <div id="resAudio">
+
+    <h4 id="resAudioHeader">Note audio</h4>
+
+    <div class="audioButtonsDiv">
+      <div id="intervalAudioButtons" class="hidden">
+        <div class="button-container"><button id="playIntvMelodic" title="Play melodic interval">▶ Play (melodic)</button></div>
+        <div class="button-container"><button id="playIntvHarmonic" title="Play harmonic interval">▶ Play (harmonic)</button></div>
+      </div>
+      <div id="noteAudioButtons" class="hidden">
+        <div class="button-container"><button id="playNoteToggle" title="Play/pause note">▶ Play note</button></div>
+        <br>
+        <div class="button-container"><button id="playNoteMelodic" title="Play melodic interval from reference">▶ Play interval from reference note (melodic)</button></div>
+        <div class="button-container"><button id="playNoteHarmonic" title="Play harmonic interval from reference">▶ Play interval from reference note (harmonic)</button></div>
+      </div>
+      <i>show synth settings</i>
+    </div>
+
+  </div>
+
   <div id="resApproxs" class="hidden">
 
     <h4>Best rational approximations</h4>
@@ -164,6 +184,9 @@
     (e.g. <a class="expr" href="?expr=C4+where+A+=+432hz">C4 where A = 432hz</a>)
     or set a reference note with automatically chosen tuning
     (e.g. <a class="expr" href="?expr=F♯\12+%2F+D+where+D+=+D\12">F♯\12 / D where D = D\12</a>).
+  </li>
+  <li>
+    Play intervals and notes using a basic synthesizer.
   </li>
   <li>
     List best rational approximations and best EDO approximations of an interval.

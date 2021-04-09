@@ -158,7 +158,7 @@ function getResults() {
   let [typeStr, ret] = ["", []];
   // Add interval-specific rows
   if (res.type === "interval") {
-    typeStr = "Interval results";
+    typeStr = "Interval";
     ret.push(["Size in cents:", fmtExtExprLink(fmtCents(res.cents, 5))]);
     if (res.ratio) {
       ret.push(["Ratio:", fmtExtExprLink(res.ratio.toFraction())]);
@@ -192,7 +192,7 @@ function getResults() {
   }
   // Add note-specific rows
   if (res.type === "note") {
-    typeStr = "Note results";
+    typeStr = "Note";
     ret.push(["Frequency in hertz:", fmtExtExprLink(fmtHertz(res.hertz, 5))]);
     ret.push(["Tuning meter read-out:", res.tuningMeter]);
   }
@@ -249,7 +249,7 @@ function updateResults() {
     $('#errors').addClass("hidden");
     $('#results').removeClass("hidden");
     const [typeStr, rows] = getResults();
-    $('#resHeader').html(typeStr);
+    $('#resHeader').html(typeStr + " results");
     $('#resTable').empty();
     for (const [n,v] of rows) {
       let row = $('<tr>');
@@ -260,12 +260,17 @@ function updateResults() {
     if (res.ratio) {
       addXenWikiLink(res.ratio.toFraction());
     }
+    $('#resAudioHeader').html(typeStr + " audio");
     if (res.type === "interval") {
+      $('#intervalAudioButtons').removeClass("hidden");
+      $('#noteAudioButtons').addClass("hidden");
       $('#resApproxs').removeClass("hidden");
       updateRatApproxs();
       updateEDOApproxs();
     }
     else {
+      $('#intervalAudioButtons').addClass("hidden");
+      $('#noteAudioButtons').removeClass("hidden");
       $('#resApproxs').addClass("hidden");
     }
   }

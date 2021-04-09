@@ -143,10 +143,15 @@ h4 {
   font-size: 92.5%;
 }
 
+.audioButtonsDiv {
+  margin-bottom: 32px;
+}
+
 .button-container {
   display: inline-block;
   padding-left: 2px;
   padding-right: 2px;
+  padding-bottom: 10px;
 }
 
 .parseError {
