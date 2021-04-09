@@ -1,0 +1,3 @@
+[submodule "microtonal-utils"]
+	path = microtonal-utils
+	url = https://github.com/m-yac/microtonal-utils.git
