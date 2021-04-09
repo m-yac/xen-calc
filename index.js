@@ -226,11 +226,11 @@ function getResults() {
     ret.push([]);
     const refSymb = microtonal_utils.pyNote(res.ref.intvToA4);
     if (res.edoStepsToRef) {
-      ret.push(["Interval to reference note:",
+      ret.push(["Interval from reference note:",
                 fmtExtExprLink(fmtEDOStep(res.edoStepsToRef))]);
     }
     else {
-      ret.push(["Interval to reference note:",
+      ret.push(["Interval from reference note:",
                 fmtExtExprLink(fmtExpression(res.intvToRef))]);
     }
     ret.push(["Reference note and frequency:", refSymb + " = " + fmtHertz(res.ref.hertz, 2)])

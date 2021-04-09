@@ -91,8 +91,8 @@
 <h2>What is this?</h2>
 
 <p>
-  This is a general purpose calculator/converter for microtonal music, inspired
-  by (and intended to combine the features of)
+  This my attempt at a general purpose calculator/converter for
+  microtonal music, inspired by (and intended to combine the features of)
   <a class="alt" href="https://untwelve.org/interval_calc" target="_blank">untwelve's interval calculator</a>,
   the <a class="alt" href="https://www.plainsound.org/HEJI/" target="_blank">Harmonic Space Calculator</a>,
   <a class="alt" href="https://misotanni.github.io/fjs/en/calc.html" target="_blank">misotanni's FJS Calculators</a>,
@@ -100,7 +100,7 @@
   <a class="alt" href="https://en.xen.wiki/w/Main_Page" target="_blank">Xenharmonic wiki</a>.
 </p>
 <p>
-  At the moment, this calculator can:
+  This calculator can:
 </p>
 
 <ul>
@@ -115,18 +115,21 @@
   <li>
     Multiply (*), divide (/), and exponentiate (^) just ratios
     (e.g. <a class="expr" href="?expr=64%2F63+*+(9%2F8)^2">64/63 * (9/8)^2</a>)
-    and intervals in EDO step, FJS, and ups-and-downs notation
-    (e.g. <a class="expr" href="?expr=3%2F2+%2F+4\12">3/2 / 4\12</a>,
-          <a class="expr" href="?expr=(M3^5)^2">(M3^5)^2</a>,
-          <a class="expr" href="?expr=vM3\22+*+m2_5">vM3\22 * m2_5</a>).
+    as well as intervals in EDO step, FJS, and ups-and-downs notation
+    (e.g. <a class="expr" href="?expr=3%2F2+*+M3^5">3/2 * M3^5</a>,
+          <a class="expr" href="?expr=M3\22+%2F+m3^7">m3\22 / m3^7</a>,
+          <a class="expr" href="?expr=(M3^5)^2">(M3^5)^2</a>).
   </li>
   <li>
     Add (+), subtract (-), and scale (x) cents values
     (e.g. <a class="expr" href="?expr=21.5c+%2B+2+x+100c">27.3c + 2 x 100c</a>)
-    and intervals in EDO step, FJS, and ups-and-downs notation
-    (e.g. <a class="expr" href="?expr=702c+-+4\12">702c - 4\12</a>,
+    as well as intervals in EDO step, FJS, and ups-and-downs notation
+    (e.g. <a class="expr" href="?expr=700c+%2B+M3^5">700c + M3^5</a>,
+          <a class="expr" href="?expr=M3\22+-+m3^7">m3\22 - m3^7</a>,
+          <a class="expr" href="?expr=2+x+M3^5">2 x M3^5</a>).
+          <!-- <a class="expr" href="?expr=702c+-+4\12">702c - 4\12</a>,
           <a class="expr" href="?expr=(M3^5)+x+2">(M3^5) x 2</a>,
-          <a class="expr" href="?expr=vM3\22+%2B+m2_5">vM3\22 + m2_5</a>).
+          <a class="expr" href="?expr=vM3\22+%2B+m2_5">vM3\22 + m2_5</a>). -->
   </li>
   <li>
     Combine all of the above with notes:
@@ -159,7 +162,7 @@
   <li>
     Set a reference note and tuning
     (e.g. <a class="expr" href="?expr=C4+where+A+=+432hz">C4 where A = 432hz</a>)
-    or set a reference note with automatically set tuning
+    or set a reference note with automatically chosen tuning
     (e.g. <a class="expr" href="?expr=F♯\12+%2F+D+where+D+=+D\12">F♯\12 / D where D = D\12</a>).
   </li>
   <li>
@@ -268,7 +271,7 @@ conversion:
 <ol>
   <li>
     <p>
-      Checking non-microtonal interval arithmetic:
+      Checking interval arithmetic:
     </p>
     <ul>
       <li>
@@ -279,25 +282,25 @@ conversion:
         We can also confirm things specific to 12-EDO, like the fact that two
         major thirds is a minor sixth:
         <a class="expr" href="?expr=(2+x+M3)\12">(2 x M3)\12</a>.
-        Without the "\12", we get the equally correct answer of an augmented
-        fifth.
+        Note that without the "\12", we get the equally correct answer of an
+        augmented fifth.
       </li>
     </ul>
   </li>
   <li>
     <p>
-      Suppose we wanted to find just ratios for a neutral third. The
+      Suppose we wanted to find just ratios for a neutral third. (The
       <a href="https://en.wikipedia.org/wiki/Neutral_third" class="alt" target="_blank">Wikipedia page for neutral third</a>
-      can tell us, but suppose we want to figure it out ourselves. A neutral
+      can tell us, but suppose we want to figure it out ourselves.) A neutral
       third is an interval roughly halfway between a major third and minor
       third, so I would start by typing in something like
       <a class="expr" href="?expr=1%2F2+x+(M3+%2B+m3)"> 1/2 x (M3 + m3)</a><a href="#ex2Note">*</a>.
-      This gives us the interval "halfway between" M3 and m3 in the same way
+      This will give us the interval "halfway between" M3 and m3 in the same way
       that 1/2 x (3 + 4) gives us the number halfway between 3 and 4.
     </p>
     <p>
       After entering that expression, the "Best Rational Approximations" section
-      gives us our answers. The first result, 5/4, is definitely not a neutal
+      gives us our answers. The first result, 5/4, is definitely not a neutral
       third and is off by 35 cents, but the rest are all known neutral thirds,
       at least according to the Xenharmonic wiki. The simplest two of these,
       <a class="expr" href="?expr=11%2F9">11/9</a> and
@@ -307,7 +310,7 @@ conversion:
       cents difference, giving us a more complete list.
     </p>
     <p id="ex2Note">
-      * It is worth noting that you could also write this same expression
+      * It is worth noting that we can also write this same expression
       <a href="#tipMulAddExprs" class="alt">multiplicatively</a> as
       <a class="expr" href="?expr=(M3+*+m3)^(1%2F2)">(M3 * m3)^(1/2)</a>, which
       is a hint for why the calculator says both expressions are equal to
@@ -318,7 +321,9 @@ conversion:
       the septimal major third (<a class="expr" href="?expr=9%2F7">9/7</a> or
                                 <a class="expr" href="?expr=M3_7">M3_7</a>) and
       the septimal minor third (<a class="expr" href="?expr=7%2F6">7/6</a> or
-                                <a class="expr" href="?expr=m3^7">m3^7</a>).
+                                <a class="expr" href="?expr=m3^7">m3^7</a>), or
+      the 12-EDO major third (<a class="expr" href="?expr=M3\12">M3\12</a>) and
+      the 12-EDO minor third (<a class="expr" href="?expr=m3\12">m3\12</a>).
     </p>
   </li>
   <li>
@@ -392,10 +397,10 @@ conversion:
           it is the simplest just ratio which lies between the two.
         </p>
         <p style="margin: 0.5em 0 0 0">
-          That being said, I doubt 17/14 is really a simple enough interval to
-          be played on an E flat saxophone like Katsuta is using, and I suspect
-          its appearance here is a coincidence - perhaps just because it is
-          quite close to
+          That being said, I have no idea if 17/14 is actually a simple enough
+          interval to be played on a saxophone. Personally, I suspect its
+          appearance here is a coincidence - perhaps just because it is quite
+          close to
           <a class="expr" href="?expr=sqrt(6%2F5+*+11%2F9)&primeLimit=17">sqrt(6/5 * 11/9)</a>,
           the halfway point between 6/5 and 11/9.
         </p>
@@ -404,7 +409,8 @@ conversion:
     <p>
       So, I conclude that Katsuta's blue note is a slur between 6/5 and 11/9
       which lingers mostly halfway between the two. I suspect others will come
-      up with slightly different answers - so try the whole experiment yourself!
+      up with different answers or interpretations - so try the whole experiment
+      yourself!
     </p>
   </li>
 </ol>
