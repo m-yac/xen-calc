@@ -91,6 +91,8 @@ const defaultMoreEDO = 1;
 
 var res = {};
 
+const synth = new XenCalcSynth();
+
 // ================================================================
 // Formatting functions
 // ================================================================
@@ -158,6 +160,7 @@ function getResults() {
   let [typeStr, ret] = ["", []];
   // Add interval-specific rows
   if (res.type === "interval") {
+    res.hertz = res.intv.mul(res.ref.hertz).valueOf();
     typeStr = "Interval";
     ret.push(["Size in cents:", fmtExtExprLink(fmtCents(res.cents, 5))]);
     if (res.ratio) {
@@ -439,6 +442,43 @@ function updateEDOApproxs(toUpdate) {
   }
 }
 
+// The function to be called if the "Play/pause note" button is clicked
+function toggleNote() {
+  if ($('#playNoteToggle').html()[0] == "▶") {
+    synth.playFreq(1, res.hertz, organ);
+    $('#playNoteToggle').html("■ Stop note");
+  }
+  else {
+    stopNoteIfActive();
+  }
+}
+function stopNoteIfActive() {
+  if ($('#playNoteToggle').html()[0] != "▶") {
+    synth.stopFreqAfter(1, 0);
+    $('#playNoteToggle').html("▶ Play note");
+  }
+}
+
+// Play the melodic interval between res.ref.hertz and res.hertz
+function playMelodic() {
+  stopNoteIfActive();
+  synth.playFreq(0, res.ref.hertz, percussive(1.75));
+  synth.stopFreqAfter(0, 2);
+  setTimeout(function() {
+    synth.playFreq(1, res.hertz, percussive(1.75));
+    synth.stopFreqAfter(1, 2);
+  }, 700);
+}
+
+// Play the harmonic interval between res.ref.hertz and res.hertz
+function playHarmonic() {
+  stopNoteIfActive();
+  synth.playFreq(0, res.ref.hertz, percussive(1.75));
+  synth.playFreq(1, res.hertz    , percussive(1.75));
+  synth.stopFreqAfter(0, 2);
+  synth.stopFreqAfter(1, 2);
+}
+
 // ================================================================
 // Handling the URL and browser state
 // ================================================================
@@ -494,6 +534,7 @@ function setStateFromParams(urlParams, e) {
   function getWithDefault(urlParams, param, deflt) {
     return urlParams.has(param) ? urlParams.get(param) : deflt;
   }
+  // pull everything from urlParams
   const expr       = getWithDefault(urlParams, 'expr'      , "");
   const primeLimit = getWithDefault(urlParams, 'primeLimit', defaultPrimeLimit);
   const oddLimit   = getWithDefault(urlParams, 'oddLimit'  , defaultOddLimit);
@@ -503,6 +544,7 @@ function setStateFromParams(urlParams, e) {
   const sortEDO    = getWithDefault(urlParams, 'sortEDO'   , defaultSortEDO);
   moreRat          = getWithDefault(urlParams, 'moreRat'   , defaultMoreRat);
   moreEDO          = getWithDefault(urlParams, 'moreEDO'   , defaultMoreEDO);
+  // update the expr fields and all the dropdowns based on the above
   $('#expr').val(urlParams.has('expr') ? urlParams.get('expr') : "");
   updateDropdown($('#primeLimit'), primeLimitOpts, primeLimit);
   updateDropdown($('#oddLimit')  , oddLimitOpts(sortRat), oddLimit);
@@ -510,22 +552,31 @@ function setStateFromParams(urlParams, e) {
   updateDropdown($('#loEDO')     , loEDOOpts(hiEDO), loEDO);
   updateDropdown($('#hiEDO')     , hiEDOOpts(loEDO), hiEDO);
   updateDropdown($('#sortEDO')   , sortEDOOpts(), sortEDO);
+  // either directly set the results section html if we have a valid state, or
+  // call updateResults to generate it
   if (e && e.state && e.state.html && e.state.html.trim() !== "") {
     $('#results').replaceWith(e.state.html);
-    $('#primeLimit').change(() => updateRatApproxs('primeLimit'));
-    $('#oddLimit')  .change(() => updateRatApproxs('oddLimit'));
-    $('#sortRat')   .change(() => updateRatApproxs('sortRat'));
-    $('#loEDO')     .change(() => updateEDOApproxs('loEDO'));
-    $('#hiEDO')     .change(() => updateEDOApproxs('hiEDO'));
-    $('#sortEDO')   .change(() => updateEDOApproxs('sortEDO'));
-    $('#ratTableMoreLink').click(function() { moreRat++; updateRatApproxs("moreRat"); });
-    $('#edoTableMoreLink').click(function() { moreEdo++; updateRatApproxs("moreEDO"); });
     res = e.state.res;
     addXenWikiLink(microtonal_utils.Fraction(res.ratio).toFraction());
   }
   else {
     updateResults();
   }
+  // set (or refresh) the click/change events for all the interactables in the
+  // results section
+  $('#playIntvMelodic') .click(() => playMelodic());
+  $('#playNoteMelodic') .click(() => playMelodic());
+  $('#playIntvHarmonic').click(() => playHarmonic());
+  $('#playNoteHarmonic').click(() => playHarmonic());
+  $('#playNoteToggle')  .click(() => toggleNote());
+  $('#primeLimit').change(() => updateRatApproxs('primeLimit'));
+  $('#oddLimit')  .change(() => updateRatApproxs('oddLimit'));
+  $('#sortRat')   .change(() => updateRatApproxs('sortRat'));
+  $('#loEDO')     .change(() => updateEDOApproxs('loEDO'));
+  $('#hiEDO')     .change(() => updateEDOApproxs('hiEDO'));
+  $('#sortEDO')   .change(() => updateEDOApproxs('sortEDO'));
+  $('#ratTableMoreLink').click(function() { moreRat++; updateRatApproxs("moreRat"); });
+  $('#edoTableMoreLink').click(function() { moreEdo++; updateRatApproxs("moreEDO"); });
 }
 
 // ================================================================
@@ -575,12 +626,4 @@ $(document).ready(function() {
     params["moreRat"] = ""; params["moreEDO"] = "";
     updateURLWithParams(params);
   });
-
-  // results dropdowns (must be re-set on state change)
-  $('#primeLimit').change(() => updateRatApproxs('primeLimit'));
-  $('#oddLimit')  .change(() => updateRatApproxs('oddLimit'));
-  $('#sortRat')   .change(() => updateRatApproxs('sortRat'));
-  $('#loEDO')     .change(() => updateEDOApproxs('loEDO'));
-  $('#hiEDO')     .change(() => updateEDOApproxs('hiEDO'));
-  $('#sortEDO')   .change(() => updateEDOApproxs('sortEDO'));
 });

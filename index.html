@@ -4,6 +4,13 @@
 <link rel="stylesheet" href="style.css" />
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 <script type="text/javascript" src="microtonal-utils/dist/microtonal-utils.js"></script>
+<script type="text/javascript" src="scale-workshop/src/lib/ramda-0.27.1.min.js"></script>
+<script type="text/javascript" src="scale-workshop/src/js/helpers.js"></script>
+<script type="text/javascript" src="scale-workshop/src/js/keymap.js"></script>
+<script type="text/javascript" src="scale-workshop/src/js/synth/Voice.js"></script>
+<script type="text/javascript" src="scale-workshop/src/js/synth/Delay.js"></script>
+<script type="text/javascript" src="scale-workshop/src/js/synth/Synth.js"></script>
+<script type="text/javascript" src="synth.js"></script>
 <script type="text/javascript" src="index.js"></script>
 </head>
 <body>
@@ -51,7 +58,6 @@
         <div class="audioButtonContainer"><button id="playNoteMelodic" title="Play melodic interval from reference">▶ Play interval from reference note (melodic)</button></div><!--
      --><div class="audioButtonContainer"><button id="playNoteHarmonic" title="Play harmonic interval from reference">▶ Play interval from reference note (harmonic)</button></div>
       </div>
-      <i>show synth settings</i>
     </div>
 
   </div>
@@ -186,7 +192,8 @@
     (e.g. <a class="expr" href="?expr=F♯\12+%2F+D+where+D+=+D\12">F♯\12 / D where D = D\12</a>).
   </li>
   <li>
-    Play intervals and notes using a basic synthesizer.
+    Play intervals and notes (using the synth from Sevish's
+    <a href="https://sevish.com/scaleworkshop/" target="_blank" class="alt">Scale Workshop</a>).
   </li>
   <li>
     List best rational approximations and best EDO approximations of an interval.
