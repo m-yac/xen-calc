@@ -157,47 +157,47 @@ function fmtExtExprLink(str, newTab) {
 // should be the contents of the results table
 function getResults() {
   res = microtonal_utils.parseCvt($('#expr').val());
-  let [typeStr, ret] = ["", []];
+  let [typeStr, rows, scaleWorkshopData] = ["", [], ""];
   // Add interval-specific rows
   if (res.type === "interval") {
     res.hertz = res.intv.mul(res.ref.hertz).valueOf();
     typeStr = "Interval";
-    ret.push(["Size in cents:", fmtExtExprLink(fmtCents(res.cents, 5))]);
+    rows.push(["Size in cents:", fmtExtExprLink(fmtCents(res.cents, 5))]);
     if (res.ratio) {
-      ret.push(["Ratio:", fmtExtExprLink(res.ratio.toFraction())]);
+      rows.push(["Ratio:", fmtExtExprLink(res.ratio.toFraction())]);
     }
     else {
       try {
         if (res.intv.toNthRoot().n <= 6) {
-          ret.push(["Expression:", fmtExtExprLink(res.intv.toNthRootString())]);
+          rows.push(["Expression:", fmtExtExprLink(res.intv.toNthRootString())]);
         }
       }
       catch (err) {}
     }
     const fact = fmtFactorization(res.intv);
     if (fact.length > 0) {
-      ret.push(["Factorization:", fmtExtExprLink(fact)]);
+      rows.push(["Factorization:", fmtExtExprLink(fact)]);
       let monzo = res.intv.toMonzo();
       if (res.intv.isFrac()) {
-        ret.push(["Monzo:", "|" + monzo.join(", ") + "⟩"]);
+        rows.push(["Monzo:", "|" + monzo.join(", ") + "⟩"]);
       }
       else {
         monzo = monzo.map(x => x.toFraction());
-        ret.push(["Fractional monzo:", "|" + monzo.join(", ") + "⟩"]);
+        rows.push(["Fractional monzo:", "|" + monzo.join(", ") + "⟩"]);
       }
     }
     if (res.ratio) {
-      ret.push(["Tenney height:", +res.height.tenney.toFixed(5) + " (log2(" + res.height.benedetti + "))"])
+      rows.push(["Tenney height:", +res.height.tenney.toFixed(5) + " (log2(" + res.height.benedetti + "))"])
     }
     if (res.edoSteps) {
-      ret.push(["EDO steps:", fmtExtExprLink(fmtEDOStep(res.edoSteps))]);
+      rows.push(["EDO steps:", fmtExtExprLink(fmtEDOStep(res.edoSteps))]);
     }
   }
   // Add note-specific rows
   if (res.type === "note") {
     typeStr = "Note";
-    ret.push(["Frequency in hertz:", fmtExtExprLink(fmtHertz(res.hertz, 5))]);
-    ret.push(["Tuning meter read-out:", res.tuningMeter]);
+    rows.push(["Frequency in hertz:", fmtExtExprLink(fmtHertz(res.hertz, 5))]);
+    rows.push(["Tuning meter read-out:", res.tuningMeter]);
   }
   // Add any symbols
   if (res.symb) {
@@ -205,40 +205,51 @@ function getResults() {
         // for now we only have integer accidentals, since I'm not sure how
         //  useful showing non-integer accidentals actually is
         !(res.symb["FJS"].includes("root") || res.symb["FJS"].includes("sqrt"))) {
-      ret.push(["FJS name:", fmtExtExprLink(res.symb["FJS"])]);
+      rows.push(["FJS name:", fmtExtExprLink(res.symb["FJS"])]);
     }
     if (res.symb["NFJS"] &&
         // for now we only have integer accidentals, since I'm not sure how
         //  useful showing non-integer accidentals actually is
         !(res.symb["NFJS"].includes("root") || res.symb["NFJS"].includes("sqrt"))) {
-      ret.push(["Neutral FJS name:", fmtExtExprLink(res.symb["NFJS"])]);
+      rows.push(["Neutral FJS name:", fmtExtExprLink(res.symb["NFJS"])]);
       // TODO fix the above link if the base interval is not neutral ^
     }
     if (res.symb["ups-and-downs"]) {
       const symbs = res.symb["ups-and-downs"].map(symb => fmtExtExprLink(symb).prop('outerHTML'));
-      ret.push(["Ups-and-downs notation:", symbs.join(", ")]);
+      rows.push(["Ups-and-downs notation:", symbs.join(", ")]);
     }
   }
   const addS = res.english && res.english.length > 1 ? "(s):" : ":";
   if (res.english && res.english.length > 0){
     const end = res.english.length > 1 ? "(s):" : ":";
-    ret.push(["(Possible) English name" + end, res.english.join("<br>")]);
+    rows.push(["(Possible) English name" + end, res.english.join("<br>")]);
   }
   // Add a note's interval reference
   if (res.type === "note" && !res.intvToRef.equals(1)) {
-    ret.push([]);
+    rows.push([]);
     const refSymb = microtonal_utils.pyNote(res.ref.intvToA4);
     if (res.edoStepsToRef) {
-      ret.push(["Interval from reference note:",
+      rows.push(["Interval from reference note:",
                 fmtExtExprLink(fmtEDOStep(res.edoStepsToRef))]);
     }
     else {
-      ret.push(["Interval from reference note:",
+      rows.push(["Interval from reference note:",
                 fmtExtExprLink(fmtExpression(res.intvToRef))]);
     }
-    ret.push(["Reference note and frequency:", refSymb + " = " + fmtHertz(res.ref.hertz, 2)])
+    rows.push(["Reference note and frequency:", refSymb + " = " + fmtHertz(res.ref.hertz, 2)])
   }
-  return [typeStr, ret];
+  // Format the interval for use in Scale Workshop
+  if (res.type == "interval") {
+    if (res.edoSteps) { scaleWorkshopData = fmtEDOStep(res.edoSteps); }
+    else if (res.ratio) { scaleWorkshopData = res.ratio.toFraction(); }
+    else { scaleWorkshopData = res.cents; }
+  }
+  if (res.type == "note") {
+    if (res.edoStepsToRef) { scaleWorkshopData = fmtEDOStep(res.edoStepsToRef); }
+    else if (res.intvToRef.isFrac()) { scaleWorkshopData = res.intvToRef.toFrac().toFraction(); }
+    else { scaleWorkshopData = res.intvToRef.toCents().toFixed(13); }
+  }
+  return [typeStr, rows, scaleWorkshopData];
 }
 
 // Updates the entire results section based on the current expression
@@ -251,7 +262,7 @@ function updateResults() {
   try {
     $('#errors').addClass("hidden");
     $('#results').removeClass("hidden");
-    const [typeStr, rows] = getResults();
+    const [typeStr, rows, scaleWorkshopData] = getResults();
     $('#resHeader').html(typeStr + " results");
     $('#resTable').empty();
     for (const [n,v] of rows) {
@@ -264,6 +275,11 @@ function updateResults() {
       addXenWikiLink(res.ratio.toFraction());
     }
     $('#resAudioHeader').html(typeStr + " audio");
+    let scaleWorkshopLink = "http://sevish.com/scaleworkshop/";
+    scaleWorkshopLink += "?waveform=sine&ampenv=perc-medium";
+    scaleWorkshopLink += "&data=" + scaleWorkshopData;
+    scaleWorkshopLink += "&freq=" + res.ref.hertz;
+    $('#scaleWorkshopLink').attr("href", scaleWorkshopLink);
     if (res.type === "interval") {
       $('#intervalAudioButtons').removeClass("hidden");
       $('#noteAudioButtons').addClass("hidden");
@@ -463,10 +479,10 @@ function stopNoteIfActive() {
 function playMelodic() {
   stopNoteIfActive();
   synth.playFreq(0, res.ref.hertz, percussive(1.75));
-  synth.stopFreqAfter(0, 2);
+  synth.stopFreqAfter(0, 10);
   setTimeout(function() {
     synth.playFreq(1, res.hertz, percussive(1.75));
-    synth.stopFreqAfter(1, 2);
+    synth.stopFreqAfter(1, 10);
   }, 700);
 }
 
@@ -475,8 +491,8 @@ function playHarmonic() {
   stopNoteIfActive();
   synth.playFreq(0, res.ref.hertz, percussive(1.75));
   synth.playFreq(1, res.hertz    , percussive(1.75));
-  synth.stopFreqAfter(0, 2);
-  synth.stopFreqAfter(1, 2);
+  synth.stopFreqAfter(0, 10);
+  synth.stopFreqAfter(1, 10);
 }
 
 // ================================================================

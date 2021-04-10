@@ -214,6 +214,11 @@ button:active {
   padding-left: 5px;
   font-size: 85%;
 }
+.selectContainer:hover,
+.selectContainer:focus {
+  box-shadow: 0 0 2pt 1pt #6AF;
+  /* # outline: 2px solid #6AF; */
+}
 .selectContainer {
   /* margin: 50px; */
   /* width: 45px; */
