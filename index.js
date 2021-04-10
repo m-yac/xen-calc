@@ -176,14 +176,16 @@ function getResults() {
     }
     const fact = fmtFactorization(res.intv);
     if (fact.length > 0) {
-      rows.push(["Factorization:", fmtExtExprLink(fact)]);
+      rows.push(["Prime factorization:", fmtExtExprLink(fact)]);
       let monzo = res.intv.toMonzo();
-      if (res.intv.isFrac()) {
-        rows.push(["Monzo:", "|" + monzo.join(", ") + "⟩"]);
-      }
-      else {
-        monzo = monzo.map(x => x.toFraction());
-        rows.push(["Fractional monzo:", "|" + monzo.join(", ") + "⟩"]);
+      if (monzo.length <= 18*7) {
+        if (res.intv.isFrac()) {
+          rows.push(["Monzo:", "|" + monzo.join(", ") + "⟩"]);
+        }
+        else {
+          monzo = monzo.map(x => x.toFraction());
+          rows.push(["Fractional monzo:", "|" + monzo.join(", ") + "⟩"]);
+        }
       }
     }
     if (res.ratio) {
