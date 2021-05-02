@@ -46,6 +46,16 @@ function updateDropdown(dropdown, opts, selected) {
   }
 }
 
+// Update the page's title based on the current value of $('#expr')
+function updateTitle() {
+  if ($('#expr').val()) {
+    document.title = "xen-calc: " + $('#expr').val();
+  }
+  else {
+    document.title = "xen-calc";
+  }
+}
+
 // ================================================================
 // State variables
 // ================================================================
@@ -570,6 +580,7 @@ function setStateFromParams(urlParams, e) {
   updateDropdown($('#loEDO')     , loEDOOpts(hiEDO), loEDO);
   updateDropdown($('#hiEDO')     , hiEDOOpts(loEDO), hiEDO);
   updateDropdown($('#sortEDO')   , sortEDOOpts(), sortEDO);
+  updateTitle();
   // either directly set the results section html if we have a valid state, or
   // call updateResults to generate it
   if (e && e.state && e.state.html && e.state.html.trim() !== "") {
@@ -639,6 +650,7 @@ $(document).ready(function() {
   // pressing enter!
   $('#enter').click(function() {
     moreRat = defaultMoreRat; moreEDO = defaultMoreEDO;
+    updateTitle();
     updateResults();
     let params = {"expr": $('#expr').val()};
     params["moreRat"] = ""; params["moreEDO"] = "";
