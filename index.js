@@ -541,8 +541,12 @@ function updateURLTo(newURL, doReplace) {
 function initState() {
   const url = new URL(window.location);
   // On my machine firefox has weird behavior on refresh, so I always pushState
-  // (which still gives weird behavior, but at least it's better)
-  updateURLTo(url, !navigator.userAgent.toLowerCase().includes("firefox"));
+  // when refreshing on firefox on a non-blank page (which still gives weird
+  // behavior, but at least it's better)
+  const doReplace =
+    [...url.searchParams.entries()].length == 0
+    || !navigator.userAgent.toLowerCase().includes("firefox");
+  updateURLTo(url, doReplace);
 }
 
 window.onpopstate = function(e) {
