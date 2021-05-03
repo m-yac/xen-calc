@@ -63,7 +63,7 @@ blockquote {
 }
 
 .buttons {
-  height: 70px;
+  padding-bottom: 60px;
 }
 
 .alignleft {
@@ -148,7 +148,7 @@ h4 {
 }
 
 .buttonContainer {
-  display: inline-block;
+  display: inline;
   padding-left: 2px;
   padding-right: 2px;
 }
@@ -175,7 +175,7 @@ h4 {
 
 button {
   font-size: 100%;
-  display: inline-block;
+  display: inline;
   border: none;
   border-radius: 5px;
   -moz-border-radius: 5px;
