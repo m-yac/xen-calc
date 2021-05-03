@@ -473,7 +473,7 @@ function updateEDOApproxs(toUpdate) {
 // The function to be called if the "Play/pause note" button is clicked
 function toggleNote() {
   if ($('#playNoteToggle').html()[0] == "▶") {
-    synth.playFreq(1, res.hertz, organ);
+    synth.playFreq(0, res.hertz, organ);
     $('#playNoteToggle').html("■ Stop note");
   }
   else {
@@ -482,7 +482,7 @@ function toggleNote() {
 }
 function stopNoteIfActive() {
   if ($('#playNoteToggle').html()[0] != "▶") {
-    synth.stopFreqAfter(1, 0);
+    synth.stopFreqAfter(0, 0);
     $('#playNoteToggle').html("▶ Play note");
   }
 }
@@ -490,21 +490,21 @@ function stopNoteIfActive() {
 // Play the melodic interval between res.ref.hertz and res.hertz
 function playMelodic() {
   stopNoteIfActive();
-  synth.playFreq(0, res.ref.hertz, percussive(1.75));
-  synth.stopFreqAfter(0, 10);
+  synth.playFreq(1, res.ref.hertz, percussive(1.75));
+  synth.stopFreqAfter(1, 10);
   setTimeout(function() {
-    synth.playFreq(1, res.hertz, percussive(1.75));
-    synth.stopFreqAfter(1, 10);
+    synth.playFreq(2, res.hertz, percussive(1.75));
+    synth.stopFreqAfter(2, 10);
   }, 700);
 }
 
 // Play the harmonic interval between res.ref.hertz and res.hertz
 function playHarmonic() {
   stopNoteIfActive();
-  synth.playFreq(0, res.ref.hertz, percussive(1.75));
-  synth.playFreq(1, res.hertz    , percussive(1.75));
-  synth.stopFreqAfter(0, 10);
-  synth.stopFreqAfter(1, 10);
+  synth.playFreq(3, res.ref.hertz, percussive(1.75));
+  synth.playFreq(4, res.hertz    , percussive(1.75));
+  synth.stopFreqAfter(3, 10);
+  synth.stopFreqAfter(4, 10);
 }
 
 // ================================================================
