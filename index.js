@@ -348,16 +348,16 @@ function updateRatApproxs(toUpdate) {
   updateDropdown($('#oddLimit')  , oddLimitOpts(sortRat), oddLimit);
   updateDropdown($('#sortRat')   , sortRatOpts(oddLimit), sortRat);
 
-  const cutoff = res.edoSteps ? 600/res.edoSteps[1] : 50;
+  const cutoffDenom = res.edoSteps ? res.edoSteps[1] : 12;
   if (sortRat === "difference") {
     $('#cutoffRatSpan').addClass("hidden");
   }
   else {
     $('#cutoffRatSpan').removeClass("hidden");
-    $('#cutoffRat').html("±" + fmtCents(cutoff, 1));
+    $('#cutoffRat').html("±" + fmtCents(600/cutoffDenom, 1));
   }
 
-  const params = { cutoff: microtonal_utils.Interval(2).pow(cutoff, 1200)
+  const params = { cutoff: microtonal_utils.Interval(2).pow(1, 2*cutoffDenom)
                  , primeLimit: isNaN(primeLimit) ? undefined : primeLimit
                  , oddLimit  : isNaN(oddLimit)   ? undefined : oddLimit
                  , numIterations: moreRat };
