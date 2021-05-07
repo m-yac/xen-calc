@@ -9,19 +9,22 @@
 @font-face {
   font-family: helveticaSpecial;
   src: local(Helvetica Light);
+  /*             _       ~      */
   unicode-range: U+005F, U+007E;
 }
 
 @font-face {
   font-family: appleUnicodeSpecial;
   src: local(Apple Symbols);
-  unicode-range: U+266D, U+266E, U+266F, U+25B6, U+1D12A, U+1D12B;
+  /*             ■       ▷       ♭       ♮       ♯       𝄪        𝄫       */
+  unicode-range: U+25A0, U+25B6, U+266D, U+266E, U+266F, U+1D12A, U+1D12B;
 }
 
 @font-face {
   font-family: arialUnicodeSpecial;
   src: local(Arial Unicode MS);
-  unicode-range: U+266D, U+266E, U+266F, U+25B6, U+1D12A, U+1D12B;
+  /*             ■       ▷       ♭       ♮       ♯       𝄪        𝄫       */
+  unicode-range: U+25A0, U+25B6, U+266D, U+266E, U+266F, U+1D12A, U+1D12B;
 }
 
 html {
@@ -89,7 +92,7 @@ blockquote {
 .alignleft {
   box-sizing: border-box;
   float: left;
-  width:33.33333%;
+  width: 25%;
   text-align:left;
   padding-top: 8px;
   padding-left: 8px;
@@ -97,14 +100,14 @@ blockquote {
 .aligncenter {
   box-sizing: border-box;
   float: left;
-  width:33.33333%;
+  width: 50%;
   text-align:center;
   padding-top: 8px;
 }
 .alignright {
   box-sizing: border-box;
   float: left;
-  width:33.33333%;
+  width: 25%;
   text-align:right;
   padding-top: 8px;
   padding-right: 8px;
@@ -140,6 +143,7 @@ h4 {
 .resRightColumn {
   width: 50%;
   text-align: left;
+  vertical-align: top;
 }
 
 .approxsDesc {
@@ -169,8 +173,8 @@ h4 {
 
 .buttonContainer {
   display: inline;
-  padding-left: 2px;
-  padding-right: 2px;
+  padding-left: 1px;
+  padding-right: 1px;
 }
 
 .audioButtonContainer {
@@ -200,7 +204,7 @@ button {
   border-radius: 5px;
   -moz-border-radius: 5px;
   -webkit-border-radius: 5px;
-  padding: 2px min(5%,10px) 2px min(5%,10px);
+  padding: 2px min(4%,10px) 2px min(4%,10px);
   background-color: #DDD;
 }
 
@@ -256,7 +260,7 @@ button:active {
   /* Source: https://stackoverflow.com/a/42087251 */
   background-image: url("data:image/svg+xml;utf8,<svg fill='black' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>");
   background-repeat: no-repeat;
-  background-position: top 50% right 2px;
+  background-position: top 50% right 1px;
 }
 
 .twoDigitSelect select {
