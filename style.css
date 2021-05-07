@@ -7,14 +7,26 @@
 }
 
 @font-face {
-  font-family: specialChars;
+  font-family: helveticaSpecial;
   src: local(Helvetica Light);
   unicode-range: U+005F, U+007E;
 }
 
+@font-face {
+  font-family: appleUnicodeSpecial;
+  src: local(Apple Symbols);
+  unicode-range: U+266D, U+266E, U+266F, U+25B6, U+1D12A, U+1D12B;
+}
+
+@font-face {
+  font-family: arialUnicodeSpecial;
+  src: local(Arial Unicode MS);
+  unicode-range: U+266D, U+266E, U+266F, U+25B6, U+1D12A, U+1D12B;
+}
+
 html {
   background-color: #EEE;
-  font-family: specialChars, cmu, Arial Unicode MS;
+  font-family: arialUnicodeSpecial, appleUnicodeSpecial, helveticaSpecial, cmu;
 }
 
 body, table, tr, td, input, button, select, option, code {
@@ -32,8 +44,10 @@ body {
    margin: 0 auto;
    margin-bottom: 0;
    max-width: 750px;
-   padding: 1px 35px;
+   padding-top: 1px;
    padding-bottom: 25px;
+   padding-left: min(5%,35px);
+   padding-right: min(5%,35px);
    text-align: center;
    font-size: 110%;
 }
@@ -160,7 +174,7 @@ h4 {
 }
 
 .audioButtonContainer {
-  display: inline-block;
+  display: inline;
   padding-left: 5px;
   padding-right: 5px;
   padding-bottom: 10px;
@@ -186,7 +200,7 @@ button {
   border-radius: 5px;
   -moz-border-radius: 5px;
   -webkit-border-radius: 5px;
-  padding: 2px 10px 2px 10px;
+  padding: 2px min(5%,10px) 2px min(5%,10px);
   background-color: #DDD;
 }
 
@@ -239,16 +253,10 @@ button:active {
   position: relative;
   margin-top: 1px;
   margin-bottom: 1px;
-}
-.selectIcon {
-  position: absolute;
-  top: 0px;
-  right: 7px;
-  z-index: 9;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
+  /* Source: https://stackoverflow.com/a/42087251 */
+  background-image: url("data:image/svg+xml;utf8,<svg fill='black' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>");
+  background-repeat: no-repeat;
+  background-position: top 50% right 2px;
 }
 
 .twoDigitSelect select {
