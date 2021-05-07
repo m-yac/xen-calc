@@ -29,7 +29,7 @@
 
 html {
   background-color: #EEE;
-  font-family: arialUnicodeSpecial, appleUnicodeSpecial, helveticaSpecial, cmu;
+  font-family: arialUnicodeSpecial, appleUnicodeSpecial, helveticaSpecial, cmu, sans-serif;
 }
 
 body, table, tr, td, input, button, select, option, code {
@@ -245,7 +245,7 @@ button:active {
 .selectContainer {
   /* margin: 50px; */
   /* width: 45px; */
-  height: 23px;
+  height: 25px;
   /* border: 1px solid #111; */
   border-radius: 5px;
   -moz-border-radius: 5px;
