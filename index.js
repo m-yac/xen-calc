@@ -323,7 +323,7 @@ function addXenWikiLink(xenPageName) {
       if (exists) {
         let link = $('<a>').attr("target", "_blank")
                            .attr("href", xenURL)
-                           .append(xenURL);
+                           .append(xenURL.replace("https://",""));
         let row = $('<tr>');
         row.append($('<td>').addClass("resLeftColumn").html("Xenharmonic wiki page:"));
         row.append($('<td>').addClass("resRightColumn").html(link));

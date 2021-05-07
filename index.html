@@ -70,15 +70,12 @@
     <div class="approxsDesc">
       <div id="primeLimitContainer" class="selectContainer twoDigitSelect">
         <select id="primeLimit" title="Prime limit"></select>
-        <div class="selectIcon">▽</div>
       </div>-limit,
       <div id="oddLimitContainer" class="selectContainer twoDigitSelect">
         <select id="oddLimit" title="Odd limit"></select>
-        <div class="selectIcon">▽</div>
       </div>-odd-limit, sorted by
       <div id="sortRatContainer" class="selectContainer sortRatSelect">
         <select id="sortRat" title="Sort best rational approximations"></select>
-        <div class="selectIcon">▽</div>
       </div><span id="cutoffRatSpan">, cutoff at <span id="cutoffRat"></span></span>
     </div>
 
@@ -92,15 +89,12 @@
     <div class="approxsDesc">
       <div id="loEDOContainer" class="selectContainer threeDigitSelect">
         <select id="loEDO" title="Lowest EDO"></select>
-        <div class="selectIcon">▽</div>
       </div>-EDO to
       <div id="hiEDOContainer" class="selectContainer threeDigitSelect">
         <select id="hiEDO" title="Highest EDO"></select>
-        <div class="selectIcon">▽</div>
       </div>-EDO, sorted by
       <div id="sortEDOContainer" class="selectContainer sortEDOSelect">
         <select id="sortEDO" title="Sort best EDO approximations"></select>
-        <div class="selectIcon">▽</div>
       </div><span id="cutoffEDOSpan">, cutoff at <span id="cutoffEDO"></span></span>
     </div>
 
@@ -256,16 +250,17 @@
     <a class="expr" href="?expr=A♮3">A♮3</a>, etc.
   </li>
   <li id="tipMulAddExprs">
-    There are two types expressions that this calculator understands:
+    There are two types of expressions that this calculator understands:
     multiplicative expressions, which are written using *, /, and ^, and
     additive expressions, which are written using +, -, and x. By using the
-    cents function on just ratios and replacing every * with +, / with -, and
-    ^ with x, every multiplicative expression can also be written additively,
+    cents function on just ratios and replacing every "*" with a "+", every "/"
+    with a "-", and every "^" with a "x", every multiplicative expression can
+    also be written additively,
     e.g. <a class="expr" href="?expr=3%2F2+%2F+(M2)^2+*+P1^7">3/2 / (M2)^2 * P1^7</a> and
          <a class="expr" href="?expr=cents(3%2F2)+-+2+x+M2+%2B+P1^7">cents(3/2) - 2 x M2 + P1^7</a>
          represent the same interval.
     The "^7" does not change in this example because it is an FJS accidental, not
-    exponentation.
+    exponentiation.
   </li>
   <li>
     If all the parts of an additive expression are in the same EDO, you can
@@ -391,7 +386,7 @@ conversion:
       <a href="https://www.sonicvisualiser.org/" class="alt" target="_blank">Sonic Visualizer</a>,
       but any will do) and found that this note starts at around 1500Hz,
       stays at 1513Hz for a good chunk of the middle, and ends at around
-      1520Hz. I also checked a couple other notes and it seems like the piece
+      1520Hz. I also checked a couple of other notes and it seems like the piece
       is otherwise in standard tuning (A = 440Hz). To find what intervals these
       notes correspond to in the key of E flat, we need to take the ratio of
       these frequencies to an (equally-tempered) E flat. We can then either wrap
