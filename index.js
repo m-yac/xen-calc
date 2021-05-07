@@ -150,7 +150,9 @@ function fmtExpression(intv, prefEDO) {
 // Wrap a given string in an <a> tag which when clicked, opens the calculator
 //  in a new window/tab with the given expression
 function fmtExtExprLink(str, newTab) {
-  let link = $('<a>').attr("href", "?expr=" + encodeURIComponent(str)).html(str);
+  let link = $('<a>').attr("href", "?expr=" + encodeURIComponent(str))
+                     .attr("style", "vertical-align: top;")
+                     .html(str);
   if (newTab) {
     link.attr("target", "_blank");
   }
