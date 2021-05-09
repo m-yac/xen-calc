@@ -1,6 +1,0 @@
-[submodule "microtonal-utils"]
-	path = microtonal-utils
-	url = https://github.com/m-yac/microtonal-utils.git
-[submodule "scale-workshop"]
-	path = scale-workshop
-	url = https://github.com/SeanArchibald/scale-workshop.git
