@@ -1785,10 +1785,15 @@ function parse(str) {
     }
   }
   catch (err) {
-    if (err.name != "LocatedError") {
-      err = new ParseError(expectedSymbols(parser), err.offset);
+    if (err.offset != undefined) {
+      if (err.name != "LocatedError") {
+        err = new ParseError(expectedSymbols(parser), err.offset);
+      }
+      throw err.toError(str);
     }
-    throw err.toError(str);
+    else {
+      throw err;
+    }
   }
 
   try {
@@ -1799,10 +1804,15 @@ function parse(str) {
     }
   }
   catch (err) {
-    if (err.name != "LocatedError") {
-      err = new OtherError(err.message, err.offset);
+    if (err.offset != undefined) {
+      if (err.name != "LocatedError") {
+        err = new OtherError(err.message, err.offset);
+      }
+      throw err.toError(str);
     }
-    throw err.toError(str);
+    else {
+      throw err;
+    }
   }
 
   if (results.some(d => d.type[0] == "interval" && d.type[1] == "symbol")) {
@@ -2004,7 +2014,11 @@ class LocatedError extends Error {
   toError(str) {
     const errStr = "\n" + str + "\n" + " ".repeat(this.offset) + "^\n"
                    + this.kind + ": " + this.message;
-    return new Error(errStr);
+    let err = new Error(errStr);
+    err.kind = this.kind;
+    err.offset = this.offset;
+    err.srcStr = str;
+    return err;
   }
 }
 
@@ -2186,7 +2200,7 @@ const Interval = require('../interval.js');
 const {pyInterval, pyNote, pyRedDeg, baseNoteIntvToA} = require('../pythagorean.js');
 const {fjsFactor, fjsParams, nfjsParams} = require('../fjs.js');
 const {edoPy} = require('../edo.js');
-const {ParseError, evalExpr} = require('./eval.js');
+const {ParseError, OtherError, evalExpr} = require('./eval.js');
 
 const defaultRefNote = { intvToA4: Interval(1), hertz: Interval(440) };
 
@@ -2578,7 +2592,10 @@ var grammar = {
     {"name": "frcExpr1", "symbols": ["frcExpr1", "_", {"literal":"-"}, "_", "frcExpr2"], "postprocess": d => d[0].sub(d[4])},
     {"name": "frcExpr1", "symbols": ["frcExpr2"], "postprocess": id},
     {"name": "frcExpr2", "symbols": ["frcExpr2", "_", {"literal":"*"}, "_", "frcExpr3"], "postprocess": d => d[0].mul(d[4])},
-    {"name": "frcExpr2", "symbols": ["frcExpr2", "_", {"literal":"/"}, "_", "frcExpr3"], "postprocess": d => d[0].div(d[4])},
+    {"name": "frcExpr2", "symbols": ["frcExpr2", "_", {"literal":"/"}, "_", "locFrcExpr3"], "postprocess":  function(d) { try { return d[0].div(d[4][0]); }
+        catch(err) {
+          throw new OtherError("Division by zero", d[4][1])
+        } } },
     {"name": "frcExpr2", "symbols": ["frcExpr3"], "postprocess": id},
     {"name": "frcExpr3", "symbols": [{"literal":"-"}, "_", "frcExpr4"], "postprocess": d => d[2].neg()},
     {"name": "frcExpr3", "symbols": ["frcExpr4"], "postprocess": id},
@@ -2586,6 +2603,7 @@ var grammar = {
     {"name": "frcExpr4", "symbols": ["frcExpr5"], "postprocess": id},
     {"name": "frcExpr5", "symbols": ["nonNegInt"], "postprocess": d => Fraction(d[0])},
     {"name": "frcExpr5", "symbols": [{"literal":"("}, "_", "frcExpr1", "_", {"literal":")"}], "postprocess": d => d[2]},
+    {"name": "locFrcExpr3", "symbols": ["frcExpr3"], "postprocess": (d,loc,_) => [d[0],loc]},
     {"name": "intExpr1", "symbols": ["intExpr1", "_", {"literal":"+"}, "_", "intExpr2"], "postprocess": d => d[0] + d[4]},
     {"name": "intExpr1", "symbols": ["intExpr1", "_", {"literal":"-"}, "_", "intExpr2"], "postprocess": d => d[0] - d[4]},
     {"name": "intExpr1", "symbols": ["intExpr2"], "postprocess": id},
@@ -2601,10 +2619,14 @@ var grammar = {
     {"name": "decExpr1", "symbols": ["decExpr1", "_", {"literal":"-"}, "_", "decExpr2"], "postprocess": d => d[0].sub(d[4])},
     {"name": "decExpr1", "symbols": ["decExpr2"], "postprocess": id},
     {"name": "decExpr2", "symbols": ["decExpr2", "_", {"literal":"*"}, "_", "decExpr3"], "postprocess": d => d[0].mul(d[4])},
-    {"name": "decExpr2", "symbols": ["decExpr2", "_", {"literal":"/"}, "_", "decExpr3"], "postprocess": d => d[0].div(d[4])},
+    {"name": "decExpr2", "symbols": ["decExpr2", "_", {"literal":"/"}, "_", "locDecExpr3"], "postprocess":  function(d) { try { return d[0].div(d[4][0]); }
+        catch(err) {
+          throw new OtherError("Division by zero", d[4][1])
+        } } },
     {"name": "decExpr2", "symbols": ["decExpr3"], "postprocess": id},
     {"name": "decExpr3", "symbols": ["decimal"], "postprocess": d => Fraction(d[0])},
     {"name": "decExpr3", "symbols": [{"literal":"("}, "_", "decExpr1", "_", {"literal":")"}], "postprocess": d => d[2]},
+    {"name": "locDecExpr3", "symbols": ["decExpr3"], "postprocess": (d,loc,_) => [d[0],loc]},
     {"name": "posInt$ebnf$1", "symbols": []},
     {"name": "posInt$ebnf$1", "symbols": ["posInt$ebnf$1", /[0-9]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "posInt", "symbols": [/[1-9]/, "posInt$ebnf$1"], "postprocess": d => d[0] + d[1].join("")},
