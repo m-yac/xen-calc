@@ -317,11 +317,13 @@ a:visited:focus {
   color: #F3470F;
 }
 
-a.alt,
-a.alt:visited {
+a.alt {
   color: #0645AD;
   font-weight: bold;
-/*  letter-spacing: -0.02em;*/
+}
+a.alt:visited {
+  color: #0b0080;
+  font-weight: bold;
 }
 a.alt:hover,
 a.alt:focus,
@@ -329,7 +331,6 @@ a.alt:visited:hover,
 a.alt:visited:focus {
   color: #F3470F;
   font-weight: bold;
-/*  letter-spacing: -0.02em;*/
 }
 
 a.grey,
