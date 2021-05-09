@@ -7,6 +7,10 @@ function tryParseInt(x) {
   return isNaN(x) ? x : parseInt(x);
 }
 
+function toRatioStr(fr) {
+  return (fr.s * fr.n) + "/" + fr.d;
+}
+
 // From: https://stackoverflow.com/a/44957114
 function range(start, stop, step = 1) {
   return Array(Math.ceil((stop - start) / step)).fill(start).map((x, y) => x + y * step);
@@ -131,7 +135,9 @@ function fmtHertz(cents, decimalPlaces, trailingZeros) {
 function fmtFactorization(intv) {
   let fact = [];
   for (const [p,e] of Object.entries(intv)) {
-    fact.push(p + "^" + (e.d == 1 ? e.s*e.n : "(" + e.toFraction() + ")"));
+    if (e.n == 1) { fact.push(p); }
+    else if (e.d == 1) { fact.push(p + "^" + (e.s*e.n)); }
+    else { fact.push(p + "^(" + e.toFraction() + ")"); }
   }
   return fact.join(" * ");
 }
@@ -175,7 +181,7 @@ function getResults() {
     typeStr = "Interval";
     rows.push(["Size in cents:", fmtExtExprLink(fmtCents(res.cents, 5))]);
     if (res.ratio) {
-      rows.push(["Ratio:", fmtExtExprLink(res.ratio.toFraction())]);
+      rows.push(["Ratio:", fmtExtExprLink(toRatioStr(res.ratio))]);
     }
     else {
       try {
@@ -257,12 +263,12 @@ function getResults() {
   // Format the interval for use in Scale Workshop
   if (res.type == "interval") {
     if (res.edoSteps) { scaleWorkshopData = fmtEDOStep(res.edoSteps); }
-    else if (res.ratio) { scaleWorkshopData = res.ratio.toFraction(); }
+    else if (res.ratio) { scaleWorkshopData = toRatioStr(res.ratio); }
     else { scaleWorkshopData = res.cents; }
   }
   if (res.type == "note") {
     if (res.edoStepsToRef) { scaleWorkshopData = fmtEDOStep(res.edoStepsToRef); }
-    else if (res.intvToRef.isFrac()) { scaleWorkshopData = res.intvToRef.toFrac().toFraction(); }
+    else if (res.intvToRef.isFrac()) { scaleWorkshopData = toRatioStr(res.intvToRef.toFrac()); }
     else { scaleWorkshopData = res.intvToRef.toCents().toFixed(13); }
   }
   return [typeStr, rows, scaleWorkshopData];
@@ -288,7 +294,7 @@ function updateResults() {
       $('#resTable').append(row);
     }
     if (res.ratio) {
-      addXenWikiLink(res.ratio.toFraction());
+      addXenWikiLink(toRatioStr(res.ratio));
     }
     $('#resAudioHeader').html(typeStr + " audio");
     let scaleWorkshopLink = "http://sevish.com/scaleworkshop/";
@@ -388,7 +394,7 @@ function updateRatApproxs(toUpdate) {
   $('#ratTable').empty();
   for (const {ratio, diff} of ratApproxs) {
     let row = $('<tr>');
-    const lhs = fmtExtExprLink(ratio.toFraction());
+    const lhs = fmtExtExprLink(toRatioStr(ratio));
     row.append($('<td>').addClass("approxsLeftColumn").html(lhs));
     let diffStr = "exact";
     if (diff != 0) {
@@ -609,7 +615,7 @@ function setStateFromParams(urlParams, e) {
   if (e && e.state && e.state.html && e.state.html.trim() !== "") {
     $('#results').replaceWith(e.state.html);
     res = e.state.res;
-    addXenWikiLink(microtonal_utils.Fraction(res.ratio).toFraction());
+    addXenWikiLink(microtonal_utils.Fraction(toRatioStr(res.ratio)));
   }
   else {
     updateResults();

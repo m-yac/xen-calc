@@ -606,6 +606,7 @@ module['exports'].updnsNote = updnsNote;
  **/
 
 const pf = require('primes-and-factors');
+const ntw = require('number-to-words');
 const Fraction = require('fraction.js');
 const Interval = require('./interval.js');
 const {pyInterval, pySymb, pyGenerator} = require('./pythagorean.js');
@@ -747,12 +748,20 @@ function enNames(a,b, opts) {
     }
   }
 
+  // harmonics
+  if (intv.isFrac()) {
+    const {n,d} = intv.toFrac();
+    if (d == 1 && n > 2 && intv.factors().length == 1 + intv.hasExp(2)) {
+      nms.push(ntw.toOrdinal(n) + " harmonic");
+    }
+  }
+
   return nms;
 }
 
 module.exports.enNames = enNames;
 
-},{"./edo.js":2,"./fjs.js":4,"./interval.js":6,"./pythagorean.js":10,"fraction.js":13,"primes-and-factors":17}],4:[function(require,module,exports){
+},{"./edo.js":2,"./fjs.js":4,"./interval.js":6,"./pythagorean.js":10,"fraction.js":13,"number-to-words":16,"primes-and-factors":17}],4:[function(require,module,exports){
 /**
  * Functions for working with FJS intervals
  * @copyright 2021 Matthew Yacavone (matthew [at] yacavone [dot] net)
