@@ -125,7 +125,8 @@
 
 <p>
   This my attempt at a general purpose calculator/converter for
-  microtonal music, inspired by (and intended to combine the features of)
+  <a class="alt" href="https://en.wikipedia.org/wiki/Microtonal_music#Microtonal">microtonal music</a>,
+  inspired by (and intended to combine the features of)
   <a class="alt" href="https://untwelve.org/interval_calc" target="_blank">untwelve's interval calculator</a>,
   the <a class="alt" href="https://www.plainsound.org/HEJI/" target="_blank">Harmonic Space Calculator</a>,
   <a class="alt" href="https://misotanni.github.io/fjs/en/calc.html" target="_blank">misotanni's FJS Calculators</a>,
@@ -145,11 +146,16 @@
 <ul>
   <li>
     Convert between
-    cents (e.g. <a class="expr" href="?expr=400c">400c</a>),
-    just ratios (e.g. <a class="expr" href="?expr=5%2F4">5/4</a>),
-    EDO steps (e.g. <a class="expr" href="?expr=4\12">4\12</a>),
-    intervals in FJS notation (e.g. <a class="expr" href="?expr=M3^5">M3^5</a>), and
-    intervals in ups-and-downs notation (e.g. <a class="expr" href="?expr=vM3\22">vM3\22</a>).
+    <a class="alt" href="https://en.wikipedia.org/wiki/Cent_(music)" target="_blank">cents</a>
+    (e.g. <a class="expr" href="?expr=400c">400c</a>),
+    <a class="alt" href="https://en.wikipedia.org/wiki/Just_intonation" target="_blank">just ratios</a>
+    (e.g. <a class="expr" href="?expr=5%2F4">5/4</a>),
+    <a class="alt" href="https://en.wikipedia.org/wiki/Equal_temperament" target="_blank">EDO</a> steps
+    (e.g. <a class="expr" href="?expr=4\12">4\12</a>, meaning "four steps of 12-EDO"),
+    intervals in <a class="alt" href="https://en.xen.wiki/w/Functional_Just_System" target="_blank">FJS notation</a>
+    (e.g. <a class="expr" href="?expr=M3^5">M3^5</a>), and
+    intervals in <a class="alt" href="https://en.xen.wiki/w/Ups_and_Downs_Notation" target="_blank">ups-and-downs notation</a>
+    (e.g. <a class="expr" href="?expr=vM3\22">vM3\22</a>).
   </li>
   <li>
     Multiply (*), divide (/), and exponentiate (^) just ratios
@@ -175,7 +181,8 @@
     <ul>
       <li>
         Convert between
-        hertz (e.g. <a class="expr" href="?expr=370Hz">370Hz</a>),
+        <a class="alt" href="https://en.wikipedia.org/wiki/Hertz" target="_blank">hertz</a>
+        (e.g. <a class="expr" href="?expr=370Hz">370Hz</a>),
         notes in FJS notation (e.g. <a class="expr" href="?expr=F♯^5">F♯^5</a>), and
         notes in ups-and-downs notation (e.g. <a class="expr" href="?expr=vF♯\22">vF♯\22</a>).
       </li>
@@ -209,13 +216,22 @@
     <a href="https://sevish.com/scaleworkshop/" target="_blank" class="alt">Scale Workshop</a>).
   </li>
   <li>
-    List best rational approximations and best EDO approximations of an interval.
+    List best rational approximations of an interval, with options to set the
+    <a class="alt" href="https://en.xen.wiki/w/Harmonic_limit" target="_blank">prime limit</a> and
+    <a class="alt" href="https://en.xen.wiki/w/Odd_limit" target="_blank">odd limit</a>,
+    as well as best EDO approximations of an interval. Note that by default,
+    the former is sorted by
+    <a class="alt" href="https://en.xen.wiki/w/Tenney_height" target="_blank">Tenney height</a>,
+    a measure of the harmonic complexity of a just ratio.
   </li>
   <li>
     Compute a number of useful functions:
     <ul>
       <li>
-        Octave-reduce or balanced octave-reduce any interval
+        <a class="alt" href="https://en.xen.wiki/w/Octave_reduction" target="_blank">Octave-reduce</a>
+        or
+        <a class="alt" href="https://misotanni.github.io/fjs/en/crash.html#lesson-0" target="_blank">balanced octave-reduce</a>
+        any interval
         (e.g. <a class="expr" href="?expr=red(7%2F3)">red(7/3)</a>,
               <a class="expr" href="?expr=reb(16%2F9)">reb(16/9)</a>).
       </li>
@@ -224,7 +240,9 @@
         (e.g. <a class="expr" href="?expr=red(M6%2C+3%2F2)">red(M6, 3/2)</a>).
       </li>
       <li>
-        Take the mediant of two just intervals
+        Take the
+        <a class="alt" href="https://en.xen.wiki/w/Mediant" target="_blank">mediant</a>
+        of two just intervals
         (e.g. <a class="expr" href="?expr=med(5%2F4,+9%2F7)">med(5/4, 9/7)</a>).
       </li>
       <li>
@@ -274,7 +292,7 @@
     <b>multiplicative expressions</b>, which are written using *, /, ^ and can
     contain just intervals, and <b>additive expressions</b>, which are written using
     +, -, x and can contain cents values. At the moment these two types of
-    expressions cannot be mixed. By using the cents function on just ratios
+    expressions cannot be mixed. By using the "cents" function on just ratios
     and replacing every "*" with a "+", every "/" with a "-", and every "^" with
     a "x", every multiplicative expression can also be written additively.
     For example,
