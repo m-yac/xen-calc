@@ -121,9 +121,15 @@
   <a class="alt" href="https://en.xen.wiki/w/Main_Page" target="_blank">Xenharmonic wiki</a>.
 </p>
 <p>
-  This calculator can:
+  Check out some <a class="alt" href="#examples">examples</a> or browse the list of
+  <a class="alt" href="#features">features</a> below to get started!
 </p>
 
+<h3 id="features">Features</h3>
+
+<p>
+  This calculator can:
+</p>
 <ul>
   <li>
     Convert between
@@ -229,6 +235,8 @@
   <a href="https://github.com/m-yac/xen-calc" class="alt" target="_blank">on my Github</a>.
 </p>
 
+<h3 id="tips">Tips</h3>
+
 <p>
   Here are a few useful tips:
 </p>
@@ -251,16 +259,23 @@
   </li>
   <li id="tipMulAddExprs">
     There are two types of expressions that this calculator understands:
-    multiplicative expressions, which are written using *, /, and ^, and
-    additive expressions, which are written using +, -, and x. By using the
-    cents function on just ratios and replacing every "*" with a "+", every "/"
-    with a "-", and every "^" with a "x", every multiplicative expression can
-    also be written additively,
-    e.g. <a class="expr" href="?expr=3%2F2+%2F+(M2)^2+*+P1^7">3/2 / (M2)^2 * P1^7</a> and
-         <a class="expr" href="?expr=cents(3%2F2)+-+2+x+M2+%2B+P1^7">cents(3/2) - 2 x M2 + P1^7</a>
-         represent the same interval.
-    The "^7" does not change in this example because it is an FJS accidental, not
-    exponentiation.
+    <b>multiplicative expressions</b>, which are written using *, /, ^ and can
+    contain just intervals, and <b>additive expressions</b>, which are written using
+    +, -, x and can contain cents values. At the moment these two types of
+    expressions cannot be mixed. By using the cents function on just ratios
+    and replacing every "*" with a "+", every "/" with a "-", and every "^" with
+    a "x", every multiplicative expression can also be written additively.
+    For example,
+    <a class="expr" href="?expr=3%2F2+%2F+(M2)^2+*+P1^7">3/2 / (M2)^2 * P1^7</a> and
+    <a class="expr" href="?expr=cents(3%2F2)+-+2+x+M2+%2B+P1^7">cents(3/2) - 2 x M2 + P1^7</a>
+    represent the same interval.
+    (The "^7" does not change in this example because it is an FJS accidental, not
+    exponentiation.) By replacing cents values with fractional powers of two
+    with denominator 1200, i.e. replacing
+    <a class="expr" href="?expr=250c">250c</a> with
+    <a class="expr" href="?expr=2^(250%2F1200)">2^(250/1200)</a>, and reversing
+    all the replacements above, every additive expression can also be written
+    multiplicatively.
   </li>
   <li>
     If all the parts of an additive expression are in the same EDO, you can
@@ -287,14 +302,22 @@
   </li>
 </ol>
 
-<h3>Examples</h3>
+<h3 id="examples">Examples</h3>
 
 <p>
-Here are a few examples of ways you can use this tool beyond just
-conversion:
+Here are a few examples of ways you can use this tool:
 </p>
 
 <ol>
+  <li>
+    <p>
+      Interval info: Entering <a class="expr" href="?expr=9%2F7">9/7</a>
+      (the septimal major third) we get back that it its size is roughly 435
+      cents, we get that its FJS symbol is M3_7, we can confirm its English
+      name, and we can listen to how it sounds. We get similar info for EDO step
+      intervals (e.g. <a class="expr" href="?expr=2\5">2\5</a>) and FJS symbols.
+    </p>
+  </li>
   <li>
     <p>
       Checking interval arithmetic:
@@ -320,7 +343,7 @@ conversion:
       can tell us, but suppose we want to figure it out ourselves.) A neutral
       third is an interval roughly halfway between a major third and minor
       third, so I would start by typing in something like
-      <a class="expr" href="?expr=1%2F2+x+(M3+%2B+m3)"> 1/2 x (M3 + m3)</a><a href="#ex2Note">*</a>.
+      <a class="expr" href="?expr=1%2F2+x+(M3+%2B+m3)"> 1/2 x (M3 + m3)</a><a href="#ex3Note">*</a>.
       This will give us the interval "halfway between" M3 and m3 in the same way
       that 1/2 x (3 + 4) gives us the number halfway between 3 and 4.
     </p>
@@ -335,7 +358,7 @@ conversion:
       measure of their harmonic complexity, but they can also be sorted by their
       cents difference, giving us a more complete list.
     </p>
-    <p id="ex2Note">
+    <p id="ex3Note">
       * It is worth noting that we can also write this same expression
       <a href="#tipMulAddExprs" class="alt">multiplicatively</a> as
       <a class="expr" href="?expr=(M3+*+m3)^(1%2F2)">(M3 * m3)^(1/2)</a>, which

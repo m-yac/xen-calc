@@ -147,15 +147,14 @@ function fmtExpression(intv, prefEDO) {
   catch (err) {}
   return fmtFactorization(intv);
 }
-// Wrap a given string in an <a> tag which when clicked, opens the calculator
-//  in a new window/tab with the given expression
-function fmtExtExprLink(str, newTab) {
-  let link = $('<a>').attr("href", "?expr=" + encodeURIComponent(str))
+// Wrap a given string in an <a> tag formatted with the `expr` class
+function fmtExtExprLink(str, linkstr) {
+  if (linkstr === undefined) {
+    linkstr = str
+  }
+  let link = $('<a>').attr("href", "?expr=" + encodeURIComponent(linkstr))
                      .attr("style", "vertical-align: top;")
                      .html(str);
-  if (newTab) {
-    link.attr("target", "_blank");
-  }
   return link;
 }
 
@@ -225,8 +224,11 @@ function getResults() {
         // for now we only have integer accidentals, since I'm not sure how
         //  useful showing non-integer accidentals actually is
         !(res.symb["NFJS"].includes("root") || res.symb["NFJS"].includes("sqrt"))) {
-      rows.push(["Neutral FJS name:", fmtExtExprLink(res.symb["NFJS"])]);
-      // TODO fix the above link if the base interval is not neutral ^
+      let linkStr = res.symb["NFJS"];
+      if (res.symb["NFJS"] !== microtonal_utils.parseCvt(res.symb["NFJS"]).symb["NFJS"]) {
+        linkStr = "NFJS(" + res.symb["NFJS"] + ")";
+      }
+      rows.push(["Neutral FJS name:", fmtExtExprLink(res.symb["NFJS"], linkStr)]);
     }
     if (res.symb["ups-and-downs"]) {
       const symbs = res.symb["ups-and-downs"].map(symb => fmtExtExprLink(symb).prop('outerHTML'));
@@ -308,10 +310,25 @@ function updateResults() {
     }
   }
   catch (err) {
+    if (err.kind == undefined) {
+      newErr = new Error(err.name + (err.message ? "\n" + err.message : ""));
+      newErr.stack = err.stack;
+      err = newErr;
+      console.error(err);
+    }
     $('#errors').removeClass("hidden");
     $('#results').addClass("hidden");
-    $('#errors').html($('<pre>').addClass("parseError")
-                                .html(err.toString().replace("\n","<br>")));
+    const errStr = err.toString().replace("\n","<br>").replace("\\\\","\\");
+    $('#errors').html($('<pre>').addClass("parseError").html(errStr));
+    if (err.kind == "Parse error" && "*/^+-xc".indexOf(err.srcStr[err.offset]) > -1) {
+      let nb = $('<p>').attr("style", "font-size: 95%; text-align: left;");
+      nb.append("Perhaps you're trying to mix multiplicative and additive "
+                + "expressions? See ");
+      nb.append($('<a>').addClass("alt").attr("href", "#tipMulAddExprs")
+                        .html("this tip"));
+      nb.append(".");
+      $('#errors').append(nb);
+    }
   }
 }
 
@@ -555,7 +572,7 @@ window.onpopstate = function(e) {
   const url = new URL(window.location);
   console.log(Date.now() + " [popped] " + url.searchParams);
   if (e && e.state && e.state.res) { console.log(e.state.res); }
-  else if (e) { console.log("bad state!!"); console.log(e); }
+  else if (e) { console.warn("bad state!!"); console.warn(e); }
   setStateFromURL(e);
 };
 
