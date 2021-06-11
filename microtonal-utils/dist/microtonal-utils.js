@@ -357,11 +357,11 @@ function edoApprox(edo,a,b) {
 function edoPy(edo,a,b) {
   const i = Interval(a,b);
   const g = Fraction(py.pyGenerator(i) * edoApprox(edo,3,2), 4);
-  const v = py.pyOctaves(i);
+  const p = py.pyOctaves(i);
   if (g.d != 1) {
     throw new Error(edo + "-EDO has no " + py.pySymb(i,{verbosity:1}) + " interval");
   }
-  return g.s*g.n + v * edo;
+  return g.s*g.n + p * edo;
 }
 
 /**
@@ -610,7 +610,7 @@ const ntw = require('number-to-words');
 const Fraction = require('fraction.js');
 const Interval = require('./interval.js');
 const {pyInterval, pySymb, pyGenerator} = require('./pythagorean.js');
-const {fjsComma, fjsFifthShift, fjsAccidentals, nfjsParams} = require('./fjs.js');
+const {fjsComma, fjsFifthShift, fjsAccidentals, nfjsSpec} = require('./fjs.js');
 const {updnsSymbCache} = require('./edo.js');
 
 const primeNames = { '5':  ["classic", "cls."]
@@ -657,9 +657,15 @@ function enNames(a,b, opts) {
       nms.push((p == 5 ? "syntonic" : primeNames[p][0]) + " comma" + inv_str);
     }
   }
+  // special case for multiple octaves
+  if (intv.toMonzo().length == 1 && intv.expOf(2).d == 1 && intv.expOf(2).n > 1
+      /* ^ is a non-zero integer power of 2 */) {
+    const invStr = intv.expOf(2) < 0 ? " (inverted)" : "";
+    nms.push(ntw.toWords(intv.expOf(2).n) + " octaves" + invStr);
+  }
 
   // Neutral FJS intervals
-  const fjs = fjsAccidentals(a,b, nfjsParams);
+  const fjs = fjsAccidentals(a,b, nfjsSpec);
   if (fjs) {
     let pyi_symb = pySymb(fjs.pyi, {verbosity: verbosity});
     const resFact = intv.factors().filter(([p,_]) => p > 3);
@@ -679,7 +685,7 @@ function enNames(a,b, opts) {
       //  accidental is not an integer, or the pythagorean interval is an
       //  octave
       if (primeNames[p] && e.d == 1 && pyGenerator(fjs.pyi) != 0) {
-        const fifthShift = fjsFifthShift(p, nfjsParams);
+        const fifthShift = fjsFifthShift(p, nfjsSpec);
         const g = fjs.pyi.expOf(3);
         // Ensure otonality matches (e.g. let through "M3^5" but not "M3_5")
         //  and neutral-ness matches (e.g. let through "M3^5" but not "n3^5")
@@ -748,11 +754,18 @@ function enNames(a,b, opts) {
     }
   }
 
-  // harmonics
+  // special case for the inverse of the Pythagorean comma
+  if (intv.equals(pyInterval(2,-1.5))) {
+    nms.push("Pythagorean comma (inverted)");
+  }
+  // special case for harmonics > 1
   if (intv.isFrac()) {
     const {n,d} = intv.toFrac();
-    if (d == 1 && n > 2 && intv.factors().length == 1 + intv.hasExp(2)) {
+    if (d == 1 && n > 1) {
       nms.push(ntw.toOrdinal(n) + " harmonic");
+    }
+    if (n == 1 && d > 1) {
+      nms.push(ntw.toOrdinal(d) + " harmonic (inverted)");
     }
   }
 
@@ -774,6 +787,28 @@ const Interval = require('./interval.js');
 const py = require('./pythagorean.js');
 
 /**
+  * A specficiation of an FJS-like system.
+  *
+  * @constructor
+  * @param {Interval} RoT the radius of tolerance
+  * @param {GeneratorFunction.<Fraction>} fifthSeq the fifth sequence
+  * @param {boolean} [hasNeutrals=false] whether this FJS permits neutral Pythagorean intervals
+  * @param {boolean} [hasSemiNeutrals=false] whether this FJS permits semi-neutral Pythagorean intervals
+  */
+function FJSLike(RoT, fifthSeq, hasNeutrals, hasSemiNeutrals) {
+
+  if (!(this instanceof FJSLike)) {
+    return new FJSLike(RoT, fifthSeq, hasNeutrals, hasSemiNeutrals);
+  }
+
+  this.RoT = RoT;
+  this.fifthSeq = fifthSeq;
+  this.hasNeutrals = !!hasNeutrals;
+  this.hasSemiNeutrals = !!hasSemiNeutrals;
+
+}
+
+/**
   * The radius of tolerance of the FJS, the interval `65/63` (about `54.11c`)
   *
   * @constant {Interval}
@@ -781,12 +816,12 @@ const py = require('./pythagorean.js');
 const fjsRoT = Interval(65,63);
 
 /**
-  * The (infinite) fifths sequence of the FJS, `0, 1, -1, 2, -2, 3, -3, ...`
+  * The (infinite) fifth sequence of the FJS, `0, 1, -1, 2, -2, 3, -3, ...`
   *
   * @yields {Fraction}
   */
-function* fjsFifthsSeq() {
-  yield 0;
+function* fjsFifthSeq() {
+  yield Fraction(0);
   for (let g = 1; true; g++) {
     yield Fraction(g);
     yield Fraction(-g);
@@ -794,12 +829,12 @@ function* fjsFifthsSeq() {
 }
 
 /**
-  * The parameters of the FJS, `fjsRoT`, `fjsFifthsSeq`, and
-  * `hasNeutrals = false`
+  * The specificaion of the standard FJS, using `fjsRoT`, `fjsFifthSeq`,
+  * `hasNeutrals = false`, and `hasSemiNeutrals = false`
   *
-  * @constant {{RoT: Fraction, fifthSeq: Fraction, hasNeutrals: boolean}}
+  * @constant {FJSLike}
   */
-const fjsParams = { RoT: fjsRoT, fifthsSeq: fjsFifthsSeq, hasNeutrals: false };
+const fjsSpec = FJSLike(fjsRoT, fjsFifthSeq, false, false);
 
 /**
   * The radius of tolerance of the Neutral FJS, a pythagorean
@@ -811,13 +846,13 @@ const fjsParams = { RoT: fjsRoT, fifthsSeq: fjsFifthsSeq, hasNeutrals: false };
 const nfjsRoT = py.pyInterval(2,-1); // "sd2" ~= 33.38c
 
 /**
-  * The (finite) fifths sequence of the Neutral FJS,
+  * The (finite) fifth sequence of the Neutral FJS,
   * `0, 1, -1, 2, -2, ..., 6, -6, 1/2, -1/2, 3/2, -3/2, ..., 11/2, -11/2`
   *
   * @yields {Fraction}
   */
-function* nfjsFifthsSeq() {
-  yield 0;
+function* nfjsFifthSeq() {
+  yield Fraction(0);
   for (let g = 1; g <= 6; g++) {
     yield Fraction(g);
     yield Fraction(-g);
@@ -829,35 +864,103 @@ function* nfjsFifthsSeq() {
 }
 
 /**
-  * The parameters of the Neutral FJS, `nfjsRoT`, `nfjsFifthsSeq`, and
-  * `hasNeutrals = true`
+  * The specification of the Neutral FJS, using `nfjsRoT`, `nfjsFifthSeq`,
+  * `hasNeutrals = true`, and `hasSemiNeutrals = false`
   *
-  * @constant {{RoT: Fraction, fifthSeq: Fraction, hasNeutrals: boolean}}
+  * @constant {FJSLike}
   */
-const nfjsParams = { RoT: nfjsRoT, fifthsSeq: nfjsFifthsSeq, hasNeutrals: true };
+const nfjsSpec = FJSLike(nfjsRoT, nfjsFifthSeq, true, false);
+
+/**
+  * Divides the octave intro regions based on what fifth shift each interval
+  * is assigned.
+  *
+  * @param {FJSLike} [spec=fjsSpec]
+  * @returns {Array.<{lo:Interval, hi:Interval, fifthShift:Fraction, index:integer}>}
+  */
+function fjsRegions(spec) {
+  if (!spec) {
+    spec = fjsSpec;
+  }
+  else if (spec.RoT.compare(Interval(2).sqrt()) >= 0) {
+    throw new Error("RoT too big");
+  }
+  else if (spec.RoT.compare(Interval(1)) <= 0) {
+    throw new Error("RoT < 1");
+  }
+
+  let index = 0;
+  let regions = [{lo: Interval(1), hi: Interval(2), fifthShift: undefined}];
+  function addRegion(lo, hi, fifthShift) {
+    if (lo.compare(Interval(1)) < 0) {
+      addRegion(Interval(1), hi, fifthShift);
+      addRegion(lo.mul(2), Interval(2), fifthShift);
+    }
+    else if (hi.compare(Interval(2)) > 0) {
+      addRegion(Interval(1), hi.div(2), fifthShift);
+      addRegion(lo, Interval(2), fifthShift);
+    }
+    else {
+      for (const [i,r] of regions.entries()) {
+        // for the first undefined region we intersect:
+        if (!r.fifthShift && lo.compare(r.hi) < 0 && r.lo.compare(hi) < 0) {
+          const lo_vs_rlo = lo.compare(r.lo);
+          const hi_vs_rhi = hi.compare(r.hi);
+          const maxlo = lo_vs_rlo > 0 ? lo : r.lo;
+          const minhi = hi_vs_rhi < 0 ? hi : r.hi;
+          // delete the current undefined region
+          regions.splice(i, 1);
+          // add the upper remainder of the undefined region, if it exists
+          if (hi_vs_rhi < 0) {
+            regions.splice(i, 0, {lo: minhi, hi: r.hi, fifthShift: undefined });
+          }
+          // add the new intersection region
+          regions.splice(i, 0, {lo: maxlo, hi: minhi, fifthShift: fifthShift, index: index });
+          index++;
+          // add the lower remainder of the undefined region, if it exists
+          if (lo_vs_rlo > 0) {
+            regions.splice(i, 0, {lo: r.lo, hi: maxlo, fifthShift: undefined });
+          }
+          // add the upper remainder of the region we're adding, if it exists
+          if (hi_vs_rhi > 0) {
+            addRegion(r.hi, hi, fifthShift);
+          }
+          return;
+        }
+      }
+    }
+  }
+
+  for (const g of spec.fifthSeq()) {
+    const f = Interval(3,2).pow(g).red();
+    addRegion(f.div(spec.RoT), f.mul(spec.RoT), g);
+    // if every part of interval space it accounted for, we're done
+    if (regions.every(r => r.fifthShift != undefined)) { break; }
+  }
+  return regions;
+}
 
 /**
   * Returns the FJS fifth shift associated to any interval.
   *
   * @param {Interval} i
-  * @param {{RoT: Fraction, fifthSeq: Fraction}} [params=fjsParams]
+  * @param {FJSLike} [spec=fjsSpec]
   * @returns {Fraction}
   */
-function fjsFifthShift(a,b, params) {
-  // if only two arguments are given, the second one may be `params`!
-  if (!params) {
+function fjsFifthShift(a,b, spec) {
+  // if only two arguments are given, the second one may be `spec`!
+  if (!spec) {
     if (typeof b == 'object' && b != null) {
-      params = b;
+      spec = b;
       b = undefined;
     } else {
-      params = fjsParams;
+      spec = fjsSpec;
     }
   }
   const intv = Interval(a,b);
-  const fifthsSeqGen = params.fifthsSeq();
-  for (const g of fifthsSeqGen) {
+  for (const g of spec.fifthSeq()) {
     let c = intv.div(Interval(3,2).pow(g)).reb();
-    if (c.compare(params.RoT) < 0 && params.RoT.recip().compare(c) < 0) {
+    if (c.compare(spec.RoT) < 0 && spec.RoT.recip().compare(c) < 0) {
       return g;
     }
   }
@@ -868,19 +971,18 @@ function fjsFifthShift(a,b, params) {
   * (i.e. 5, 7, 11, etc.)
   *
   * @param {integer} p
-  * @param {{RoT: Fraction, fifthSeq: Fraction}} [params=fjsParams]
+  * @param {FJSLike} [spec=fjsSpec]
   * @returns {Interval}
   */
-function fjsComma(p, params) {
-  if (!params) { params = fjsParams; }
+function fjsComma(p, spec) {
+  if (!spec) { spec = fjsSpec; }
   p = parseInt(p);
   if (!pf.isPrime(p) || p <= 3) {
     throw new Error ("input is not a prime interval greater than 3");
   }
-  const fifthsSeqGen = params.fifthsSeq();
-  for (const g of fifthsSeqGen) {
+  for (const g of spec.fifthSeq()) {
     let c = Interval(p).div(Interval(3,2).pow(g)).reb();
-    if (c.compare(params.RoT) < 0 && params.RoT.recip().compare(c) < 0) {
+    if (c.compare(spec.RoT) < 0 && spec.RoT.recip().compare(c) < 0) {
       return c;
     }
   }
@@ -891,23 +993,23 @@ function fjsComma(p, params) {
   * of its prime factors raised to the exponents of those prime factors
   *
   * @param {Interval} k
-  * @param {{RoT: Fraction, fifthSeq: Fraction}} [params=fjsParams]
+  * @param {FJSLike} [spec=fjsSpec]
   * @returns {Interval}
   */
-function fjsFactor(a,b, params) {
-  // if only two arguments are given, the second one may be `params`!
-  if (!params) {
+function fjsFactor(a,b, spec) {
+  // if only two arguments are given, the second one may be `spec`!
+  if (!spec) {
     if (typeof b == 'object' && b != null) {
-      params = b;
+      spec = b;
       b = undefined;
     } else {
-      params = fjsParams;
+      spec = fjsSpec;
     }
   }
   const k = Interval(a,b);
   let ret = Interval(1);
   for (const [p,e] of k.factors()) {
-    ret = ret.mul(fjsComma(p,params).pow(e));
+    ret = ret.mul(fjsComma(p,spec).pow(e));
   }
   return ret;
 }
@@ -918,17 +1020,17 @@ function fjsFactor(a,b, params) {
   * results in the given interval.
   *
   * @param {Interval} i
-  * @param {{RoT: Fraction, fifthSeq: Fraction}} [params=fjsParams]
+  * @param {FJSLike} [spec=fjsSpec]
   * @returns {{ accStr: string, pyi: Interval }}
   */
-function fjsAccidentals(a,b, params) {
-  // if only two arguments are given, the second one may be `params`!
-  if (!params) {
+function fjsAccidentals(a,b, spec) {
+  // if only two arguments are given, the second one may be `spec`!
+  if (!spec) {
     if (typeof b == 'object' && b != null) {
-      params = b;
+      spec = b;
       b = undefined;
     } else {
-      params = fjsParams;
+      spec = fjsSpec;
     }
   }
   const i = Interval(a,b);
@@ -937,7 +1039,7 @@ function fjsAccidentals(a,b, params) {
   let utos = [];
   for (let [p,e] of i.factors()) {
     if (p != 2 && p != 3) {
-      pyi = pyi.div(fjsComma(p,params).pow(e));
+      pyi = pyi.div(fjsComma(p,spec).pow(e));
       // add otonal accidentals
       while (e >= 1) {
         otos.push(p);
@@ -962,7 +1064,7 @@ function fjsAccidentals(a,b, params) {
       }
     }
   }
-  const modulus = params.hasNeutrals ? 2 : 4;
+  const modulus = spec.hasSemiNeutrals ? 1 : spec.hasNeutrals ? 2 : 4;
   if (py.isPythagorean(pyi) && py.pyGenerator(pyi) % modulus == 0) {
     const otoStr = otos.length == 0 ? "" : "^" + otos.join(",");
     const utoStr = utos.length == 0 ? "" : "_" + utos.join(",");
@@ -975,11 +1077,11 @@ function fjsAccidentals(a,b, params) {
   * exists
   *
   * @param {Interval} i
-  * @param {{RoT: Fraction, fifthSeq: Fraction}} [params=fjsParams]
+  * @param {FJSLike} [spec=fjsSpec]
   * @returns {string}
   */
-function fjsSymb(a,b, params) {
-  const res = fjsAccidentals(a,b, params);
+function fjsSymb(a,b, spec) {
+  const res = fjsAccidentals(a,b, spec);
   if (res) {
     return py.pySymb(res.pyi) + res.accStr;
   }
@@ -990,22 +1092,24 @@ function fjsSymb(a,b, params) {
   * such name exists
   *
   * @param {Interval} i
-  * @param {{RoT: Fraction, fifthSeq: Fraction}} [params=fjsParams]
+  * @param {FJSLike} [spec=fjsSpec]
   * @returns {string}
   */
-function fjsNote(a,b, params) {
-  const res = fjsAccidentals(a,b, params);
+function fjsNote(a,b, spec) {
+  const res = fjsAccidentals(a,b, spec);
   if (res) {
     return py.pyNote(res.pyi) + res.accStr;
   }
 }
 
+module['exports'].FJSLike = FJSLike;
 module['exports'].fjsRoT = fjsRoT;
-module['exports'].fjsFifthsSeq = fjsFifthsSeq;
-module['exports'].fjsParams = fjsParams;
+module['exports'].fjsFifthSeq = fjsFifthSeq;
+module['exports'].fjsSpec = fjsSpec;
 module['exports'].nfjsRoT = nfjsRoT;
-module['exports'].nfjsFifthsSeq = nfjsFifthsSeq;
-module['exports'].nfjsParams = nfjsParams;
+module['exports'].nfjsFifthSeq = nfjsFifthSeq;
+module['exports'].nfjsSpec = nfjsSpec;
+module['exports'].fjsRegions = fjsRegions;
 module['exports'].fjsFifthShift = fjsFifthShift;
 module['exports'].fjsComma = fjsComma;
 module['exports'].fjsFactor = fjsFactor;
@@ -1726,7 +1830,7 @@ const Interval = require('./interval.js');
 const grammar = require('./parser/grammar.js');
 const {ParseError, OtherError, evalExpr} = require('./parser/eval.js');
 const {isPythagorean, pySymb, pyNote} = require('./pythagorean.js');
-const {fjsSymb, fjsNote, nfjsParams} = require('./fjs.js');
+const {fjsSymb, fjsNote, fjsSpec, nfjsSpec} = require('./fjs.js');
 const {edoApprox, edoPy, updnsSymb, updnsNote} = require('./edo.js');
 const {enNames} = require('./english.js');
 
@@ -1762,36 +1866,37 @@ function expectedSymbols(parser) {
   if (symbs.length > 1) {
     symbs[symbs.length-1] = "or " + symbs[symbs.length-1];
   }
-  return "expected a " + symbs.join(", ");
+  return "expected " + (symbs.length > 0 ? "a " + symbs.join(", ") : "nothing");
 }
 
 /**
- * @typedef {Object} RawParseResult
- * @property {string} type either "interval" or "note"
- * @property {Interval} intv the resulting interval (to the reference, if
- *                           type is "note")
- * @property {{hertz: Interval, intvToA4: Interval}} refNote the reference note
- * @property {integer=} prefEDO the preferred EDO, if any, of the interval
- */
-
-/**
-  * Parses the given string
+  * Returns the raw output of calling the parser on the given string, with no
+  * evaluation or post-processing. Use `parse` to get a nicely-formatted version
+  * of calling this function with start = "top1".
   *
   * @param {string} str
-  * @returns {RawParseResult}
+  * @param {string} [start="top1"] the grammar rule to start parsing from
+  * @returns {Array}
   */
-function parse(str) {
-
-  const parser = new ne.Parser(ne.Grammar.fromCompiled(grammar));
-  let results;
-
+function parseFromRule(str, start) {
+  if (start === undefined) {
+    start = grammar.ParserStart;
+  }
+  else if (!grammar.ParserRules.some(r => r.name == start)) {
+    throw new Error("Invalid start rule: " + start);
+  }
+  // These first two lines are adapated from the nearley source code of
+  //  `ne.Grammar.fromCompiled`, since I can't figure out how to start from a
+  //  specific rule using the given API
+  const rules = grammar.ParserRules.map(r => new ne.Rule(r.name, r.symbols, r.postprocess));
+  const parser = new ne.Parser(new ne.Grammar(rules, start));
   try {
     parser.feed(str);
-    results = parser.results;
     // the below will ensure an error is thrown if the input has no parses
-    if (results.length == 0) {
+    if (parser.results.length == 0) {
       parser.feed("$");
     }
+    return parser.results;
   }
   catch (err) {
     if (err.offset != undefined) {
@@ -1804,10 +1909,105 @@ function parse(str) {
       throw err;
     }
   }
+}
+
+/**
+  * Parse a Pythagorean interval symbol, the inverse of `pySymb`.
+  *
+  * @param {string} str
+  * @returns {Interval}
+  */
+function parsePySymb(str) {
+  return evalExpr(parseFromRule(str, "anyPyIntv")[0]).val;
+}
+
+/**
+  * Parse a Pythagorean note symbol and return its interval to A4, the inverse
+  * of `pyNote`.
+  *
+  * @param {string} str
+  * @returns {Interval}
+  */
+function parsePyNote(str) {
+  return evalExpr(parseFromRule(str, "anyPyNote")[0]).val;
+}
+
+/**
+  * Parse an FJS interval symbol, the inverse of `fjsSymb`.
+  *
+  * @param {string} str
+  * @param {FJSLike} [spec=fjsSpec]
+  * @returns {Interval}
+  */
+function parseFJSSymb(str, spec) {
+  if (!spec) { spec = fjsSpec; }
+  const result = parseFromRule(str, "fjsLikeIntv")[0];
+  return evalExpr(result, undefined, {fjsLikeSpecs: [spec]}).val;
+}
+
+/**
+  * Parse an FJS note symbol and return its interval to A4, the inverse of
+  * `fjsNote`.
+  *
+  * @param {string} str
+  * @param {FJSLike} [spec=fjsSpec]
+  * @returns {Interval}
+  */
+function parseFJSNote(str, spec) {
+  if (!spec) { spec = fjsSpec; }
+  const result = parseFromRule(str, "fjsLikeNote")[0];
+  return evalExpr(result, undefined, {fjsLikeSpecs: [spec]}).val;
+}
+
+/**
+  * Parse an ups-and-downs notation symbol and return the number of steps it
+  * corresponds to in the given EDO, the inverse of `updnsSymb`.
+  *
+  * @param {integer} edo
+  * @param {string} str
+  * @returns {integer}
+  */
+function parseUpdnsSymb(edo, str) {
+  const result = parseFromRule(str, "upsDnsIntv")[0];
+  return evalExpr(result, undefined, {}, {edo: edo}).val;
+}
+
+/**
+  * Parse an ups-and-downs notation note and return the number of steps to A4 it
+  * corresponds to in the given EDO, the inverse of `updnsNote`.
+  *
+  * @param {integer} edo
+  * @param {string} str
+  * @returns {integer}
+  */
+function parseUpdnsNote(edo, str) {
+  const result = parseFromRule(str, "upsDnsNote")[0];
+  return evalExpr(result, undefined, {}, {edo: edo}).val;
+}
+
+/**
+ * @typedef {Object} ParseResult
+ * @property {string} type either "interval" or "note"
+ * @property {Interval} intv the resulting interval (to the reference, if
+ *                           type is "note")
+ * @property {{hertz: Interval, intvToA4: Interval}} refNote the reference note
+ * @property {integer=} prefEDO the preferred EDO, if any, of the interval
+ */
+
+/**
+  * Parses the given string using the entire grammar and evaluates the result
+  *
+  * @param {string} str
+  * @param {EvalOpts} [opts] options to pass to `evalExpr` from `parser/eval.js`
+  * @returns {ParseResult}
+  */
+function parse(str, opts) {
+
+  let results = parseFromRule(str, "top1");
 
   try {
     for (let i = 0; i < results.length; i++) {
-      const res = evalExpr(results[i].expr, results[i].refNote);
+      const res = evalExpr(results[i].expr, results[i].refNote, opts);
       results[i].val = res.val;
       results[i].prefEDO = res.prefEDO;
     }
@@ -1846,6 +2046,10 @@ function parse(str) {
     if (ret.prefEDO && e2.mul(ret.prefEDO).d != 1) {
       delete ret.prefEDO;
     }
+    // forget `ret.prefEDO` if it is less than 2
+    if (ret.prefEDO < 2) {
+      delete ret.prefEDO;
+    }
     // set `ret.prefEDO` if `ret.intv` is a simple enough power of two
     if (!ret.prefEDO && (e2.d == 2 || e2.d == 3 || e2.d == 4)) {
       ret.prefEDO = 12;
@@ -1863,7 +2067,7 @@ function parse(str) {
 }
 
 /**
- * @typedef {Object} IntvParseResult
+ * @typedef {Object} IntvParseCvtResult
  * @property {string} type always "interval"
  * @property {number} cents the resulting interval converted to cents
  * @property {Interval} intv the resulting interval object
@@ -1883,7 +2087,7 @@ function parse(str) {
  */
 
 /**
- * @typedef {Object} NoteParseResult
+ * @typedef {Object} NoteParseCvtResult
  * @property {string} type always "note"
  * @property {number} freq the resulting interval converted to hertz
  * @property {Interval} intvToRef the resulting interval to the reference
@@ -1904,13 +2108,15 @@ function parse(str) {
  */
 
 /**
-  * Parses the given string and converts it to a few other convenient forms
+  * Parses the given string using the entire grammar and converts the result to
+  * some convenient forms
   *
   * @param {string} str
-  * @returns {IntvParseResult|NoteParseResult}
+  * @param {EvalOpts} [opts] options to pass to `evalExpr` from `parser/eval.js`
+  * @returns {IntvParseCvtResult|NoteParseCvtResult}
   */
-function parseCvt(str) {
-  let {type, intv, refNote, prefEDO} = parse(str);
+function parseCvt(str, opts) {
+  let {type, intv, refNote, prefEDO} = parse(str, opts);
   let ret = { type: type };
   if (type == "interval") {
     ret.cents = intv.toCents();
@@ -1929,7 +2135,7 @@ function parseCvt(str) {
     }
     ret.symb = {};
     let fjs = fjsSymb(intv);
-    let nfjs = fjsSymb(intv, nfjsParams);
+    let nfjs = fjsSymb(intv, nfjsSpec);
     if (fjs) {
       ret.symb['FJS'] = fjs;
     }
@@ -1982,6 +2188,13 @@ function parseCvt(str) {
   return ret;
 }
 
+module['exports'].parseFromRule = parseFromRule;
+module['exports'].parsePySymb = parsePySymb;
+module['exports'].parsePyNote = parsePyNote;
+module['exports'].parseFJSSymb = parseFJSSymb;
+module['exports'].parseFJSNote = parseFJSNote;
+module['exports'].parseUpdnsSymb = parseUpdnsSymb;
+module['exports'].parseUpdnsNote = parseUpdnsNote;
 module['exports'].parse = parse;
 module['exports'].parseCvt = parseCvt;
 
@@ -1995,7 +2208,7 @@ module['exports'].parseCvt = parseCvt;
 const Fraction = require('fraction.js');
 const Interval = require('../interval.js');
 const {pyInterval, isPerfectDeg} = require('../pythagorean.js');
-const {fjsFactor} = require('../fjs.js');
+const {fjsFactor, fjsSpec, nfjsSpec} = require('../fjs.js');
 const {edoApprox, edoPy, edoHasNeutrals, edoHasSemiNeutrals} = require('../edo.js');
 
 /**
@@ -2061,6 +2274,22 @@ class OtherError extends LocatedError {
   }
 }
 
+/**
+  * The default reference note for the evaluator: A4 = 440Hz
+  *
+  * @constant {Interval}
+  */
+const defaultRefNote = { intvToA4: Interval(1), hertz: Interval(440) };
+
+/**
+ * @typedef {Object} EvalOpts
+ * @param {Array.<FJSLike>} [fjsLikeSpecs=[fjsSpec,nfjsSpec]]
+ *                          specs to use for FJS-like intervals, tried in the
+ *                          order given based on whether they apply to the given
+ *                          non-neutral/neutral/semi-neutral base Pythagorean
+ *                          interval
+ */
+
 function cbnEDOs(a,b) {
   return a && b ? Fraction(1,a).gcd(1,b).d : undefined
 }
@@ -2069,27 +2298,35 @@ function cbnEDOs(a,b) {
   * Evaluates the result of running `grammar.ne`
   *
   * @param {Array} e the expression to evaluate
-  * @param {{hertz: Interval, intvToA4: Interval}} refNote the reference note
+  * @param {{hertz: Interval, intvToA4: Interval}} [refNote=defaultRefNote] the reference note
+  * @param {EvalOpts} [opts] various options
   * @returns {{val: Interval, prefEDO: integer}}
   */
-function evalExpr(e, r, edo) {
+function evalExpr(e, r, opts, state) {
+  if (!state) { state = {}; }
+  let fjsLikeSpecs = [fjsSpec, nfjsSpec];
+  if (opts && Array.isArray(opts.fjsLikeSpecs) && opts.fjsLikeSpecs.length > 0) {
+    fjsLikeSpecs = opts.fjsLikeSpecs;
+  }
+
   if (Array.isArray(e)) {
     // don't fail in the case of a nested array
     if (Array.isArray(e[0])) {
       console.log("evalExpr: nested arrays")
-      return evalExpr(e[0], r, edo);
+      return evalExpr(e[0], r, opts, state);
     }
 
     // 1 | Special cases:
     if (e[0] == "!refIntvToA4") {
-      return { val: r.intvToA4 };
+      return { val: (r || defaultRefNote).intvToA4 };
     }
     else if (e[0] == "!refHertz") {
-      return { val: r.hertz };
+      return { val: (r || defaultRefNote).hertz };
     }
-    else if (e[0] == "!med") { // `edo` should not be defined
-      const arg0 = evalExpr(e[1],r).val;
-      const arg1 = evalExpr(e[2],r).val;
+    else if (e[0] == "!med") {
+      const arg0 = evalExpr(e[1], r, opts, state).val;
+      const arg1 = evalExpr(e[2], r, opts, state).val;
+      const loc = e[3];
       if (arg0.isFrac() && arg1.isFrac()) {
         return { val: arg0.med(arg1) };
       }
@@ -2097,73 +2334,100 @@ function evalExpr(e, r, edo) {
         throw new OtherError("One of the arguments to `med` is not a fraction", loc);
       }
     }
-    else if (e[0] == "!cents") { // `edo` should not be defined
-      const arg0 = Fraction(evalExpr(e[1],r).val).div(1200);
+    else if (e[0] == "!cents") {
+      const arg0 = Fraction(evalExpr(e[1], r, opts, state).val).div(1200);
       return { val: Interval(2).pow(arg0)
              , prefEDO: 48 % arg0.d == 0 ? 24 % arg0.d == 0 ? 12 % arg0.d == 0 ? 12 : 24 : 48 : undefined };
     }
-    else if (e[0] == "!edoApprox") { // `edo` should not be defined
-      const arg0 = evalExpr(e[1],r).val;
-      const arg1 = evalExpr(e[2],r).val;
+    else if (e[0] == "!edoApprox") {
+      const arg0 = evalExpr(e[1], r, opts, state).val;
+      const arg1 = evalExpr(e[2], r, opts, state).val;
       return { val: Interval(2).pow(edoApprox(arg1, arg0)).pow(1,arg1), prefEDO: arg1 };
     }
-    else if (e[0] == "!inEDO") { // `edo` should not be defined
-      const arg1 = evalExpr(e[2],r).val;
-      const arg0 = evalExpr(e[1],r,arg1).val;
+    else if (e[0] == "!inEDO") {
+      const arg1 = evalExpr(e[2], r, opts, state).val;
+      state.edo = arg1;
+      const arg0 = evalExpr(e[1], r, opts, state).val;
       return { val: Interval(2).pow(arg0).pow(1,arg1), prefEDO: arg1 };
     }
-    else if (e[0] == "!edoTT") { // `edo` should be defined
+    else if (e[0] == "!edoTT") { // `state.edo` should be set from "!inEDO"
       const loc = e[1];
-      if (edo % 2 == 0) {
-        return { val: edo / 2 };
+      if (state.edo % 2 == 0) {
+        return { val: state.edo / 2 };
       }
       else {
-        throw new OtherError(edo + "-EDO does not have a tritone", loc);
+        throw new OtherError(state.edo + "-EDO does not have a tritone", loc);
       }
     }
-    else if (e[0] == "!edoPy") { // `edo` should be defined
-      const arg0 = evalExpr(e[1],r,edo).val;
+    else if (e[0] == "!edoPy") { // `state.edo` should be set from "!inEDO"
+      const arg0 = evalExpr(e[1], r, opts, state).val;
       const loc = e[2];
-      try { return { val: edoPy(edo, arg0) }; }
+      try { return { val: edoPy(state.edo, arg0) }; }
       catch (err) {
         throw new OtherError(err.message, loc);
       }
     }
-    else if (e[0] == "!perfPyIntv") { // `edo` may be defined
+    else if (e[0] == "!perfPyIntv") {
       const [d, loc] = [e[1], e[2]];
       if (isPerfectDeg(d)) { return { val: pyInterval(d,0) }; }
       else { throw new OtherError("P" + d + " is not a valid interval ("
                                       + d + " is not a perfect scale degree)", loc); }
     }
-    else if (e[0] == "!nonPerfPyIntv") { // `edo` may be defined
+    else if (e[0] == "!nonPerfPyIntv") {
       const [d, o, q, loc] = [e[1], e[2], e[3], e[4]];
       if (!isPerfectDeg(d)) { return { val: pyInterval(d,o) }; }
       else { throw new OtherError(q + d + " is not a valid interval ("
                                     + d + " is a perfect scale degree)", loc); }
     }
-    else if (e[0] == "!augOrDimPyIntv") { // `edo` may be defined
+    else if (e[0] == "!augOrDimPyIntv") {
       const [d, a, b, loc] = [e[1], e[2], e[3], e[4]];
       const o = Fraction(a,b);
       const o_np = o.add(o.s,2);
       return { val: isPerfectDeg(d) ? pyInterval(d,o) : pyInterval(d,o_np) };
     }
-    else if (e[0] == "!ensureNo2Or3") { // `edo` should not be defined
+    else if (e[0] == "!ensureNo2Or3") {
       const [k, loc] = [e[1], e[2]];
       if (k.hasExp(2) || k.hasExp(3)) {
         throw new OtherError("FJS accidental cannot contain a factor or 2 or 3", loc);
       }
       return { val: k };
     }
-    else if (e[0] == "!fjsFactor") { // `edo` should not be defined
-      const arg0 = evalExpr(e[1],r).val;
-      return { val: fjsFactor(arg0, e[2]) };
+    else if (e[0] == "!fjsFactor") {
+      const arg0 = evalExpr(e[1], r, opts, state).val;
+      const spec = e[2];
+      return { val: fjsFactor(arg0, spec) };
+    }
+    else if (e[0] == "!fjsPy") {
+      const [f, loc] = [e[1], e[2]];
+      const spec = fjsLikeSpecs[0];
+      return evalExpr(f(spec), r, opts, state);
+    }
+    else if (e[0] == "!fjsNPy") {
+      const [f, loc] = [e[1], e[2]];
+      const spec = fjsLikeSpecs.find(spec => spec.hasNeutrals);
+      if (spec) {
+        return evalExpr(f(spec), r, opts, state);
+      }
+      else {
+        throw new OtherError("Neutral FJS-like interval not supported", loc);
+      }
+    }
+    else if (e[0] == "!fjsSNPy") {
+      const [f, loc] = [e[1], e[2]];
+      const spec = fjsLikeSpecs.find(spec => spec.hasSemiNeutrals);
+      if (spec) {
+        return evalExpr(f(spec), r, opts, state);
+      }
+      else {
+        throw new OtherError("Semi-neutral FJS-like interval not supported", loc);
+      }
     }
     else if (e[0][0] == "!") {
       throw new LocatedError("Panic", "command " + e[0] + " not defined!", 0);
     }
 
     // for the remaining cases, we evaluate every argument
-    const args = e.slice(1).map(ei => evalExpr(ei,r,edo));
+    const args = e.slice(1).map(ei => evalExpr(ei, r, opts, state));
 
     // 2 | Operators:
     if (e[0] == "+") { return { val: args[0].val + args[1].val }; }
@@ -2189,16 +2453,20 @@ function evalExpr(e, r, edo) {
     }
     return ret;
   }
-  return { val: e, prefEDO: e == 2 ? 1 : undefined };
+  if (e instanceof Interval && e.toMonzo().length <= 1) {
+    return { val: e, prefEDO: e.expOf(2).d };
+  }
+  return { val: e };
 }
 
 module['exports'].LocatedError = LocatedError;
 module['exports'].ParseError = ParseError;
 module['exports'].OtherError = OtherError;
+module['exports'].defaultRefNote = defaultRefNote;
 module['exports'].evalExpr = evalExpr;
 
 },{"../edo.js":2,"../fjs.js":4,"../interval.js":6,"../pythagorean.js":10,"fraction.js":13}],9:[function(require,module,exports){
-// Generated automatically by nearley, version 2.19.8
+// Generated automatically by nearley, version 2.20.1
 // http://github.com/Hardmath123/nearley
 (function () {
 function id(x) { return x[0]; }
@@ -2207,11 +2475,9 @@ function id(x) { return x[0]; }
 const Fraction = require('fraction.js');
 const Interval = require('../interval.js');
 const {pyInterval, pyNote, pyRedDeg, baseNoteIntvToA} = require('../pythagorean.js');
-const {fjsFactor, fjsParams, nfjsParams} = require('../fjs.js');
+const {fjsFactor, fjsSpec, nfjsSpec} = require('../fjs.js');
 const {edoPy} = require('../edo.js');
-const {ParseError, OtherError, evalExpr} = require('./eval.js');
-
-const defaultRefNote = { intvToA4: Interval(1), hertz: Interval(440) };
+const {ParseError, OtherError, defaultRefNote, evalExpr} = require('./eval.js');
 
 var grammar = {
     Lexer: undefined,
@@ -2384,18 +2650,23 @@ var grammar = {
     {"name": "noteSExpr1", "symbols": ["noteSymbol"], "postprocess": id},
     {"name": "noteSExpr1", "symbols": ["upsDnsNote", "_", {"literal":"\\"}, "_", "posInt"], "postprocess": d => ["!inEDO", d[0], parseInt(d[4])]},
     {"name": "noteSExpr1", "symbols": [{"literal":"("}, "_", "noteSExpr1", "_", {"literal":")"}], "postprocess": d => d[2]},
-    {"name": "intvSymbol", "symbols": ["fjsIntv"], "postprocess": id},
-    {"name": "intvSymbol", "symbols": ["nfjsNeutIntv"], "postprocess": id},
-    {"name": "intvSymbol$string$1", "symbols": [{"literal":"N"}, {"literal":"F"}, {"literal":"J"}, {"literal":"S"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvSymbol", "symbols": ["intvSymbol$string$1", "_", {"literal":"("}, "_", "nfjsIntv", "_", {"literal":")"}], "postprocess": d => d[4]},
-    {"name": "intvSymbol", "symbols": ["snpyIntv"], "postprocess": id},
-    {"name": "intvSymbol$string$2", "symbols": [{"literal":"T"}, {"literal":"T"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvSymbol", "symbols": ["intvSymbol$string$2"], "postprocess": _ => Interval(2).sqrt()},
-    {"name": "noteSymbol", "symbols": ["fjsNote"], "postprocess": id},
-    {"name": "noteSymbol", "symbols": ["nfjsNeutNote"], "postprocess": id},
-    {"name": "noteSymbol$string$1", "symbols": [{"literal":"N"}, {"literal":"F"}, {"literal":"J"}, {"literal":"S"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "noteSymbol", "symbols": ["noteSymbol$string$1", "_", {"literal":"("}, "_", "nfjsNote", "_", {"literal":")"}], "postprocess": d => d[4]},
-    {"name": "noteSymbol", "symbols": ["npyNote"], "postprocess": id},
+    {"name": "intvSymbol", "symbols": ["anyPyIntv"], "postprocess": id},
+    {"name": "intvSymbol", "symbols": ["strictFJSLikeIntv"], "postprocess": id},
+    {"name": "intvSymbol$string$1", "symbols": [{"literal":"F"}, {"literal":"J"}, {"literal":"S"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvSymbol", "symbols": ["intvSymbol$string$1", "_", {"literal":"("}, "_", "fjsIntv", "_", {"literal":")"}], "postprocess": d => d[4]},
+    {"name": "intvSymbol$string$2", "symbols": [{"literal":"N"}, {"literal":"F"}, {"literal":"J"}, {"literal":"S"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvSymbol", "symbols": ["intvSymbol$string$2", "_", {"literal":"("}, "_", "nfjsIntv", "_", {"literal":")"}], "postprocess": d => d[4]},
+    {"name": "intvSymbol$string$3", "symbols": [{"literal":"T"}, {"literal":"T"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvSymbol", "symbols": ["intvSymbol$string$3"], "postprocess": _ => Interval(2).sqrt()},
+    {"name": "noteSymbol", "symbols": ["anyPyNote"], "postprocess": id},
+    {"name": "noteSymbol", "symbols": ["strictFJSLikeNote"], "postprocess": id},
+    {"name": "noteSymbol$string$1", "symbols": [{"literal":"F"}, {"literal":"J"}, {"literal":"S"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "noteSymbol", "symbols": ["noteSymbol$string$1", "_", {"literal":"("}, "_", "fjsNote", "_", {"literal":")"}], "postprocess": d => d[4]},
+    {"name": "noteSymbol$string$2", "symbols": [{"literal":"N"}, {"literal":"F"}, {"literal":"J"}, {"literal":"S"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "noteSymbol", "symbols": ["noteSymbol$string$2", "_", {"literal":"("}, "_", "nfjsNote", "_", {"literal":")"}], "postprocess": d => d[4]},
+    {"name": "anyPyIntv", "symbols": ["pyIntv"], "postprocess": id},
+    {"name": "anyPyIntv", "symbols": ["npyIntv"], "postprocess": id},
+    {"name": "anyPyIntv", "symbols": ["snpyIntv"], "postprocess": id},
     {"name": "pyIntv", "symbols": [{"literal":"P"}, "pyDeg"], "postprocess": (d,loc,_) => ["!perfPyIntv", d[1], loc]},
     {"name": "pyIntv", "symbols": [{"literal":"M"}, "pyDeg"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], Fraction(1,2), "M", loc]},
     {"name": "pyIntv", "symbols": [{"literal":"m"}, "pyDeg"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], Fraction(-1,2), "m", loc]},
@@ -2427,6 +2698,8 @@ var grammar = {
     {"name": "snpyIntv", "symbols": ["posInt", "snpyIntv$string$4", "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], -d[0], 4, loc]},
     {"name": "pyDeg", "symbols": ["posInt"], "postprocess": d => parseInt(d[0])},
     {"name": "pyDeg", "symbols": [{"literal":"-"}, "posInt"], "postprocess": d => - parseInt(d[1])},
+    {"name": "anyPyNote", "symbols": ["pyNote"], "postprocess": id},
+    {"name": "anyPyNote", "symbols": ["npyNote"], "postprocess": id},
     {"name": "pyNote", "symbols": [{"literal":"A"}], "postprocess": _ => ["recip", ["!refIntvToA4"]]},
     {"name": "pyNote$macrocall$2", "symbols": [/[B-G]/]},
     {"name": "pyNote$macrocall$3", "symbols": ["pyNoteNoAccs"]},
@@ -2530,55 +2803,101 @@ var grammar = {
     {"name": "npyNoteAccs$ebnf$6$string$1", "symbols": [{"literal":"\ud834"}, {"literal":"\udd2b"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "npyNoteAccs$ebnf$6", "symbols": ["npyNoteAccs$ebnf$6", "npyNoteAccs$ebnf$6$string$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "npyNoteAccs", "symbols": ["npyNoteAccs$ebnf$4", "npyNoteAccs$ebnf$5", "npyNoteAccs$ebnf$6"], "postprocess": d => pyInterval(-1, 2*d[0].length + d[1].length + 0.5*d[2].length)},
-    {"name": "fjsIntv$macrocall$2", "symbols": ["pyIntv"]},
-    {"name": "fjsIntv$macrocall$3", "symbols": ["fjsIntv"]},
-    {"name": "fjsIntv$macrocall$1", "symbols": ["fjsIntv$macrocall$2"], "postprocess": d => _ => d[0][0]},
-    {"name": "fjsIntv$macrocall$1", "symbols": ["fjsIntv$macrocall$3", {"literal":"^"}, "fjsAccs"], "postprocess": d => params => ["mul", d[0][0], d[2](params)]},
-    {"name": "fjsIntv$macrocall$1", "symbols": ["fjsIntv$macrocall$3", {"literal":"_"}, "fjsAccs"], "postprocess": d => params => ["div", d[0][0], d[2](params)]},
-    {"name": "fjsIntv", "symbols": ["fjsIntv$macrocall$1"], "postprocess": d => d[0](fjsParams)},
-    {"name": "fjsNote$macrocall$2", "symbols": ["pyNote"]},
-    {"name": "fjsNote$macrocall$3", "symbols": ["fjsNote"]},
-    {"name": "fjsNote$macrocall$1", "symbols": ["fjsNote$macrocall$2"], "postprocess": d => _ => d[0][0]},
-    {"name": "fjsNote$macrocall$1", "symbols": ["fjsNote$macrocall$3", {"literal":"^"}, "fjsAccs"], "postprocess": d => params => ["mul", d[0][0], d[2](params)]},
-    {"name": "fjsNote$macrocall$1", "symbols": ["fjsNote$macrocall$3", {"literal":"_"}, "fjsAccs"], "postprocess": d => params => ["div", d[0][0], d[2](params)]},
-    {"name": "fjsNote", "symbols": ["fjsNote$macrocall$1"], "postprocess": d => d[0](fjsParams)},
-    {"name": "nfjsIntv", "symbols": ["nfjsNeutIntv"], "postprocess": id},
-    {"name": "nfjsIntv", "symbols": ["nfjsNonNeutIntv"], "postprocess": id},
-    {"name": "nfjsNote", "symbols": ["nfjsNeutNote"], "postprocess": id},
-    {"name": "nfjsNote", "symbols": ["nfjsNonNeutNote"], "postprocess": id},
-    {"name": "nfjsNeutIntv$macrocall$2", "symbols": ["npyIntv"]},
-    {"name": "nfjsNeutIntv$macrocall$3", "symbols": ["nfjsNeutIntv"]},
-    {"name": "nfjsNeutIntv$macrocall$1", "symbols": ["nfjsNeutIntv$macrocall$2"], "postprocess": d => _ => d[0][0]},
-    {"name": "nfjsNeutIntv$macrocall$1", "symbols": ["nfjsNeutIntv$macrocall$3", {"literal":"^"}, "fjsAccs"], "postprocess": d => params => ["mul", d[0][0], d[2](params)]},
-    {"name": "nfjsNeutIntv$macrocall$1", "symbols": ["nfjsNeutIntv$macrocall$3", {"literal":"_"}, "fjsAccs"], "postprocess": d => params => ["div", d[0][0], d[2](params)]},
-    {"name": "nfjsNeutIntv", "symbols": ["nfjsNeutIntv$macrocall$1"], "postprocess": d => d[0](nfjsParams)},
-    {"name": "nfjsNonNeutIntv$macrocall$2", "symbols": ["pyIntv"]},
-    {"name": "nfjsNonNeutIntv$macrocall$3", "symbols": ["nfjsNonNeutIntv"]},
-    {"name": "nfjsNonNeutIntv$macrocall$1", "symbols": ["nfjsNonNeutIntv$macrocall$2"], "postprocess": d => _ => d[0][0]},
-    {"name": "nfjsNonNeutIntv$macrocall$1", "symbols": ["nfjsNonNeutIntv$macrocall$3", {"literal":"^"}, "fjsAccs"], "postprocess": d => params => ["mul", d[0][0], d[2](params)]},
-    {"name": "nfjsNonNeutIntv$macrocall$1", "symbols": ["nfjsNonNeutIntv$macrocall$3", {"literal":"_"}, "fjsAccs"], "postprocess": d => params => ["div", d[0][0], d[2](params)]},
-    {"name": "nfjsNonNeutIntv", "symbols": ["nfjsNonNeutIntv$macrocall$1"], "postprocess": d => d[0](nfjsParams)},
-    {"name": "nfjsNeutNote$macrocall$2", "symbols": ["npyNote"]},
-    {"name": "nfjsNeutNote$macrocall$3", "symbols": ["nfjsNeutNote"]},
-    {"name": "nfjsNeutNote$macrocall$1", "symbols": ["nfjsNeutNote$macrocall$2"], "postprocess": d => _ => d[0][0]},
-    {"name": "nfjsNeutNote$macrocall$1", "symbols": ["nfjsNeutNote$macrocall$3", {"literal":"^"}, "fjsAccs"], "postprocess": d => params => ["mul", d[0][0], d[2](params)]},
-    {"name": "nfjsNeutNote$macrocall$1", "symbols": ["nfjsNeutNote$macrocall$3", {"literal":"_"}, "fjsAccs"], "postprocess": d => params => ["div", d[0][0], d[2](params)]},
-    {"name": "nfjsNeutNote", "symbols": ["nfjsNeutNote$macrocall$1"], "postprocess": d => d[0](nfjsParams)},
-    {"name": "nfjsNonNeutNote$macrocall$2", "symbols": ["pyNote"]},
-    {"name": "nfjsNonNeutNote$macrocall$3", "symbols": ["nfjsNonNeutNote"]},
-    {"name": "nfjsNonNeutNote$macrocall$1", "symbols": ["nfjsNonNeutNote$macrocall$2"], "postprocess": d => _ => d[0][0]},
-    {"name": "nfjsNonNeutNote$macrocall$1", "symbols": ["nfjsNonNeutNote$macrocall$3", {"literal":"^"}, "fjsAccs"], "postprocess": d => params => ["mul", d[0][0], d[2](params)]},
-    {"name": "nfjsNonNeutNote$macrocall$1", "symbols": ["nfjsNonNeutNote$macrocall$3", {"literal":"_"}, "fjsAccs"], "postprocess": d => params => ["div", d[0][0], d[2](params)]},
-    {"name": "nfjsNonNeutNote", "symbols": ["nfjsNonNeutNote$macrocall$1"], "postprocess": d => d[0](nfjsParams)},
-    {"name": "fjsAccs", "symbols": ["fjsAccOk"], "postprocess": d => params => ["!fjsFactor", d[0], params]},
-    {"name": "fjsAccs", "symbols": ["fjsAccs", {"literal":","}, "fjsAccOk"], "postprocess": d => params => ["mul", d[0](params), ["!fjsFactor", d[2], params]]},
-    {"name": "fjsAccOk", "symbols": ["fjsAcc"], "postprocess": (d,loc,_) => ["!ensureNo2Or3", d[0], loc]},
-    {"name": "fjsAcc", "symbols": ["posInt"], "postprocess": d => Interval(d[0])},
-    {"name": "fjsAcc$string$1", "symbols": [{"literal":"s"}, {"literal":"q"}, {"literal":"r"}, {"literal":"t"}, {"literal":"("}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "fjsAcc", "symbols": ["fjsAcc$string$1", "fjsAcc", {"literal":")"}], "postprocess": d => d[1].sqrt()},
-    {"name": "fjsAcc$string$2", "symbols": [{"literal":"r"}, {"literal":"o"}, {"literal":"o"}, {"literal":"t"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "fjsAcc", "symbols": ["fjsAcc$string$2", "posInt", {"literal":"("}, "fjsAcc", {"literal":")"}], "postprocess": d => d[3].root(d[1])},
-    {"name": "fjsAcc", "symbols": [{"literal":"("}, "fjsAcc", {"literal":"^"}, "frcExpr3", {"literal":")"}], "postprocess": d => d[1].pow(d[3])},
+    {"name": "fjsIntv", "symbols": ["fjsNonNeutIntv"], "postprocess": d => d[0](fjsSpec)},
+    {"name": "fjsNote", "symbols": ["fjsNonNeutNote"], "postprocess": d => d[0](fjsSpec)},
+    {"name": "fjsNonNeutIntv", "symbols": ["pyIntv"], "postprocess": d => _ => d[0]},
+    {"name": "fjsNonNeutIntv$macrocall$2", "symbols": ["fjsNonNeutIntv"]},
+    {"name": "fjsNonNeutIntv$macrocall$1", "symbols": ["fjsNonNeutIntv$macrocall$2", {"literal":"^"}, "fjsAccList"], "postprocess": d => spec => ["mul", d[0][0](spec), d[2](spec)]},
+    {"name": "fjsNonNeutIntv$macrocall$1", "symbols": ["fjsNonNeutIntv$macrocall$2", {"literal":"_"}, "fjsAccList"], "postprocess": d => spec => ["div", d[0][0](spec), d[2](spec)]},
+    {"name": "fjsNonNeutIntv", "symbols": ["fjsNonNeutIntv$macrocall$1"], "postprocess": id},
+    {"name": "fjsNonNeutNote", "symbols": ["pyNote"], "postprocess": d => _ => d[0]},
+    {"name": "fjsNonNeutNote$macrocall$2", "symbols": ["fjsNonNeutNote"]},
+    {"name": "fjsNonNeutNote$macrocall$1", "symbols": ["fjsNonNeutNote$macrocall$2", {"literal":"^"}, "fjsAccList"], "postprocess": d => spec => ["mul", d[0][0](spec), d[2](spec)]},
+    {"name": "fjsNonNeutNote$macrocall$1", "symbols": ["fjsNonNeutNote$macrocall$2", {"literal":"_"}, "fjsAccList"], "postprocess": d => spec => ["div", d[0][0](spec), d[2](spec)]},
+    {"name": "fjsNonNeutNote", "symbols": ["fjsNonNeutNote$macrocall$1"], "postprocess": id},
+    {"name": "nfjsIntv", "symbols": ["nfjsNeutIntv"], "postprocess": d => d[0](nfjsSpec)},
+    {"name": "nfjsIntv", "symbols": ["nfjsNonNeutIntv"], "postprocess": d => d[0](nfjsSpec)},
+    {"name": "nfjsNote", "symbols": ["nfjsNeutNote"], "postprocess": d => d[0](nfjsSpec)},
+    {"name": "nfjsNote", "symbols": ["nfjsNonNeutNote"], "postprocess": d => d[0](nfjsSpec)},
+    {"name": "nfjsNeutIntv", "symbols": ["npyIntv"], "postprocess": d => _ => d[0]},
+    {"name": "nfjsNeutIntv$macrocall$2", "symbols": ["nfjsNeutIntv"]},
+    {"name": "nfjsNeutIntv$macrocall$1", "symbols": ["nfjsNeutIntv$macrocall$2", {"literal":"^"}, "fjsAccList"], "postprocess": d => spec => ["mul", d[0][0](spec), d[2](spec)]},
+    {"name": "nfjsNeutIntv$macrocall$1", "symbols": ["nfjsNeutIntv$macrocall$2", {"literal":"_"}, "fjsAccList"], "postprocess": d => spec => ["div", d[0][0](spec), d[2](spec)]},
+    {"name": "nfjsNeutIntv", "symbols": ["nfjsNeutIntv$macrocall$1"], "postprocess": id},
+    {"name": "nfjsNonNeutIntv", "symbols": ["pyIntv"], "postprocess": d => _ => d[0]},
+    {"name": "nfjsNonNeutIntv$macrocall$2", "symbols": ["nfjsNonNeutIntv"]},
+    {"name": "nfjsNonNeutIntv$macrocall$1", "symbols": ["nfjsNonNeutIntv$macrocall$2", {"literal":"^"}, "fjsAccList"], "postprocess": d => spec => ["mul", d[0][0](spec), d[2](spec)]},
+    {"name": "nfjsNonNeutIntv$macrocall$1", "symbols": ["nfjsNonNeutIntv$macrocall$2", {"literal":"_"}, "fjsAccList"], "postprocess": d => spec => ["div", d[0][0](spec), d[2](spec)]},
+    {"name": "nfjsNonNeutIntv", "symbols": ["nfjsNonNeutIntv$macrocall$1"], "postprocess": id},
+    {"name": "nfjsNeutNote", "symbols": ["npyNote"], "postprocess": d => _ => d[0]},
+    {"name": "nfjsNeutNote$macrocall$2", "symbols": ["nfjsNeutNote"]},
+    {"name": "nfjsNeutNote$macrocall$1", "symbols": ["nfjsNeutNote$macrocall$2", {"literal":"^"}, "fjsAccList"], "postprocess": d => spec => ["mul", d[0][0](spec), d[2](spec)]},
+    {"name": "nfjsNeutNote$macrocall$1", "symbols": ["nfjsNeutNote$macrocall$2", {"literal":"_"}, "fjsAccList"], "postprocess": d => spec => ["div", d[0][0](spec), d[2](spec)]},
+    {"name": "nfjsNeutNote", "symbols": ["nfjsNeutNote$macrocall$1"], "postprocess": id},
+    {"name": "nfjsNonNeutNote", "symbols": ["pyNote"], "postprocess": d => _ => d[0]},
+    {"name": "nfjsNonNeutNote$macrocall$2", "symbols": ["nfjsNonNeutNote"]},
+    {"name": "nfjsNonNeutNote$macrocall$1", "symbols": ["nfjsNonNeutNote$macrocall$2", {"literal":"^"}, "fjsAccList"], "postprocess": d => spec => ["mul", d[0][0](spec), d[2](spec)]},
+    {"name": "nfjsNonNeutNote$macrocall$1", "symbols": ["nfjsNonNeutNote$macrocall$2", {"literal":"_"}, "fjsAccList"], "postprocess": d => spec => ["div", d[0][0](spec), d[2](spec)]},
+    {"name": "nfjsNonNeutNote", "symbols": ["nfjsNonNeutNote$macrocall$1"], "postprocess": id},
+    {"name": "fjsLikeIntv", "symbols": ["fjsLikeSemiNeutIntv"], "postprocess": (d,loc,_) => ["!fjsSNPy", d[0], loc]},
+    {"name": "fjsLikeIntv", "symbols": ["fjsLikeNeutIntv"], "postprocess": (d,loc,_) => ["!fjsNPy", d[0], loc]},
+    {"name": "fjsLikeIntv", "symbols": ["fjsLikeNonNeutIntv"], "postprocess": (d,loc,_) => ["!fjsPy", d[0], loc]},
+    {"name": "fjsLikeNote", "symbols": ["fjsLikeNeutNote"], "postprocess": (d,loc,_) => ["!fjsNPy", d[0], loc]},
+    {"name": "fjsLikeNote", "symbols": ["fjsLikeNonNeutNote"], "postprocess": (d,loc,_) => ["!fjsPy", d[0], loc]},
+    {"name": "strictFJSLikeIntv$macrocall$2", "symbols": ["fjsLikeSemiNeutIntv"]},
+    {"name": "strictFJSLikeIntv$macrocall$1", "symbols": ["strictFJSLikeIntv$macrocall$2", {"literal":"^"}, "fjsAccList"], "postprocess": d => spec => ["mul", d[0][0](spec), d[2](spec)]},
+    {"name": "strictFJSLikeIntv$macrocall$1", "symbols": ["strictFJSLikeIntv$macrocall$2", {"literal":"_"}, "fjsAccList"], "postprocess": d => spec => ["div", d[0][0](spec), d[2](spec)]},
+    {"name": "strictFJSLikeIntv", "symbols": ["strictFJSLikeIntv$macrocall$1"], "postprocess": (d,loc,_) => ["!fjsSNPy", d[0], loc]},
+    {"name": "strictFJSLikeIntv$macrocall$4", "symbols": ["fjsLikeNeutIntv"]},
+    {"name": "strictFJSLikeIntv$macrocall$3", "symbols": ["strictFJSLikeIntv$macrocall$4", {"literal":"^"}, "fjsAccList"], "postprocess": d => spec => ["mul", d[0][0](spec), d[2](spec)]},
+    {"name": "strictFJSLikeIntv$macrocall$3", "symbols": ["strictFJSLikeIntv$macrocall$4", {"literal":"_"}, "fjsAccList"], "postprocess": d => spec => ["div", d[0][0](spec), d[2](spec)]},
+    {"name": "strictFJSLikeIntv", "symbols": ["strictFJSLikeIntv$macrocall$3"], "postprocess": (d,loc,_) => ["!fjsNPy", d[0], loc]},
+    {"name": "strictFJSLikeIntv$macrocall$6", "symbols": ["fjsLikeNonNeutIntv"]},
+    {"name": "strictFJSLikeIntv$macrocall$5", "symbols": ["strictFJSLikeIntv$macrocall$6", {"literal":"^"}, "fjsAccList"], "postprocess": d => spec => ["mul", d[0][0](spec), d[2](spec)]},
+    {"name": "strictFJSLikeIntv$macrocall$5", "symbols": ["strictFJSLikeIntv$macrocall$6", {"literal":"_"}, "fjsAccList"], "postprocess": d => spec => ["div", d[0][0](spec), d[2](spec)]},
+    {"name": "strictFJSLikeIntv", "symbols": ["strictFJSLikeIntv$macrocall$5"], "postprocess": (d,loc,_) => ["!fjsPy", d[0], loc]},
+    {"name": "strictFJSLikeNote$macrocall$2", "symbols": ["fjsLikeNeutNote"]},
+    {"name": "strictFJSLikeNote$macrocall$1", "symbols": ["strictFJSLikeNote$macrocall$2", {"literal":"^"}, "fjsAccList"], "postprocess": d => spec => ["mul", d[0][0](spec), d[2](spec)]},
+    {"name": "strictFJSLikeNote$macrocall$1", "symbols": ["strictFJSLikeNote$macrocall$2", {"literal":"_"}, "fjsAccList"], "postprocess": d => spec => ["div", d[0][0](spec), d[2](spec)]},
+    {"name": "strictFJSLikeNote", "symbols": ["strictFJSLikeNote$macrocall$1"], "postprocess": (d,loc,_) => ["!fjsNPy", d[0], loc]},
+    {"name": "strictFJSLikeNote$macrocall$4", "symbols": ["fjsLikeNonNeutNote"]},
+    {"name": "strictFJSLikeNote$macrocall$3", "symbols": ["strictFJSLikeNote$macrocall$4", {"literal":"^"}, "fjsAccList"], "postprocess": d => spec => ["mul", d[0][0](spec), d[2](spec)]},
+    {"name": "strictFJSLikeNote$macrocall$3", "symbols": ["strictFJSLikeNote$macrocall$4", {"literal":"_"}, "fjsAccList"], "postprocess": d => spec => ["div", d[0][0](spec), d[2](spec)]},
+    {"name": "strictFJSLikeNote", "symbols": ["strictFJSLikeNote$macrocall$3"], "postprocess": (d,loc,_) => ["!fjsPy", d[0], loc]},
+    {"name": "fjsLikeSemiNeutIntv", "symbols": ["snpyIntv"], "postprocess": d => _ => d[0]},
+    {"name": "fjsLikeSemiNeutIntv$macrocall$2", "symbols": ["fjsLikeSemiNeutIntv"]},
+    {"name": "fjsLikeSemiNeutIntv$macrocall$1", "symbols": ["fjsLikeSemiNeutIntv$macrocall$2", {"literal":"^"}, "fjsAccList"], "postprocess": d => spec => ["mul", d[0][0](spec), d[2](spec)]},
+    {"name": "fjsLikeSemiNeutIntv$macrocall$1", "symbols": ["fjsLikeSemiNeutIntv$macrocall$2", {"literal":"_"}, "fjsAccList"], "postprocess": d => spec => ["div", d[0][0](spec), d[2](spec)]},
+    {"name": "fjsLikeSemiNeutIntv", "symbols": ["fjsLikeSemiNeutIntv$macrocall$1"], "postprocess": id},
+    {"name": "fjsLikeNeutIntv", "symbols": ["npyIntv"], "postprocess": d => _ => d[0]},
+    {"name": "fjsLikeNeutIntv$macrocall$2", "symbols": ["fjsLikeNeutIntv"]},
+    {"name": "fjsLikeNeutIntv$macrocall$1", "symbols": ["fjsLikeNeutIntv$macrocall$2", {"literal":"^"}, "fjsAccList"], "postprocess": d => spec => ["mul", d[0][0](spec), d[2](spec)]},
+    {"name": "fjsLikeNeutIntv$macrocall$1", "symbols": ["fjsLikeNeutIntv$macrocall$2", {"literal":"_"}, "fjsAccList"], "postprocess": d => spec => ["div", d[0][0](spec), d[2](spec)]},
+    {"name": "fjsLikeNeutIntv", "symbols": ["fjsLikeNeutIntv$macrocall$1"], "postprocess": id},
+    {"name": "fjsLikeNonNeutIntv", "symbols": ["pyIntv"], "postprocess": d => _ => d[0]},
+    {"name": "fjsLikeNonNeutIntv$macrocall$2", "symbols": ["fjsLikeNonNeutIntv"]},
+    {"name": "fjsLikeNonNeutIntv$macrocall$1", "symbols": ["fjsLikeNonNeutIntv$macrocall$2", {"literal":"^"}, "fjsAccList"], "postprocess": d => spec => ["mul", d[0][0](spec), d[2](spec)]},
+    {"name": "fjsLikeNonNeutIntv$macrocall$1", "symbols": ["fjsLikeNonNeutIntv$macrocall$2", {"literal":"_"}, "fjsAccList"], "postprocess": d => spec => ["div", d[0][0](spec), d[2](spec)]},
+    {"name": "fjsLikeNonNeutIntv", "symbols": ["fjsLikeNonNeutIntv$macrocall$1"], "postprocess": id},
+    {"name": "fjsLikeNeutNote", "symbols": ["npyNote"], "postprocess": d => _ => d[0]},
+    {"name": "fjsLikeNeutNote$macrocall$2", "symbols": ["fjsLikeNeutNote"]},
+    {"name": "fjsLikeNeutNote$macrocall$1", "symbols": ["fjsLikeNeutNote$macrocall$2", {"literal":"^"}, "fjsAccList"], "postprocess": d => spec => ["mul", d[0][0](spec), d[2](spec)]},
+    {"name": "fjsLikeNeutNote$macrocall$1", "symbols": ["fjsLikeNeutNote$macrocall$2", {"literal":"_"}, "fjsAccList"], "postprocess": d => spec => ["div", d[0][0](spec), d[2](spec)]},
+    {"name": "fjsLikeNeutNote", "symbols": ["fjsLikeNeutNote$macrocall$1"], "postprocess": id},
+    {"name": "fjsLikeNonNeutNote", "symbols": ["pyNote"], "postprocess": d => _ => d[0]},
+    {"name": "fjsLikeNonNeutNote$macrocall$2", "symbols": ["fjsLikeNonNeutNote"]},
+    {"name": "fjsLikeNonNeutNote$macrocall$1", "symbols": ["fjsLikeNonNeutNote$macrocall$2", {"literal":"^"}, "fjsAccList"], "postprocess": d => spec => ["mul", d[0][0](spec), d[2](spec)]},
+    {"name": "fjsLikeNonNeutNote$macrocall$1", "symbols": ["fjsLikeNonNeutNote$macrocall$2", {"literal":"_"}, "fjsAccList"], "postprocess": d => spec => ["div", d[0][0](spec), d[2](spec)]},
+    {"name": "fjsLikeNonNeutNote", "symbols": ["fjsLikeNonNeutNote$macrocall$1"], "postprocess": id},
+    {"name": "fjsAccList", "symbols": ["fjsAcc"], "postprocess": d => spec => ["!fjsFactor", d[0], spec]},
+    {"name": "fjsAccList", "symbols": ["fjsAccList", {"literal":","}, "fjsAcc"], "postprocess": d => spec => ["mul", d[0](spec), ["!fjsFactor", d[2], spec]]},
+    {"name": "fjsAcc", "symbols": ["fjsAccExpr"], "postprocess": (d,loc,_) => ["!ensureNo2Or3", d[0], loc]},
+    {"name": "fjsAccExpr", "symbols": ["posInt"], "postprocess": d => Interval(d[0])},
+    {"name": "fjsAccExpr$string$1", "symbols": [{"literal":"s"}, {"literal":"q"}, {"literal":"r"}, {"literal":"t"}, {"literal":"("}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "fjsAccExpr", "symbols": ["fjsAccExpr$string$1", "fjsAccExpr", {"literal":")"}], "postprocess": d => d[1].sqrt()},
+    {"name": "fjsAccExpr$string$2", "symbols": [{"literal":"r"}, {"literal":"o"}, {"literal":"o"}, {"literal":"t"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "fjsAccExpr", "symbols": ["fjsAccExpr$string$2", "posInt", {"literal":"("}, "fjsAccExpr", {"literal":")"}], "postprocess": d => d[3].root(d[1])},
+    {"name": "fjsAccExpr", "symbols": [{"literal":"("}, "fjsAccExpr", {"literal":"^"}, "frcExpr3", {"literal":")"}], "postprocess": d => d[1].pow(d[3])},
     {"name": "upsDnsIntv", "symbols": ["upsDns", "pyIntv"], "postprocess": (d,loc,_) => ["+", d[0], ["!edoPy", d[1], loc]]},
     {"name": "upsDnsIntv", "symbols": ["upsDns", "npyIntv"], "postprocess": (d,loc,_) => ["+", d[0], ["!edoPy", d[1], loc]]},
     {"name": "upsDnsIntv", "symbols": ["upsDns", "snpyIntv"], "postprocess": (d,loc,_) => ["+", d[0], ["!edoPy", d[1], loc]]},
@@ -2736,7 +3055,7 @@ function isPythagorean(a,b) {
 }
 
 /**
-  * For a given pythagorean interval `(3/2)^(g/4) * 2^v`, returns the `g`.
+  * For a given pythagorean interval `(3/2)^(g/4) * 2^p`, returns the `g`.
   *
   * @param {Interval} i
   * @returns {integer}
@@ -2751,18 +3070,18 @@ function pyGenerator(a,b) {
 }
 
 /**
-  * For a given pythagorean interval `(3/2)^(g/4) * 2^v`, returns the `v`.
+  * For a given pythagorean interval `(3/2)^(g/4) * 2^p`, returns the `p`.
   *
   * @param {Interval} i
   * @returns {integer}
   */
 function pyOctaves(a,b) {
   const i = new Interval(a,b);
-  const v = i.expOf(2).add(i.expOf(3));
-  if (v.d != 1) {
+  const p = i.expOf(2).add(i.expOf(3));
+  if (p.d != 1) {
     throw new Error("interval is not pythagorean");
   }
-  return v.s * v.n;
+  return p.s * p.n;
 }
 
 /**
@@ -2785,8 +3104,8 @@ function pyDegree(a,b) {
 function pyZDegree(a,b) {
   const i = new Interval(a,b);
   const g = pyGenerator(i);
-  const v = pyOctaves(i);
-  return g + v * 7;
+  const p = pyOctaves(i);
+  return g + p * 7;
 }
 
 /**
@@ -2798,8 +3117,8 @@ function pyZDegree(a,b) {
 function pyOffset(a,b) {
   const i = new Interval(a,b);
   const g = pyGenerator(i);
-  const v = pyOctaves(i);
-  const zd = g + v * 7;
+  const p = pyOctaves(i);
+  const zd = g + p * 7;
   const szd = zd == 0 ? 1 : Math.sign(zd)
   return Fraction(szd * (2 * Math.floor((4 * g + 3) / 7) - g), 4);
 }
