@@ -18,8 +18,10 @@ npm install && npm run build:all
 cd ..
 mkdir dist/microtonal-utils
 cp -R microtonal-utils/dist dist/microtonal-utils/dist
+cp -R microtonal-utils/README.md dist/microtonal-utils/README.md
 
 # Move scale-workshop sources
 mkdir -p dist/scale-workshop/src
 cp -R scale-workshop/src/js dist/scale-workshop/src/js
 cp -R scale-workshop/src/lib dist/scale-workshop/src/lib
+cp -R scale-workshop/README.md dist/scale-workshop/README.md
