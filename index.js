@@ -615,7 +615,9 @@ function setStateFromParams(urlParams, e) {
   if (e && e.state && e.state.html && e.state.html.trim() !== "") {
     $('#results').replaceWith(e.state.html);
     res = e.state.res;
-    addXenWikiLink(microtonal_utils.Fraction(toRatioStr(res.ratio)));
+    if (res.ratio) {
+      addXenWikiLink(microtonal_utils.Fraction(toRatioStr(res.ratio)));      
+    }
   }
   else {
     updateResults();
