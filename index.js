@@ -77,7 +77,7 @@ function oddLimitOpts(sortRat) {
 
 const defaultSortRat = "Tenney height";
 function sortRatOpts(oddLimit) {
-  let opts = ["Tenney height"];
+  let opts = ["Tenney height", "denominator"];
   if (oddLimit !== "-") { opts.push("difference"); }
   return opts;
 }
@@ -386,8 +386,9 @@ function updateRatApproxs(toUpdate) {
                  , primeLimit: isNaN(primeLimit) ? undefined : primeLimit
                  , oddLimit  : isNaN(oddLimit)   ? undefined : oddLimit
                  , numIterations: moreRat };
-  const fn = sortRat === "difference" ? microtonal_utils.bestRationalApproxsByDiff
-                                      : microtonal_utils.bestRationalApproxsByHeight;
+  const fn = sortRat === "difference"  ? microtonal_utils.bestRationalApproxsByDiff :
+             sortRat === "denominator" ? microtonal_utils.bestRationalApproxsByDenom
+                                       : microtonal_utils.bestRationalApproxsByHeight;
   const ratApproxsOut = fn(res.intv, params);
   const ratApproxs = sortRat === "difference" ? ratApproxsOut.slice(0,10*moreRat)
                                               : ratApproxsOut[1];
@@ -616,7 +617,7 @@ function setStateFromParams(urlParams, e) {
     $('#results').replaceWith(e.state.html);
     res = e.state.res;
     if (res.ratio) {
-      addXenWikiLink(microtonal_utils.Fraction(toRatioStr(res.ratio)));      
+      addXenWikiLink(microtonal_utils.Fraction(toRatioStr(res.ratio)));
     }
   }
   else {

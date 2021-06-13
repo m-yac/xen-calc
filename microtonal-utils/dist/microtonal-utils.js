@@ -101,7 +101,7 @@ function bestRationalApproxsByHeight(a,b, opts) {
   // `[startIteration * iterationSize + 1, numIterations * iterationSize)`
   for (let n = startIteration * iterationSize; !foundExact && n < n_max; n++) {
     const i = Interval(2*n + 1);
-    if (primeLimit && Object.keys(i).some(p => p > primeLimit)) {
+    if (primeLimit && !i.inPrimeLimit(primeLimit)) {
       continue;
     }
     // For a given odd `i` with factorization `p1^e1 ... pm^em` (where `pk` is
@@ -121,14 +121,12 @@ function bestRationalApproxsByHeight(a,b, opts) {
                        return [intv.mul(diff), diff];
                      }).sort((a,b) => a[1].compare(b[1]));
     for (const [j, diff] of to_check) {
-      const ratio = j.toFrac();
-      if (oddLimit && (   (ratio.n % 2 != 0 && ratio.n > oddLimit)
-                       || (ratio.d % 2 != 0 && ratio.d > oddLimit))) {
+      if (oddLimit && !j.inOddLimit(oddLimit)) {
         continue;
       }
       const abs_diff = diff.compare(1) < 0 ? diff.recip() : diff;
       if (abs_diff.compare(cutoff) < 0 && abs_diff.compare(last_diff) <= 0) {
-        ret.push({ ratio: ratio, diff: useExactDiffs ? diff : diff.toCents() });
+        ret.push({ ratio: j.toFrac(), diff: useExactDiffs ? diff : diff.toCents() });
         last_diff = abs_diff;
         if (last_diff.equals(1)) { foundExact = true };
       }
@@ -137,10 +135,110 @@ function bestRationalApproxsByHeight(a,b, opts) {
   if (debug) {
     console.timeEnd("bestRationalApproxsByHeight");
     if (hitOddLimitMax || foundExact) {
-      console.log("rationalApprox: exhausted")
+      console.log("bestRationalApproxsByHeight: exhausted")
     }
   }
   return [hitOddLimitMax || foundExact, ret];
+}
+
+/**
+  * Finds best rational approximations of the given interval, sorted by
+  * denominator. Returns a pair whose first element is true iff no better
+  * approximaions can be found - i.e. if an exact approximation is found.
+  *
+  * @param {Interval} i
+  * @param {Object} [opts]
+  * @param {integer} [opts.cutoff] defaults to 50 cents
+  * @param {integer} [opts.primeLimit]
+  * @param {integer} [opts.oddLimit]
+  * @param {integer} [opts.startIteration] defaults to 0
+  * @param {integer} [opts.numIterations] defaults to 1
+  * @param {boolean} [opts.useExactDiffs] defaults to false, controls the type
+  *                                       of each 'diff' property
+  * @param {boolean} [opts.debug] defaults to false
+  * @returns {Pair.<boolean, Array.<{ratio: Fraction, diff: (number|Interval)}>>}
+  */
+function bestRationalApproxsByDenom(a,b, opts) {
+  // if only two arguments are given, the second one may be `opts`!
+  if (!opts) {
+    if (typeof b == 'object' && b != null) {
+      opts = b;
+      b = undefined;
+    } else {
+      opts = {};
+    }
+  }
+  const intv = Interval(a,b);
+  let {cutoff, primeLimit, oddLimit, startIteration, numIterations, useExactDiffs, debug} = opts;
+  let [hitOddLimitMax, foundExact] = [false, false];
+  if (debug) { console.time("bestRationalApproxsByDenom"); }
+
+  // for now we always go in iterations of 100
+  let iterationSize = 100;
+
+  if (cutoff == undefined) { cutoff = Interval(2).pow(1,12).sqrt(); }
+  if (primeLimit == undefined && oddLimit) { primeLimit = oddLimit; }
+  if (startIteration == undefined) { startIteration = 0; }
+  if (numIterations == undefined) { numIterations = 1; }
+  let d_max = (startIteration + numIterations) * iterationSize + 1;
+
+  let [last_diff, ret] = [Interval(2), []];
+  for (let d = startIteration * iterationSize + 1; !foundExact && d < d_max; d++) {
+    if (oddLimit && d % 2 != 0 && d > oddLimit) {
+      continue;
+    }
+    const nBest = Math.round(intv.mul(d).valueOf());
+    // If nBest/d is not in our odd limit, can there exist some i such that
+    // (nBest+i)/d is in our odd limit but also satisfies abs_diff <= last_diff?
+    // I have no idea! So for now, we check all of n, n+1, n+2, ... and
+    // n-1, n-2, n-3, ... until we've cleared last_diff.
+    for (let n = nBest; !foundExact; n++) {
+      // NB: If you make any changes to this, make sure to update the below -
+      // the bodies of these two loops should be identical.
+      const r = Fraction(n,d);
+      const diff = Interval(r).div(intv);
+      const abs_diff = diff.compare(1) < 0 ? diff.recip() : diff;
+      if (abs_diff.compare(cutoff) < 0 && abs_diff.compare(last_diff) <= 0) {
+        // if n/d reduces, we've seen it already - so we can safely skip
+        if (r.d != d) {
+          continue;
+        }
+        if (oddLimit && r.n % 2 != 0 && r.n > oddLimit) {
+          continue;
+        }
+        ret.push({ ratio: r, diff: useExactDiffs ? diff : diff.toCents() });
+        last_diff = abs_diff;
+        if (last_diff.equals(1)) { foundExact = true };
+      }
+      else {
+        break;
+      }
+    }
+    for (let n = nBest-1; !foundExact && n > 0; n--) {
+      // NB: If you make any changes to this, make sure to update the above -
+      // the bodies of these two loops should be identical.
+      const r = Fraction(n,d);
+      const diff = Interval(r).div(intv);
+      const abs_diff = diff.compare(1) < 0 ? diff.recip() : diff;
+      if (abs_diff.compare(cutoff) < 0 && abs_diff.compare(last_diff) <= 0) {
+        // if n/d reduces, we've seen it already - so we can safely skip
+        if (r.d != d) {
+          continue;
+        }
+        if (oddLimit && r.n % 2 != 0 && r.n > oddLimit) {
+          continue;
+        }
+        ret.push({ ratio: r, diff: useExactDiffs ? diff : diff.toCents() });
+        last_diff = abs_diff;
+        if (last_diff.equals(1)) { foundExact = true };
+      }
+      else {
+        break;
+      }
+    }
+  }
+  if (debug) { console.timeEnd("bestRationalApproxsByDenom"); }
+  return [foundExact, ret];
 }
 
 /**
@@ -174,9 +272,9 @@ function bestRationalApproxsByDiff(a,b, opts) {
   if (debug) { console.time("bestRationalApproxsByDiff"); }
 
   let ret = [];
-  const diffTo1 = intv.recip().reb();
-  const abs_diffTo1 = diffTo1.compare(1) < 0 ? diffTo1.recip() : diffTo1;
-  ret.push({ ratio: intv.mul(diffTo1).toFrac(), diff: diffTo1, abs_diff: abs_diffTo1 })
+  const diff_to_1 = intv.recip();
+  const abs_diff_to_1 = diff_to_1.compare(1) < 0 ? intv : diff_to_1;
+  ret.push({ ratio: Fraction(1), diff: diff_to_1, abs_diff: abs_diff_to_1 })
   for (let a = 1; a <= oddLimit; a += 2) {
     for (let b = 1; b < a; b += 2) {
       const r = Fraction(a,b);
@@ -185,10 +283,10 @@ function bestRationalApproxsByDiff(a,b, opts) {
         continue;
       }
       for (const j of [Interval(r), Interval(r).recip()]) {
-        if (primeLimit && Object.keys(j).some(p => p > primeLimit)) {
+        if (primeLimit && !j.inPrimeLimit(primeLimit)) {
           continue;
         }
-        const diff = j.div(intv).reb();
+        const diff = j.div(intv);
         const abs_diff = diff.compare(1) < 0 ? diff.recip() : diff;
         const to_add = { ratio: intv.mul(diff).toFrac(), diff: diff, abs_diff: abs_diff };
         let added = false;
@@ -315,6 +413,7 @@ function bestEDOApproxsByDiff(a,b, opts) {
 }
 
 module.exports.bestRationalApproxsByHeight = bestRationalApproxsByHeight;
+module.exports.bestRationalApproxsByDenom  = bestRationalApproxsByDenom;
 module.exports.bestRationalApproxsByDiff   = bestRationalApproxsByDiff;
 module.exports.bestEDOApproxsByEDO  = bestEDOApproxsByEDO;
 module.exports.bestEDOApproxsByDiff = bestEDOApproxsByDiff;
@@ -1811,6 +1910,56 @@ Interval.prototype = {
       }
     }
     return ret.map(r => isFrac ? Number(r.s * r.n) : unBigFraction(r));
+  },
+
+  /**
+   * Returns true iff the interval is in the given prime limit, i.e. has a
+   * factorization only containing primes smaller than the given prime number.
+   *
+   * e.g. `Interval(11,9).inPrimeLimit(11)` is true but
+   *      `Interval(11,9).inPrimeLimit(7)` is false
+   *
+   * @returns {boolean}
+   */
+  "inPrimeLimit": function (p) {
+    return 2 <= p && Object.keys(this).every(i => i <= p);
+  },
+
+  /**
+   * Returns the smallest prime limit which contains this interval, i.e. the
+   * smallest prime for which `inPrimeLimit` returns true.
+   *
+   * @returns {integer}
+   */
+  "primeLimit": function () {
+    return Math.max(2, ...Object.keys(this).map(i => parseInt(i)));
+  },
+
+  /**
+   * Returns true iff the interval is a fraction in the given odd limit, i.e.
+   * has numerator and denominor which are less than the given number if they're
+   * odd, respectively.
+   *
+   * e.g. `Interval(16,9).inOddLimit(9)` is true but
+   *      `Interval(16,9).inOddLimit(7)` is false
+   *
+   * @returns {boolean}
+   */
+  "inOddLimit": function (o) {
+    if (!this.isFrac()) { return false; }
+    const {n,d} = this.toFracBig();
+    return (n % 2n == 0n || n <= BigInt(o)) && (d % 2n == 0n || d <= BigInt(o));
+  },
+
+  /**
+   * Returns the smallest odd limit which contains this interval, i.e. the
+   * smallest odd number for which `inOddLimit` returns true.
+   *
+   * @returns {integer}
+   */
+  "oddLimit": function () {
+    const {n,d} = this.toFrac();
+    return n % 2 == 0 ? d : d % 2 == 0 ? n : Math.max(n,d);
   }
 
 }
