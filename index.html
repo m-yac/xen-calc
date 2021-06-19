@@ -153,14 +153,16 @@
     <a class="alt" href="https://en.wikipedia.org/wiki/Equal_temperament" target="_blank">EDO</a> steps
     (e.g. <a class="expr" href="?expr=4\12">4\12</a>, meaning "four steps of 12-EDO"),
     intervals in <a class="alt" href="https://en.xen.wiki/w/Functional_Just_System" target="_blank">FJS notation</a>
-    (e.g. <a class="expr" href="?expr=M3^5">M3^5</a>), and
+    (e.g. <a class="expr" href="?expr=M3^5">M3^5</a>),
+    intervals in <a class="alt" href="https://en.xen.wiki/w/User:M-yac/Neutral_Intervals_and_the_FJS" target="_blank">Neutral FJS notation</a>
+    (e.g. <a class="expr" href="?expr=n3^11">n3^11</a>), and
     intervals in <a class="alt" href="https://en.xen.wiki/w/Ups_and_Downs_Notation" target="_blank">ups-and-downs notation</a>
     (e.g. <a class="expr" href="?expr=vM3\22">vM3\22</a>).
   </li>
   <li>
     Multiply (*), divide (/), and exponentiate (^) just ratios
     (e.g. <a class="expr" href="?expr=64%2F63+*+(9%2F8)^2">64/63 * (9/8)^2</a>)
-    as well as intervals in EDO step, FJS, and ups-and-downs notation
+    as well as intervals in EDO step, FJS, NFJS, and ups-and-downs notation
     (e.g. <a class="expr" href="?expr=3%2F2+*+M3^5">3/2 * M3^5</a>,
           <a class="expr" href="?expr=M3\22+%2F+m3^7">m3\22 / m3^7</a>,
           <a class="expr" href="?expr=(M3^5)^2">(M3^5)^2</a>).
@@ -168,7 +170,7 @@
   <li>
     Add (+), subtract (-), and scale (x) cents values
     (e.g. <a class="expr" href="?expr=21.5c+%2B+2+x+100c">27.3c + 2 x 100c</a>)
-    as well as intervals in EDO step, FJS, and ups-and-downs notation
+    as well as intervals in EDO step, FJS, NFJS, and ups-and-downs notation
     (e.g. <a class="expr" href="?expr=700c+%2B+M3^5">700c + M3^5</a>,
           <a class="expr" href="?expr=M3\22+-+m3^7">m3\22 - m3^7</a>,
           <a class="expr" href="?expr=2+x+M3^5">2 x M3^5</a>).
@@ -210,6 +212,12 @@
     (e.g. <a class="expr" href="?expr=C4+where+A+=+432hz">C4 where A = 432hz</a>)
     or set a reference note with automatically chosen tuning
     (e.g. <a class="expr" href="?expr=F♯\12+%2F+D+where+D+=+D\12">F♯\12 / D where D = D\12</a>).
+  </li>
+  <li>
+    List possible English names for an interval using an algorithm based on the
+    interval's Neutral FJS or ups-and-downs notation
+    (<a class="alt" href="https://github.com/m-yac/microtonal-utils/blob/main/lib/english.js" target="_blank" style="font-family: monospace;">english.js</a> in
+    <a href="https://github.com/m-yac/microtonal-utils" class="alt" target="_blank">microtonal-utils</a>).
   </li>
   <li>
     Play intervals and notes (using the synth from Sevish's
