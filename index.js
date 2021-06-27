@@ -197,7 +197,7 @@ function getResults() {
       let monzo = res.intv.toMonzo();
       if (monzo.length <= 18*7) {
         if (res.intv.isFrac()) {
-          rows.push(["Monzo:", "|" + monzo.join(", ") + "⟩"]);
+          rows.push(["Monzo:", fmtExtExprLink("|" + monzo.join(", ") + "⟩")]);
         }
         else {
           monzo = monzo.map(x => x.toFraction());
@@ -239,6 +239,14 @@ function getResults() {
     if (res.symb["ups-and-downs"]) {
       const symbs = res.symb["ups-and-downs"].map(symb => fmtExtExprLink(symb).prop('outerHTML'));
       rows.push(["Ups-and-downs notation:", symbs.join(", ")]);
+    }
+    if (res.symb["color"]) {
+      let str = fmtExtExprLink(res.symb["color-abbrev"]).prop('outerHTML');
+      str += " (" + res.symb["color"] + ")";
+      rows.push(["Color notation:", str]);
+    }
+    else if (res.symb["color-abbrev"]) {
+      rows.push(["Color notation:", fmtExtExprLink(res.symb["color-abbrev"])]);
     }
   }
   const addS = res.english && res.english.length > 1 ? "(s):" : ":";
