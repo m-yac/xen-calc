@@ -32,7 +32,8 @@ This repository also contains:
 - `pythagorean.js`: functions for constructing and getting properties of Pythagorean intervals, as well as functions for formatting Pythagorean interval and note symbols
 - `edo.js`: functions for approximating intervals in equal temperaments, as well as functions for formatting EDO-step and ups-and-downs notation interval and note symbols
 - `fjs.js`: functions related to the Functional Just System (FJS) and systems like it, in particular, containing functions for formatting FJS interval and note symbols
-- `parser.js`: a parser for arbitrary expressions involving notes, intervals, and the note/interval symbols mentioned above - used in [`xen-calc`](https://github.com/m-yac/xen-calc)
+- `color.js`: functions for formatting color notation for intervals, notes, and temperaments
+- `parser.js`: a parser for arbitrary expressions involving notes, intervals, and the all note/interval symbols mentioned above (used in [`xen-calc`](https://github.com/m-yac/xen-calc)) as well as inverses of all the formatting functions mentioned above
 - `approx.js`: functions for getting best rational and best EDO approximations of an interval
 - `english.js`: an experiment with programmatically assigning English names to arbitrary intervals
 
@@ -67,6 +68,11 @@ $ npm run test
     ✓ root/toNthRoot: Interval(fr).root(n).toNthRoot() == {k: fr, n: n}
     ✓ root/valueOf: Interval(fr).root(n).valueOf() ~= Math.pow(fr, 1/n)
     ✓ factorOut: i1 == i2.pow(i1.factorOut(i2)[0]).mul(i1.factorOut(i2)[1])
+    ✓ isPrimeLimit: i.inPrimeLimit(k) for all k >= i.primeLimit()
+    ✓ isPrimeLimit: !i.inPrimeLimit(k) for all k < i.primeLimit()
+    ✓ isOddLimit: Interval(fr).inOddLimit(k) for all k >= Interval(fr).oddLimit()
+    ✓ isOddLimit: !Interval(fr).inOddLimit(k) for k < Interval(fr).oddLimit()
+    ✓ oddLimit: Interval(odd,even).oddLimit() == Interval(even,odd).oddLimit() == odd
 
   Pythagorean intervals
     ✓ pyDegree(pyInterval(d,o/4)) == d (if d != -1)
@@ -75,7 +81,14 @@ $ npm run test
     ✓ pyZDegree(pyi1.mul(pyi2)) == pyZDegree(pyi1) + pyZDegree(pyi2)
     ✓ pyInterval(±d,o) == pyInterval(±d,0).mul(pyA1.pow(±o))
 
+  Color notation
+    ✓ colorSymb(63,40) == zg6
+    ✓ colorSymb(63,40,{verbosity:1}) == zogu 6th
+    ✓ colorFromSymb(0, -1, [0,0,-2], 2) == 2048/2025
+    ✓ colorFromSymb(0, 0, 5, 1) == 80/81
+    ✓ colorTemperament(135,128) == layobi
+    ✓ colorTemperament([24,-21,4]) == sasa-quadyo
 
-  23 passing (210ms)
+  34 passing (233ms)
 
 ```

@@ -124,7 +124,7 @@ function bestRationalApproxsByHeight(a,b, opts) {
       if (oddLimit && !j.inOddLimit(oddLimit)) {
         continue;
       }
-      const abs_diff = diff.compare(1) < 0 ? diff.recip() : diff;
+      const abs_diff = diff.distance();
       if (abs_diff.compare(cutoff) < 0 && abs_diff.compare(last_diff) <= 0) {
         ret.push({ ratio: j.toFrac(), diff: useExactDiffs ? diff : diff.toCents() });
         last_diff = abs_diff;
@@ -197,7 +197,7 @@ function bestRationalApproxsByDenom(a,b, opts) {
       // the bodies of these two loops should be identical.
       const r = Fraction(n,d);
       const diff = Interval(r).div(intv);
-      const abs_diff = diff.compare(1) < 0 ? diff.recip() : diff;
+      const abs_diff = diff.distance();
       if (abs_diff.compare(cutoff) < 0 && abs_diff.compare(last_diff) <= 0) {
         // if n/d reduces, we've seen it already - so we can safely skip
         if (r.d != d) {
@@ -219,7 +219,7 @@ function bestRationalApproxsByDenom(a,b, opts) {
       // the bodies of these two loops should be identical.
       const r = Fraction(n,d);
       const diff = Interval(r).div(intv);
-      const abs_diff = diff.compare(1) < 0 ? diff.recip() : diff;
+      const abs_diff = diff.distance();
       if (abs_diff.compare(cutoff) < 0 && abs_diff.compare(last_diff) <= 0) {
         // if n/d reduces, we've seen it already - so we can safely skip
         if (r.d != d) {
@@ -287,7 +287,7 @@ function bestRationalApproxsByDiff(a,b, opts) {
           continue;
         }
         const diff = j.div(intv);
-        const abs_diff = diff.compare(1) < 0 ? diff.recip() : diff;
+        const abs_diff = diff.distance();
         const to_add = { ratio: intv.mul(diff).toFrac(), diff: diff, abs_diff: abs_diff };
         let added = false;
         for (let i = 0; !added && i < ret.length; i++) {
@@ -343,7 +343,7 @@ function bestEDOApproxsByEDO(a,b, opts) {
   for (let edo = startEDO; edo <= endEDO; edo++) {
     const steps = edoApprox(edo, intv);
     const diff = intv.div(Interval(2).pow(steps,edo));
-    const abs_diff = diff.compare(1) < 0 ? diff.recip() : diff;
+    const abs_diff = diff.distance();
     const diff_to_last = abs_diff.compare(last_diff);
     if (abs_diff.compare(cutoff) < 0 && diff_to_last <= 0) {
       if (diff_to_last == 0) {
@@ -391,7 +391,7 @@ function bestEDOApproxsByDiff(a,b, opts) {
   for (let edo = startEDO; edo <= endEDO; edo++) {
     const steps = edoApprox(edo, intv);
     const diff = intv.div(Interval(2).pow(steps,edo));
-    const abs_diff = diff.compare(1) < 0 ? diff.recip() : diff;
+    const abs_diff = diff.distance();
     const to_add = { steps: [[steps, edo]], diff: diff, abs_diff: abs_diff };
     let added = false;
     for (let i = 0; !added && i < ret.length; i++) {
@@ -418,7 +418,485 @@ module.exports.bestRationalApproxsByDiff   = bestRationalApproxsByDiff;
 module.exports.bestEDOApproxsByEDO  = bestEDOApproxsByEDO;
 module.exports.bestEDOApproxsByDiff = bestEDOApproxsByDiff;
 
-},{"./edo.js":2,"./interval.js":6,"fraction.js":13,"primes-and-factors":17}],2:[function(require,module,exports){
+},{"./edo.js":3,"./interval.js":7,"fraction.js":14,"primes-and-factors":18}],2:[function(require,module,exports){
+/**
+ * Color notation for intervals
+ * Based on: https://en.xen.wiki/w/Color_notation
+ * @copyright 2021 Matthew Yacavone (matthew [at] yacavone [dot] net)
+ * @module color
+ **/
+
+const {gcd} = require('mathutils');
+const pf = require('primes-and-factors');
+const Fraction = require('fraction.js');
+const Interval = require('./interval.js');
+const {pyDegreeString, pyNote} = require('./pythagorean.js');
+
+// a version of mod where the result is always between 1 and n
+function modUp(a,n) {
+  return ((a % n) + n) % n;
+}
+
+/**
+  * The regions of the octave used when determining the degree of a prime in
+  * color notation
+  *
+  * @constant {Array.<Interval>}
+  */
+const colorRegions = [ Interval([Fraction( 1,24)]) /*    0c -  50c */
+                     , Interval([Fraction( 5,24)]) /*   50c - 250c */
+                     , Interval([Fraction( 9,24)]) /*  250c - 450c */
+                     , Interval([Fraction(12,24)]) /*  450c - 600c */
+                     , Interval([Fraction(15,24)]) /*  600c - 750c */
+                     , Interval([Fraction(19,24)]) /*  750c - 950c */
+                     , Interval([Fraction(23,24)]) /*  950c -1150c */
+                     , Interval([Fraction(24,24)]) /* 1150c -1200c */ ];
+
+let colorCache_var = {};
+
+/**
+  * Returns the "zeroed" degree of the given prime in color notation
+  *
+  * @param {integer} p a prime
+  * @returns {integer}
+  */
+function colorPrimeZDegree(p) {
+  if (colorCache_var[p]) {
+    return colorCache_var[p];
+  }
+  if (!pf.isPrime(p)) {
+    throw new Error("colorPrimeZDegree not given a prime");
+  }
+  const i = Interval(p).red();
+  const dNo2 = colorRegions.findIndex(hi => i.compare(hi) < 0);
+  const d = dNo2 - 7 * i.div(p).valueOf_log()
+  colorCache_var[p] = d;
+  return d;
+}
+
+/**
+  * Returns the "zeroed" degree of a the given interval in color notation
+  *
+  * @param {Interval} i
+  * @returns {integer}
+  */
+function colorZDegree(a,b) {
+  const i = Interval(a,b);
+  let zd = 0;
+  for (const [p,e] of i.factors()) {
+    zd += colorPrimeZDegree(p) * e.valueOf();
+  }
+  return zd;
+}
+
+/**
+  * Returns the degree of a the given interval in color notation.
+  *
+  * @param {Interval} i
+  * @returns {integer}
+  */
+function colorDegree(a,b) {
+  const zd = colorZDegree(a,b);
+  return zd == 0 ? 1 : zd + Math.sign(zd);
+}
+
+/**
+  * Returns the magnitude of a the given interval in color notation
+  *
+  * @param {Interval} i
+  * @returns {integer}
+  */
+function colorMagnitude(a,b) {
+  const i = Interval(a,b);
+  let sum = Fraction(0);
+  for (const [p,e] of i.factors()) {
+    if (p > 2) {
+      sum = sum.add(e);
+    }
+  }
+  return Math.round(sum.valueOf() / 7);
+}
+
+/**
+  * Returns the prefix of the given prime in color notation. If v = "o", return
+  * the otonal prefix (e.g. yo). If v = "u", return the utonal prefix (e.g. gu).
+  * If v = "e", return the multi prefix (e.g. quin);
+  *
+  * @param {integer} p a prime
+  * @param {string} v either "e", "o", or "u"
+  * @param {boolean} [abbreviate=false]
+  * @returns {string}
+  */
+function colorPrimePrefix(p, v, abbreviate) {
+  if (v != "e" && v != "o" && v != "u") {
+    throw new Error("Invalid vowel passed to colorPrimePrefix");
+  }
+  if (p == 2) {
+    if (v == "e") { return "bi"; }
+    return "";
+  }
+  if (p == 3) {
+    if (v == "e") { return "tri"; }
+    return "w" + (abbreviate ? "" : "a");
+  }
+  if (p == 5) {
+    if (v == "e") { return "quin"; }
+    if (v == "o") { return "y" + (abbreviate ? "" : v); }
+    if (v == "u") { return "g" + (abbreviate ? "" : v); }
+  }
+  if (p == 7) {
+    if (v == "e") { return "sep"; }
+    if (v == "o") { return "z" + (abbreviate ? "" : v); }
+    if (v == "u") { return "r" + (abbreviate ? "" : v); }
+  }
+  if (abbreviate && v != "e") {
+    if (p == 11) { return "1" + v; }
+    if (p == 13) { return "3" + v; }
+    return p + v;
+  }
+  else {
+    if (p == 11) { return "l" + v; }
+    if (p > 67) {
+      throw new Error("Prime larger than 67 passed to colorPrimePrefix");
+    }
+    const [tens, ones] = [Math.floor(p / 10), p % 10];
+    return { 1: "", 2: "twe", 3: "thi", 4: "fo", 5: "fi", 6: "si"}[tens] +
+           { 1: "w", 3: "th", 7: "s", 9: "n" }[ones] + v;
+  }
+}
+
+/**
+  * Returns the multi prefix of the positive integer in color notation (e.g.
+  * "quinbi" for 10).
+  *
+  * @param {integer} n
+  * @returns {string}
+  */
+function colorMultiPrefix(n) {
+  const fs = pf.getPrimeExponentObject(n);
+  let fs_arr = [];
+  if (fs[2] % 2) { fs_arr.push([2, fs[2] % 2]); }
+  if (fs[3])     { fs_arr.push([3, fs[3]]); }
+  if (fs[2] > 1) { fs_arr.push([4, Math.floor(fs[2]/2)]); }
+  delete fs[2];
+  delete fs[3];
+  fs_arr = fs_arr.concat(Object.entries(fs));
+  let res = "";
+  for (const [p,e] of fs_arr) {
+    const prefix = p == 4 ? "quad" : colorPrimePrefix(p, "e");
+    res = prefix.repeat(e.valueOf()) + res;
+  }
+  return res;
+}
+
+/**
+  * Returns the otonal/utonal prefix of the given prime power in color notation
+  *
+  * @param {integer} p a prime
+  * @param {integer} e the prime exponent
+  * @param {boolean} [abbreviate=false]
+  * @returns {string}
+  */
+function colorFactorPrefix(p, e, verbosity) {
+  if (e == 0) { return ""; }
+  const base = colorPrimePrefix(p, e > 0 ? "o" : "u", verbosity == 0);
+  const eAbs = Math.abs(e);
+  if (verbosity == 0) {
+    return base + base[base.length-1].repeat(eAbs-1);
+  }
+  else {
+    if (eAbs == 1) { return base; }
+    if (eAbs == 2) { return base + base; }
+    return colorMultiPrefix(eAbs) + base + "-a";
+  }
+}
+
+/**
+  * Returns the magnitude + color prefix of the given interval in color notation
+  *
+  * @param {Interval} i
+  * @param {Object=} opts
+  * @param {integer=} opts.verbosity verbosity can be the default 0
+  *                                  (e.g. "17og"), 1 (e.g. "sogu"), or 2
+  *                                  (the same as 1 for this function)
+  * @param {boolean=} opts.hideMagnitude defaults to false
+  * @param {boolean=} opts.abbreviateMagnitude defaults to false
+  * @param {boolean=} opts.keepTrailingHyphen defaults to false
+  * @param {boolean=} opts.hasCoPrefix defaults to false, used in colorTempermentName
+  * @returns {string}
+  */
+function colorPrefix(a,b, opts) {
+  // if only two arguments are given, the second one may be `opts`!
+  if (!opts && typeof b == 'object' && b != null) {
+    opts = b;
+    b = undefined;
+  }
+  let {verbosity, hideMagnitude, abbreviateMagnitude, keepTrailingHyphen, hasCoPrefix} = opts || {};
+  if (verbosity == undefined) { verbosity = 0; }
+
+  const i = Interval(a,b);
+  if (!i.isFrac()) {
+    throw new Error("Non-ratio has no color name");
+  }
+  let iNo23 = i.factorOut(2)[1].factorOut(3)[1];
+  let factors = iNo23.factors();
+
+  // the magnitude string
+  let mStr = "";
+  const m = colorMagnitude(i);
+  if (m != 0 && !hideMagnitude) {
+    const mAbs = Math.abs(m);
+    if (verbosity == 0) {
+      mStr = (m > 0 ? "L" : "s").repeat(mAbs);
+    }
+    else if (abbreviateMagnitude) {
+      mStr = m > 0 ? "la" : "sa";
+      if (mAbs == 2) { mStr = mStr + mStr; }
+      if (mAbs >= 3) { mStr = colorMultiPrefix(mAbs) + mStr; }
+      // we add a hyphen in all but the three cases in which we would have a
+      //  single syllable on either the left or right side
+      if (!(mAbs == 1 || factors.length == 0
+                      || (factors.length == 1 && Math.abs(factors[0][1]) == 1
+                                              && !hasCoPrefix))) {
+        mStr = mStr + "-";
+      }
+    }
+    else {
+      mStr = m > 0 ? "large " : "small ";
+      if (mAbs > 1) { mStr = mAbs + "-" + mStr; }
+    }
+  }
+
+  // the wa case
+  if (factors.length == 0) {
+    return mStr + colorFactorPrefix(3, 1, verbosity);
+  }
+
+  let [kStr, res] = ["", ""];
+
+  // if verbosity != 0 and all > 3 prime exponents share a factor, pull out that factor
+  if (verbosity != 0 && factors.length > 1) {
+    const k = Math.abs(factors.reduce(([p1,e1],[p2,e2]) => [p1,gcd(e1,e2)])[1]);
+    if (k > 1) {
+      kStr = colorMultiPrefix(k);
+      iNo23 = iNo23.root(k);
+      factors = iNo23.factors();
+    }
+  }
+
+  for (const [p,e] of factors) {
+    res = colorFactorPrefix(p, e.valueOf(), verbosity) + res;
+  }
+  // get rid of a trailing "-a"
+  if (!keepTrailingHyphen) {
+    res = res.replace(/-a$/, "");
+  }
+
+  // put the final string together
+  res = mStr + kStr + res;
+
+  if (res == "lo") { return "ilo"; }
+  if (res == "so") { return "iso"; }
+  if (res == "no") { return "ino"; }
+  if (res == "nu") { return "inu"; }
+  return res;
+}
+
+/**
+  * Returns the symbol of given interval in color notation
+  *
+  * @param {Interval} i
+  * @param {Object=} opts
+  * @param {integer=} opts.verbosity verbosity can be the default 0
+  *                                  (e.g. "17og3"), 1 (e.g. "sogu 3rd"), or
+  *                                  2 (e.g. "sogu third")
+  * @param {boolean=} opts.abbreviateMagnitude defaults to false
+  * @returns {string}
+  */
+function colorSymb(a,b, opts) {
+  // if only two arguments are given, the second one may be `opts`!
+  if (!opts && typeof b == 'object' && b != null) {
+    opts = b;
+    b = undefined;
+  }
+  let {verbosity, abbreviateMagnitude} = opts || {};
+  if (verbosity == undefined) { verbosity = 0; }
+  const optsToPass = { verbosity: verbosity
+                     , abbreviateMagnitude: abbreviateMagnitude };
+
+  const i = Interval(a,b);
+
+  const d = colorDegree(i);
+  const neg_str = verbosity > 0 && d < 0 ? " negative" : "";
+  const d_str = (verbosity > 0 ? " " : "") + pyDegreeString(d, verbosity);
+  return colorPrefix(i, optsToPass) + neg_str + d_str;
+}
+
+/**
+  * Given a number of "co"s, a magnitude, an interval made up of only primes
+  * > 3, and a degree, returns the corresponding interval in color notation
+  *
+  * @param {integer} m the number of "co"s
+  * @param {integer} m the magnitude
+  * @param {Interval} iNo23 cannot contain factors of 2 or 3
+  * @param {integer} d the degree
+  * @returns {Interval}
+  */
+function colorFromSymb(cos, m, iNo23, d) {
+  iNo23 = Interval(iNo23);
+  if (iNo23.hasExp(2) || iNo23.hasExp(3)) {
+    throw new Error("Second argument to colorFromSymb has a factor of 2 or 3")
+  }
+  const zd = d - Math.sign(d);
+  const zdNo23 = colorZDegree(iNo23);
+  const zd_diff = zd - zdNo23;
+  const mNo2 = colorMagnitude(iNo23.mul(Interval(3).pow(2*zd_diff)));
+
+  // By the definition of degree we have:
+  // (1) zd = 7*e2 + 11*e3 + zdNo23
+  //  => zd_diff = 7*e2 + 11*e3
+
+  // All solutions to the linear diophantine equation (1) have the form:
+  //  e2 = -3*zd_diff - 11*k,
+  //  e3 =  2*zd_diff +  7*k  for some k
+  // (Source: https://en.wikipedia.org/wiki/Diophantine_equation#One_equation)
+
+  // By the definition of magnitude we have:
+  // (2) m = round((e3 + sumNo23) / 7)
+  //  => m = round((2*zd_diff + 7*k + sumNo23) / 7)
+  //  => m = round((2*zd_diff + sumNo23) / 7) + k
+  //  => m = mNo2 + k
+  //  => k = m - mNo2
+
+  const k = m - mNo2;
+  const e2 = -3*zd_diff - 11*k;
+  const e3 = 2*zd_diff + 7*k;
+
+  // The above is sometimes different from https://en.xen.wiki/w/Color_notation
+  // e.g. if iNo23 = Interval(5), e3_old = 3 != -4 = e3
+  const e3_orig = modUp(2*zd - 2*zdNo23 + 3, 7) + 7*m - 3;
+  const e2_orig = (zd - zdNo23 - 11*e3) / 7;
+  if (e2 != e2_orig || e3 != e3_orig) {
+    const ab1 = "a=" + e2_orig + ",b=" + e3_orig;
+    const ab2 = "a=" + e2 + ",b=" + e3;
+    console.log("Corrected ratio-from-color formula: " + ab1 + " ~> " + ab2);
+  }
+
+  return iNo23.mul(Interval([cos+e2,e3]));
+}
+
+/**
+  * Returns the note name of the given interval in color notation. The returned
+  * string uses ASCII instead of uniode wherever possible iff the `useASCII`
+  * field of `opts` is given and is true
+  *
+  * @param {Interval} intvToA4
+  * @param {Object=} opts
+  * @param {integer=} opts.verbosity verbosity can be the default 0
+  *                                  (e.g. "17ogC5"), 1 (e.g. "sogu C5"), or 2
+  *                                  (the same as 1 for this function)
+  * @param {boolean=} opts.useASCII defaults to false
+  * @returns {string}
+  */
+function colorNote(a,b, opts) {
+  // if only two arguments are given, the second one may be `opts`!
+  if (!opts && typeof b == 'object' && b != null) {
+    opts = b;
+    b = undefined;
+  }
+  let {verbosity, useASCII} = opts || {};
+  if (verbosity == undefined) { verbosity = 0; }
+  const optsToPass = { verbosity: verbosity
+                     , hideMagnitude: true };
+
+  const i = Interval(a,b);
+  let [e2,iNo2] = i.factorOut(2);
+  let [e3,iNo23] = iNo2.factorOut(3);
+  if (iNo23.equals(1)) {
+    return pyNote(pyi, useASCII);
+  }
+  for (const [p,e] of iNo23.factors()) {
+    const j = colorFromSymb(0, 0, Interval(p), 1).pow(e);
+    e2 = e2.sub(j.expOf(2));
+    e3 = e3.sub(j.expOf(3));
+  }
+  const pyi = Interval([e2,e3]);
+  return colorPrefix(iNo23, optsToPass)
+         + (verbosity > 0 ? " " : "")
+         + pyNote(pyi, useASCII);
+}
+
+/**
+  * Given an interval made up of only primes > 3 and a pythagorean interval to
+  * A4, returns the corresponding interval to A4 in color notation
+  *
+  * @param {Interval} iNo23 cannot contain factors of 2 or 3
+  * @param {Interval} pyi the base Pythagorean note
+  * @returns {Interval}
+  */
+function colorFromNote(iNo23, pyi) {
+  let [e2,e3] = [pyi.expOf(2), pyi.expOf(3)];
+  for (const [p,e] of iNo23.factors()) {
+    const j = colorFromSymb(0, 0, Interval(p), 1).pow(e);
+    e2 = e2.add(j.expOf(2));
+    e3 = e3.add(j.expOf(3));
+  }
+  return Interval([e2,e3]).mul(iNo23);
+}
+
+/**
+  * Return the temperament name associated with the given comma, based on:
+  * https://en.xen.wiki/w/Color_notation/Temperament_Names
+  *
+  * @param {Interval} i
+  * @returns {string}
+  */
+function colorTemperament(a,b) {
+  const iUnRed = Interval(a,b);
+  if (iUnRed.compare(1) < 0) {
+    throw new Error("Comma passed to `colorTempermentName` must be > 1");
+  }
+
+  const i = iUnRed.red();
+  const cos = iUnRed.div(i).expOf(2).valueOf();
+  let coStr = "";
+  if (cos == 1) { coStr = "co"; }
+  if (cos == 2) { coStr = "coco-"; }
+  if (cos >= 3) { coStr = colorMultiPrefix(cos) + "co-"; }
+
+  const [m, d] = [colorMagnitude(i), colorDegree(i)]
+  const iNo23 = i.factorOut(2)[1].factorOut(3)[1];
+  let segOffset = 1;
+  let last_diff = i.distance();
+  let curr_diff = colorFromSymb(0, m, iNo23, d-1).red().distance();
+  while (curr_diff.compare(last_diff) < 0) {
+    segOffset++;
+    last_diff = curr_diff;
+    curr_diff = colorFromSymb(0, m, iNo23, d-segOffset).red().distance();
+  }
+  const segOffsetStr = colorMultiPrefix(segOffset);
+
+  const colorStr = colorPrefix(i, { verbosity: 1
+                                  , abbreviateMagnitude: true
+                                  , hasCoPrefix: cos == 1 });
+  return coStr + colorStr + segOffsetStr;
+}
+
+module['exports'].colorPrimeZDegree = colorPrimeZDegree;
+module['exports'].colorZDegree = colorZDegree;
+module['exports'].colorDegree = colorDegree;
+module['exports'].colorMagnitude = colorMagnitude;
+module['exports'].colorPrimePrefix = colorPrimePrefix;
+module['exports'].colorMultiPrefix = colorMultiPrefix;
+module['exports'].colorFactorPrefix = colorFactorPrefix;
+module['exports'].colorPrefix = colorPrefix;
+module['exports'].colorSymb = colorSymb;
+module['exports'].colorFromSymb = colorFromSymb;
+module['exports'].colorNote = colorNote;
+module['exports'].colorFromNote = colorFromNote;
+module['exports'].colorTemperament = colorTemperament;
+
+},{"./interval.js":7,"./pythagorean.js":11,"fraction.js":14,"mathutils":15,"primes-and-factors":18}],3:[function(require,module,exports){
 /**
  * Functions for working with intervals in an EDO
  * @copyright 2021 Matthew Yacavone (matthew [at] yacavone [dot] net)
@@ -696,7 +1174,7 @@ module['exports'].updnsSymb = updnsSymb;
 module['exports'].updnsNoteCache = updnsNoteCache;
 module['exports'].updnsNote = updnsNote;
 
-},{"./interval.js":6,"./pythagorean.js":10,"fraction.js":13,"mathutils":14}],3:[function(require,module,exports){
+},{"./interval.js":7,"./pythagorean.js":11,"fraction.js":14,"mathutils":15}],4:[function(require,module,exports){
 /**
  * English names for intervals based on the Neutral FJS and ups-and-downs
  * notations (very much incomplete!)
@@ -873,7 +1351,7 @@ function enNames(a,b, opts) {
 
 module.exports.enNames = enNames;
 
-},{"./edo.js":2,"./fjs.js":4,"./interval.js":6,"./pythagorean.js":10,"fraction.js":13,"number-to-words":16,"primes-and-factors":17}],4:[function(require,module,exports){
+},{"./edo.js":3,"./fjs.js":5,"./interval.js":7,"./pythagorean.js":11,"fraction.js":14,"number-to-words":17,"primes-and-factors":18}],5:[function(require,module,exports){
 /**
  * Functions for working with FJS intervals
  * @copyright 2021 Matthew Yacavone (matthew [at] yacavone [dot] net)
@@ -1216,7 +1694,7 @@ module['exports'].fjsAccidentals = fjsAccidentals;
 module['exports'].fjsSymb = fjsSymb;
 module['exports'].fjsNote = fjsNote;
 
-},{"./interval.js":6,"./pythagorean.js":10,"fraction.js":13,"primes-and-factors":17}],5:[function(require,module,exports){
+},{"./interval.js":7,"./pythagorean.js":11,"fraction.js":14,"primes-and-factors":18}],6:[function(require,module,exports){
 // export everything from `lib/` as well as `Fraction` from fraction.js
 module['exports']['Fraction'] = require('fraction.js');
 module['exports']['Interval'] = require('./interval.js');
@@ -1227,7 +1705,7 @@ Object.assign(module['exports'], require('./approx.js'));
 Object.assign(module['exports'], require('./english.js'));
 Object.assign(module['exports'], require('./parser.js'));
 
-},{"./approx.js":1,"./edo.js":2,"./english.js":3,"./fjs.js":4,"./interval.js":6,"./parser.js":7,"./pythagorean.js":10,"fraction.js":13}],6:[function(require,module,exports){
+},{"./approx.js":1,"./edo.js":3,"./english.js":4,"./fjs.js":5,"./interval.js":7,"./parser.js":8,"./pythagorean.js":11,"fraction.js":14}],7:[function(require,module,exports){
 /**
  * The interval datatype, based on `Fraction` from `fraction.js` on npm
  * @copyright 2021 Matthew Yacavone (matthew [at] yacavone [dot] net)
@@ -1402,7 +1880,13 @@ Interval.prototype = {
    * @returns {Array.<Pair.<integer,BigFraction>>}
    */
   "factors": function() {
-    return this.factorsBig().map(([p,e]) => [p, unBigFraction(e)]);
+    let ret = [];
+    for (const [p,e] of Object.entries(this)) {
+      if (!e.equals(0n)) {
+        ret.push([parseInt(p), unBigFraction(e)]);
+      }
+    }
+    return ret;
   },
 
   /**
@@ -1411,7 +1895,13 @@ Interval.prototype = {
    * @returns {Array.<Pair.<integer,BigFraction>>}
    */
   "factorsBig": function() {
-    return Object.entries(this).filter(([_,e]) => !e.equals(0n));
+    let ret = [];
+    for (const [p,e] of Object.entries(this)) {
+      if (!e.equals(0n)) {
+        ret.push([parseInt(p), e]);
+      }
+    }
+    return ret;
   },
 
   /**
@@ -1838,6 +2328,22 @@ Interval.prototype = {
   },
 
   /**
+   * Returns the "distance" between two intervals, or if no second interval is
+   * given, between the first interval and `1`. By "distance" here, we mean
+   * whichever of `i1.div(i2)` and `i2.div(i1)` is greater than `1`.
+   *
+   * e.g. `Interval(5,4).distance(3,2)` is exactly `Interval(6,5)`
+   *      `Interval(2,3).distance()` is exactly `Interval(3,2)`
+   *
+   * @param {Interval} [i=Interval(1)]
+   * @returns {Interval}
+   */
+   "distance": function(a,b) {
+     const q = this.div(a,b);
+     return q.compare(1) < 0 ? q.recip() : q;
+   },
+
+  /**
    * Converts an interval to its value in cents.
    *
    * e.g. `Interval(3,2).toCents()` gives `701.9550008653873`
@@ -1966,7 +2472,7 @@ Interval.prototype = {
 
 module.exports = Interval;
 
-},{"big-integer":11,"fraction.js":13,"fraction.js/bigfraction.js":12,"primes-and-factors":17}],7:[function(require,module,exports){
+},{"big-integer":12,"fraction.js":14,"fraction.js/bigfraction.js":13,"primes-and-factors":18}],8:[function(require,module,exports){
 /**
  * Interface for parsing interval/note expressions
  * @copyright 2021 Matthew Yacavone (matthew [at] yacavone [dot] net)
@@ -1981,6 +2487,7 @@ const {ParseError, OtherError, evalExpr} = require('./parser/eval.js');
 const {isPythagorean, pySymb, pyNote} = require('./pythagorean.js');
 const {fjsSymb, fjsNote, fjsSpec, nfjsSpec} = require('./fjs.js');
 const {edoApprox, edoPy, updnsSymb, updnsNote} = require('./edo.js');
+const {colorSymb, colorNote} = require('./color.js');
 const {enNames} = require('./english.js');
 
 function mod(a,n) {
@@ -2135,6 +2642,27 @@ function parseUpdnsNote(edo, str) {
 }
 
 /**
+  * Parse a color notation interval symbol, the inverse of `colorSymb`.
+  *
+  * @param {string} str
+  * @returns {Interval}
+  */
+function parseColorSymb(str) {
+  return evalExpr(parseFromRule(str, "colorIntv")[0]).val;
+}
+
+/**
+  * Parse a color notation note symbol and return its interval to A4, the
+  * inverse of `colorNote`.
+  *
+  * @param {string} str
+  * @returns {Interval}
+  */
+function parseColorNote(str) {
+  return evalExpr(parseFromRule(str, "colorNote")[0]).val;
+}
+
+/**
  * @typedef {Object} ParseResult
  * @property {string} type either "interval" or "note"
  * @property {Interval} intv the resulting interval (to the reference, if
@@ -2181,7 +2709,7 @@ function parse(str, opts) {
   }
   if (results.length > 1) {
     console.log("Parse was ambiguous! Full results:");
-    console.dir(parser.results, { depth: null });
+    console.dir(results, { depth: null });
   }
   let ret = { type: results[0].type[0]
             , intv: results[0].val
@@ -2295,6 +2823,14 @@ function parseCvt(str, opts) {
       let e2 = intv.expOf(2).mul(prefEDO);
       ret.symb['ups-and-downs'] = updnsSymb(prefEDO,e2.s*e2.n).map(s => s + "\\" + prefEDO);
     }
+    if (ret.ratio) {
+      try {
+        ret.symb['color'] = colorSymb(intv, {verbosity: 1});
+      } catch (_) {}
+      try {
+        ret.symb['color-abbrev'] = colorSymb(intv, {verbosity: 0});
+      } catch (_) {}
+    }
     if (!nfjs && isPythagorean(intv)) {
       ret.symb['other'] = pySymb(intv);
     }
@@ -2333,6 +2869,14 @@ function parseCvt(str, opts) {
       let e2 = intv.expOf(2).mul(prefEDO).add(refEDOStepsToA4);
       ret.symb['ups-and-downs'] = updnsNote(prefEDO,e2.s*e2.n).map(s => s + "\\" + prefEDO);
     }
+    if (intv.isFrac()) {
+      try {
+        ret.symb['color'] = colorNote(intvToA4, {verbosity: 1});
+      } catch (_) {}
+      try {
+        ret.symb['color-abbrev'] = colorNote(intvToA4, {verbosity: 0});
+      } catch (_) {}
+    }
   }
   return ret;
 }
@@ -2344,21 +2888,25 @@ module['exports'].parseFJSSymb = parseFJSSymb;
 module['exports'].parseFJSNote = parseFJSNote;
 module['exports'].parseUpdnsSymb = parseUpdnsSymb;
 module['exports'].parseUpdnsNote = parseUpdnsNote;
+module['exports'].parseColorSymb = parseColorSymb;
+module['exports'].parseColorNote = parseColorNote;
 module['exports'].parse = parse;
 module['exports'].parseCvt = parseCvt;
 
-},{"./edo.js":2,"./english.js":3,"./fjs.js":4,"./interval.js":6,"./parser/eval.js":8,"./parser/grammar.js":9,"./pythagorean.js":10,"fraction.js":13,"nearley":15}],8:[function(require,module,exports){
+},{"./color.js":2,"./edo.js":3,"./english.js":4,"./fjs.js":5,"./interval.js":7,"./parser/eval.js":9,"./parser/grammar.js":10,"./pythagorean.js":11,"fraction.js":14,"nearley":16}],9:[function(require,module,exports){
 /**
  * A function for evaluating the results of running `grammar.ne`
  * @copyright 2021 Matthew Yacavone (matthew [at] yacavone [dot] net)
  * @module eval
  **/
 
+const pf = require('primes-and-factors');
 const Fraction = require('fraction.js');
 const Interval = require('../interval.js');
 const {pyInterval, isPerfectDeg} = require('../pythagorean.js');
 const {fjsFactor, fjsSpec, nfjsSpec} = require('../fjs.js');
 const {edoApprox, edoPy, edoHasNeutrals, edoHasSemiNeutrals} = require('../edo.js');
+const {colorFromSymb, colorFromNote} = require('../color.js');
 
 /**
  * Class representing an error with a location in a string
@@ -2571,6 +3119,62 @@ function evalExpr(e, r, opts, state) {
         throw new OtherError("Semi-neutral FJS-like interval not supported", loc);
       }
     }
+    else if (e[0] == "!clrIntv") {
+      const cs = evalExpr(e[1], r, opts, state).val;
+      const m  = evalExpr(e[2], r, opts, state).val;
+      const pps = e[3].map(ei => evalExpr(ei, r, opts, state).val); // prime powers
+      const ps = pps.map(pp => pp.factors()[0][0]); // the primes in pps
+      const [d, loc] = [e[4], e[5]];
+      // ensure the list is decreasing
+      if (pps.length > 0 && !ps.every((p,i) => i == 0 || p <= ps[i-1])) {
+        throw new OtherError("Invalid color prefix (non-decreasing)", loc);
+      }
+      // ensure the list has only exact repetition
+      if (pps.length > 0 && !pps.every((pp,i) => i == 0 || ps[i] != ps[i-1] || pp.equals(pps[i-1]))) {
+        throw new OtherError("Invalid color prefix (bad repetition)", loc);
+      }
+      const i = pps.reduce(((a,b) => a.mul(b)), Interval(1));
+      return { val: colorFromSymb(cs, m, i, d) };
+    }
+    else if (e[0] == "!clrNote") {
+      const pps = e[1].map(ei => evalExpr(ei, r, opts, state).val); // prime powers
+      const ps = pps.map(pp => pp.factors()[0][0]); // the primes in pps
+      const [pyi, loc] = [evalExpr(e[2], r, opts, state).val, e[3]];
+      // ensure the list is decreasing
+      if (pps.length > 0 && !ps.every((p,i) => i == 0 || p <= ps[i-1])) {
+        throw new OtherError("Invalid color prefix (non-decreasing)", loc);
+      }
+      // ensure the list has only exact repetition
+      if (pps.length > 0 && !pps.every((pp,i) => i == 0 || ps[i] != ps[i-1] || pp.equals(pps[i-1]))) {
+        throw new OtherError("Invalid color prefix (bad repetition)", loc);
+      }
+      const i = pps.reduce(((a,b) => a.mul(b)), Interval(1));
+      return { val: colorFromNote(i, pyi) };
+    }
+    else if (e[0] == "!aclrPP") {
+      const [p, x, loc] = [e[1], e[2], e[3]];
+      if (p == 1) { return { val: Interval(11).pow(x) }; }
+      if (p == 3) { return { val: Interval(13).pow(x) }; }
+      if (!pf.isPrime(p)) {
+        throw new OtherError("Expected a prime number", loc);
+      }
+      return { val: Interval(p).pow(x) };
+    }
+    else if (e[0] == "!clrMPs") {
+      const [ps, loc] = [e[1].map(ei => evalExpr(ei, r, opts, state).val), e[2]];
+      // ensure the list is decreasing
+      if (ps.length > 0 && !ps.every((x,i) => i == 0 || x <= ps[i-1])) {
+        throw new OtherError("Invalid color multi prefix (non-decreasing)", loc);
+      }
+      return { val: ps.reduce((a,b) => a * b, 1) };
+    }
+    else if (e[0] == "!clrGenPP") {
+      const [p, loc] = [e[1], e[2]];
+      if (!pf.isPrime(p)) {
+        throw new OtherError(p + " is not a prime number", loc);
+      }
+      return { val: Interval(p) };
+    }
     else if (e[0][0] == "!") {
       throw new LocatedError("Panic", "command " + e[0] + " not defined!", 0);
     }
@@ -2614,7 +3218,7 @@ module['exports'].OtherError = OtherError;
 module['exports'].defaultRefNote = defaultRefNote;
 module['exports'].evalExpr = evalExpr;
 
-},{"../edo.js":2,"../fjs.js":4,"../interval.js":6,"../pythagorean.js":10,"fraction.js":13}],9:[function(require,module,exports){
+},{"../color.js":2,"../edo.js":3,"../fjs.js":5,"../interval.js":7,"../pythagorean.js":11,"fraction.js":14,"primes-and-factors":18}],10:[function(require,module,exports){
 // Generated automatically by nearley, version 2.20.1
 // http://github.com/Hardmath123/nearley
 (function () {
@@ -2805,6 +3409,8 @@ var grammar = {
     {"name": "intvSymbol", "symbols": ["intvSymbol$string$1", "_", {"literal":"("}, "_", "fjsIntv", "_", {"literal":")"}], "postprocess": d => d[4]},
     {"name": "intvSymbol$string$2", "symbols": [{"literal":"N"}, {"literal":"F"}, {"literal":"J"}, {"literal":"S"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "intvSymbol", "symbols": ["intvSymbol$string$2", "_", {"literal":"("}, "_", "nfjsIntv", "_", {"literal":")"}], "postprocess": d => d[4]},
+    {"name": "intvSymbol", "symbols": ["colorIntv"], "postprocess": id},
+    {"name": "intvSymbol", "symbols": ["monzo"], "postprocess": id},
     {"name": "intvSymbol$string$3", "symbols": [{"literal":"T"}, {"literal":"T"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "intvSymbol", "symbols": ["intvSymbol$string$3"], "postprocess": _ => Interval(2).sqrt()},
     {"name": "noteSymbol", "symbols": ["anyPyNote"], "postprocess": id},
@@ -2813,6 +3419,11 @@ var grammar = {
     {"name": "noteSymbol", "symbols": ["noteSymbol$string$1", "_", {"literal":"("}, "_", "fjsNote", "_", {"literal":")"}], "postprocess": d => d[4]},
     {"name": "noteSymbol$string$2", "symbols": [{"literal":"N"}, {"literal":"F"}, {"literal":"J"}, {"literal":"S"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "noteSymbol", "symbols": ["noteSymbol$string$2", "_", {"literal":"("}, "_", "nfjsNote", "_", {"literal":")"}], "postprocess": d => d[4]},
+    {"name": "noteSymbol", "symbols": ["colorNote"], "postprocess": id},
+    {"name": "monzo", "symbols": [/[\[\|]/, "monzoElts", /[\]>⟩]/], "postprocess": d => Interval(d[1])},
+    {"name": "monzoElts", "symbols": ["_"], "postprocess": d => []},
+    {"name": "monzoElts", "symbols": ["_", "intExpr1", "_"], "postprocess": d => [d[1]]},
+    {"name": "monzoElts", "symbols": ["_", "intExpr1", "_", {"literal":","}, "monzoElts"], "postprocess": d => [d[1]].concat(d[4])},
     {"name": "anyPyIntv", "symbols": ["pyIntv"], "postprocess": id},
     {"name": "anyPyIntv", "symbols": ["npyIntv"], "postprocess": id},
     {"name": "anyPyIntv", "symbols": ["snpyIntv"], "postprocess": id},
@@ -3064,7 +3675,138 @@ var grammar = {
     {"name": "upsDns", "symbols": ["upsDns$ebnf$1"], "postprocess": d => d[0].length},
     {"name": "upsDns$ebnf$2", "symbols": [{"literal":"v"}]},
     {"name": "upsDns$ebnf$2", "symbols": ["upsDns$ebnf$2", {"literal":"v"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "upsDns", "symbols": ["upsDns$ebnf$2"], "postprocess": d => - d[0].length},
+    {"name": "upsDns", "symbols": ["upsDns$ebnf$2"], "postprocess": d => -d[0].length},
+    {"name": "colorIntv", "symbols": ["aclrIntv"], "postprocess": id},
+    {"name": "colorIntv", "symbols": ["clrIntv"], "postprocess": id},
+    {"name": "colorNote", "symbols": ["aclrNote"], "postprocess": id},
+    {"name": "colorNote", "symbols": ["clrNote"], "postprocess": id},
+    {"name": "aclrIntv$ebnf$1", "symbols": []},
+    {"name": "aclrIntv$ebnf$1", "symbols": ["aclrIntv$ebnf$1", {"literal":"c"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "aclrIntv", "symbols": ["aclrIntv$ebnf$1", "aclrM", "aclrP", "clrDeg"], "postprocess": (d,loc,_) => ["!clrIntv", d[0].length, d[1], d[2], d[3], loc]},
+    {"name": "aclrNote", "symbols": ["aclrP", "pyNote"], "postprocess": (d,loc,_) => ["!clrNote", d[0], d[1], loc]},
+    {"name": "aclrM", "symbols": [], "postprocess": d => 0},
+    {"name": "aclrM$ebnf$1", "symbols": [{"literal":"L"}]},
+    {"name": "aclrM$ebnf$1", "symbols": ["aclrM$ebnf$1", {"literal":"L"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "aclrM", "symbols": ["aclrM$ebnf$1"], "postprocess": d => d[0].length},
+    {"name": "aclrM$ebnf$2", "symbols": [{"literal":"s"}]},
+    {"name": "aclrM$ebnf$2", "symbols": ["aclrM$ebnf$2", {"literal":"s"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "aclrM", "symbols": ["aclrM$ebnf$2"], "postprocess": d => -d[0].length},
+    {"name": "aclrP", "symbols": [{"literal":"w"}], "postprocess": d => []},
+    {"name": "aclrP$ebnf$1", "symbols": ["aclrPP"]},
+    {"name": "aclrP$ebnf$1", "symbols": ["aclrP$ebnf$1", "aclrPP"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "aclrP", "symbols": ["aclrP$ebnf$1"], "postprocess": d => d[0]},
+    {"name": "aclrPP", "symbols": [{"literal":"y"}], "postprocess": d => Interval(5)},
+    {"name": "aclrPP", "symbols": [{"literal":"g"}], "postprocess": d => Interval(1,5)},
+    {"name": "aclrPP", "symbols": [{"literal":"z"}], "postprocess": d => Interval(7)},
+    {"name": "aclrPP", "symbols": [{"literal":"r"}], "postprocess": d => Interval(1,7)},
+    {"name": "aclrPP$ebnf$1", "symbols": [{"literal":"o"}]},
+    {"name": "aclrPP$ebnf$1", "symbols": ["aclrPP$ebnf$1", {"literal":"o"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "aclrPP", "symbols": ["posInt", "aclrPP$ebnf$1"], "postprocess": (d,loc,_) => ["!aclrPP", parseInt(d[0]), d[1].length, loc]},
+    {"name": "aclrPP$ebnf$2", "symbols": [{"literal":"u"}]},
+    {"name": "aclrPP$ebnf$2", "symbols": ["aclrPP$ebnf$2", {"literal":"u"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "aclrPP", "symbols": ["posInt", "aclrPP$ebnf$2"], "postprocess": (d,loc,_) => ["!aclrPP", parseInt(d[0]), -d[1].length, loc]},
+    {"name": "clrIntv", "symbols": ["clrCos", "clrM", "clrP", "clrDeg"], "postprocess": (d,loc) => ["!clrIntv", d[0], d[1], d[2], d[3], loc]},
+    {"name": "clrNote", "symbols": ["clrP", "pyNote"], "postprocess": (d,loc) => ["!clrNote", d[0], d[1], loc]},
+    {"name": "clrCos", "symbols": [], "postprocess": d => 0},
+    {"name": "clrCos$string$1", "symbols": [{"literal":"c"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrCos", "symbols": ["clrCos$string$1"], "postprocess": d => 1},
+    {"name": "clrCos$string$2", "symbols": [{"literal":"c"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrCos$ebnf$1$string$1", "symbols": [{"literal":"c"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrCos$ebnf$1", "symbols": ["clrCos$ebnf$1$string$1"]},
+    {"name": "clrCos$ebnf$1$string$2", "symbols": [{"literal":"c"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrCos$ebnf$1", "symbols": ["clrCos$ebnf$1", "clrCos$ebnf$1$string$2"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "clrCos", "symbols": ["clrCos$string$2", "clrCos$ebnf$1", {"literal":"-"}], "postprocess": d => 1 + d[1].length},
+    {"name": "clrCos$string$3", "symbols": [{"literal":"c"}, {"literal":"o"}, {"literal":"-"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrCos", "symbols": ["clrMPs", "clrCos$string$3"], "postprocess": d => d[0]},
+    {"name": "clrM", "symbols": [], "postprocess": d => 0},
+    {"name": "clrM$ebnf$1$string$1", "symbols": [{"literal":"l"}, {"literal":"a"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrM$ebnf$1", "symbols": ["clrM$ebnf$1$string$1"]},
+    {"name": "clrM$ebnf$1$string$2", "symbols": [{"literal":"l"}, {"literal":"a"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrM$ebnf$1", "symbols": ["clrM$ebnf$1", "clrM$ebnf$1$string$2"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "clrM$ebnf$2", "symbols": [{"literal":"-"}], "postprocess": id},
+    {"name": "clrM$ebnf$2", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "clrM", "symbols": ["clrM$ebnf$1", "clrM$ebnf$2"], "postprocess": d => d[0].length},
+    {"name": "clrM$string$1", "symbols": [{"literal":"l"}, {"literal":"a"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrM$ebnf$3", "symbols": [{"literal":"-"}], "postprocess": id},
+    {"name": "clrM$ebnf$3", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "clrM", "symbols": ["clrMPs", "clrM$string$1", "clrM$ebnf$3"], "postprocess": d => d[0]},
+    {"name": "clrM$ebnf$4$string$1", "symbols": [{"literal":"s"}, {"literal":"a"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrM$ebnf$4", "symbols": ["clrM$ebnf$4$string$1"]},
+    {"name": "clrM$ebnf$4$string$2", "symbols": [{"literal":"s"}, {"literal":"a"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrM$ebnf$4", "symbols": ["clrM$ebnf$4", "clrM$ebnf$4$string$2"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "clrM$ebnf$5", "symbols": [{"literal":"-"}], "postprocess": id},
+    {"name": "clrM$ebnf$5", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "clrM", "symbols": ["clrM$ebnf$4", "clrM$ebnf$5"], "postprocess": d => -d[0].length},
+    {"name": "clrM$string$2", "symbols": [{"literal":"s"}, {"literal":"a"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrM$ebnf$6", "symbols": [{"literal":"-"}], "postprocess": id},
+    {"name": "clrM$ebnf$6", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "clrM", "symbols": ["clrMPs", "clrM$string$2", "clrM$ebnf$6"], "postprocess": d => ["-", 0, d[0]]},
+    {"name": "clrP$string$1", "symbols": [{"literal":"w"}, {"literal":"a"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrP", "symbols": ["clrP$string$1"], "postprocess": d => []},
+    {"name": "clrP$string$2", "symbols": [{"literal":"i"}, {"literal":"l"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrP", "symbols": ["clrP$string$2"], "postprocess": d => [Interval(11)]},
+    {"name": "clrP$string$3", "symbols": [{"literal":"i"}, {"literal":"s"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrP", "symbols": ["clrP$string$3"], "postprocess": d => [Interval(17)]},
+    {"name": "clrP$string$4", "symbols": [{"literal":"i"}, {"literal":"n"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrP", "symbols": ["clrP$string$4"], "postprocess": d => [Interval(19)]},
+    {"name": "clrP$string$5", "symbols": [{"literal":"i"}, {"literal":"n"}, {"literal":"u"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrP", "symbols": ["clrP$string$5"], "postprocess": d => [Interval(1,19)]},
+    {"name": "clrP", "symbols": ["clrMPs", "clrPPs"], "postprocess": d => d[1].map(i => ["pow", i, d[0]])},
+    {"name": "clrP", "symbols": ["clrPPs"], "postprocess": d => d[0]},
+    {"name": "clrPPs", "symbols": ["clrMPs", "clrPP"], "postprocess": d => [["pow", d[1], d[0]]]},
+    {"name": "clrPPs", "symbols": ["clrPP"], "postprocess": d => [d[0]]},
+    {"name": "clrPPs$string$1", "symbols": [{"literal":"-"}, {"literal":"a"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrPPs", "symbols": ["clrMPs", "clrPP", "clrPPs$string$1", "clrPPs"], "postprocess": d => [["pow", d[1], d[0]]].concat(d[3])},
+    {"name": "clrPPs", "symbols": ["clrPP", "clrPPs"], "postprocess": d => [d[0]].concat(d[1])},
+    {"name": "clrPP$string$1", "symbols": [{"literal":"y"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrPP", "symbols": ["clrPP$string$1"], "postprocess": d => Interval(5)},
+    {"name": "clrPP$string$2", "symbols": [{"literal":"g"}, {"literal":"u"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrPP", "symbols": ["clrPP$string$2"], "postprocess": d => Interval(1,5)},
+    {"name": "clrPP$string$3", "symbols": [{"literal":"z"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrPP", "symbols": ["clrPP$string$3"], "postprocess": d => Interval(7)},
+    {"name": "clrPP$string$4", "symbols": [{"literal":"r"}, {"literal":"u"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrPP", "symbols": ["clrPP$string$4"], "postprocess": d => Interval(1,7)},
+    {"name": "clrPP$string$5", "symbols": [{"literal":"l"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrPP", "symbols": ["clrPP$string$5"], "postprocess": d => Interval(11)},
+    {"name": "clrPP$string$6", "symbols": [{"literal":"l"}, {"literal":"u"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrPP", "symbols": ["clrPP$string$6"], "postprocess": d => Interval(1,11)},
+    {"name": "clrPP", "symbols": ["clrGenPP", {"literal":"o"}], "postprocess": d => d[0]},
+    {"name": "clrPP", "symbols": ["clrGenPP", {"literal":"u"}], "postprocess": d => ["recip", d[0]]},
+    {"name": "clrDeg", "symbols": ["posInt"], "postprocess": d => d[0]},
+    {"name": "clrDeg", "symbols": [{"literal":"-"}, "posInt"], "postprocess": d => -d[1]},
+    {"name": "clrMPs$ebnf$1", "symbols": ["clrMP"]},
+    {"name": "clrMPs$ebnf$1", "symbols": ["clrMPs$ebnf$1", "clrMP"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "clrMPs", "symbols": ["clrMPs$ebnf$1"], "postprocess": (d,loc,_) => ["!clrMPs", d[0], loc]},
+    {"name": "clrMP$string$1", "symbols": [{"literal":"b"}, {"literal":"i"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrMP", "symbols": ["clrMP$string$1"], "postprocess": d => 2},
+    {"name": "clrMP$string$2", "symbols": [{"literal":"t"}, {"literal":"r"}, {"literal":"i"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrMP", "symbols": ["clrMP$string$2"], "postprocess": d => 3},
+    {"name": "clrMP$string$3", "symbols": [{"literal":"q"}, {"literal":"u"}, {"literal":"a"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrMP", "symbols": ["clrMP$string$3"], "postprocess": d => 4},
+    {"name": "clrMP$string$4", "symbols": [{"literal":"q"}, {"literal":"u"}, {"literal":"i"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrMP", "symbols": ["clrMP$string$4"], "postprocess": d => 5},
+    {"name": "clrMP$string$5", "symbols": [{"literal":"s"}, {"literal":"e"}, {"literal":"p"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrMP", "symbols": ["clrMP$string$5"], "postprocess": d => 7},
+    {"name": "clrMP$string$6", "symbols": [{"literal":"l"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrMP", "symbols": ["clrMP$string$6"], "postprocess": d => 11},
+    {"name": "clrMP", "symbols": ["clrGenPP", {"literal":"e"}], "postprocess": d => ["valueOf", d[0]]},
+    {"name": "clrGenPP", "symbols": ["clrTens", "clrOnes"], "postprocess": (d,loc,_) => ["!clrGenPP", d[0] + d[1], loc]},
+    {"name": "clrTens", "symbols": [], "postprocess": d => 10},
+    {"name": "clrTens$string$1", "symbols": [{"literal":"t"}, {"literal":"w"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrTens", "symbols": ["clrTens$string$1"], "postprocess": d => 20},
+    {"name": "clrTens$string$2", "symbols": [{"literal":"t"}, {"literal":"h"}, {"literal":"i"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrTens", "symbols": ["clrTens$string$2"], "postprocess": d => 30},
+    {"name": "clrTens$string$3", "symbols": [{"literal":"f"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrTens", "symbols": ["clrTens$string$3"], "postprocess": d => 40},
+    {"name": "clrTens$string$4", "symbols": [{"literal":"f"}, {"literal":"i"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrTens", "symbols": ["clrTens$string$4"], "postprocess": d => 50},
+    {"name": "clrTens$string$5", "symbols": [{"literal":"s"}, {"literal":"i"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrTens", "symbols": ["clrTens$string$5"], "postprocess": d => 60},
+    {"name": "clrOnes", "symbols": [{"literal":"w"}], "postprocess": d => 1},
+    {"name": "clrOnes$string$1", "symbols": [{"literal":"t"}, {"literal":"h"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrOnes", "symbols": ["clrOnes$string$1"], "postprocess": d => 3},
+    {"name": "clrOnes", "symbols": [{"literal":"s"}], "postprocess": d => 7},
+    {"name": "clrOnes", "symbols": [{"literal":"n"}], "postprocess": d => 9},
     {"name": "frcExpr1", "symbols": ["frcExpr1", "_", {"literal":"+"}, "_", "frcExpr2"], "postprocess": d => d[0].add(d[4])},
     {"name": "frcExpr1", "symbols": ["frcExpr1", "_", {"literal":"-"}, "_", "frcExpr2"], "postprocess": d => d[0].sub(d[4])},
     {"name": "frcExpr1", "symbols": ["frcExpr2"], "postprocess": id},
@@ -3145,7 +3887,7 @@ if (typeof module !== 'undefined'&& typeof module.exports !== 'undefined') {
 }
 })();
 
-},{"../edo.js":2,"../fjs.js":4,"../interval.js":6,"../pythagorean.js":10,"./eval.js":8,"fraction.js":13}],10:[function(require,module,exports){
+},{"../edo.js":3,"../fjs.js":5,"../interval.js":7,"../pythagorean.js":11,"./eval.js":9,"fraction.js":14}],11:[function(require,module,exports){
 /**
  * Functions for working with pythagorean and neutral pythagorean intervals
  * @copyright 2021 Matthew Yacavone (matthew [at] yacavone [dot] net)
@@ -3479,13 +4221,13 @@ module['exports'].pyOffset = pyOffset;
 module['exports'].pyRedDeg = pyRedDeg;
 module['exports'].isPerfectDeg = isPerfectDeg;
 module['exports'].pyQuality = pyQuality;
-module['exports'].pySymb = pySymb;
+module['exports'].pyDegreeString = pyDegreeString;
 module['exports'].pySymb = pySymb;
 module['exports'].baseNoteIntvToA = baseNoteIntvToA;
 module['exports'].octaveOfIntvToA4 = octaveOfIntvToA4;
 module['exports'].pyNote = pyNote;
 
-},{"./interval.js":6,"fraction.js":13,"number-to-words":16,"primes-and-factors":17}],11:[function(require,module,exports){
+},{"./interval.js":7,"fraction.js":14,"number-to-words":17,"primes-and-factors":18}],12:[function(require,module,exports){
 var bigInt = (function (undefined) {
     "use strict";
 
@@ -4940,7 +5682,7 @@ if (typeof define === "function" && define.amd) {
     });
 }
 
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 /**
  * @license Fraction.js v4.0.12 09/09/2015
  * http://www.xarg.org/2014/03/rational-numbers-in-javascript/
@@ -5744,7 +6486,7 @@ if (typeof define === "function" && define.amd) {
 
 })(this);
 
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 /**
  * @license Fraction.js v4.0.12 09/09/2015
  * http://www.xarg.org/2014/03/rational-numbers-in-javascript/
@@ -6580,7 +7322,7 @@ if (typeof define === "function" && define.amd) {
 
 })(this);
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 var MathUtils = module.exports = {
 	isOdd: function(num){
 		return num & 1 === 1;
@@ -6636,7 +7378,7 @@ var MathUtils = module.exports = {
 		return arr[1];
 	}
 };
-},{}],15:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 (function(root, factory) {
     if (typeof module === 'object' && module.exports) {
         module.exports = factory();
@@ -7202,7 +7944,7 @@ var MathUtils = module.exports = {
 
 }));
 
-},{}],16:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 (function (global){(function (){
 /*!
  * Number-To-Words util
@@ -7215,7 +7957,7 @@ var MathUtils = module.exports = {
 !function(){"use strict";var e="object"==typeof self&&self.self===self&&self||"object"==typeof global&&global.global===global&&global||this,t=9007199254740991;function f(e){return!("number"!=typeof e||e!=e||e===1/0||e===-1/0)}function l(e){return"number"==typeof e&&Math.abs(e)<=t}var n=/(hundred|thousand|(m|b|tr|quadr)illion)$/,r=/teen$/,o=/y$/,i=/(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)$/,s={zero:"zeroth",one:"first",two:"second",three:"third",four:"fourth",five:"fifth",six:"sixth",seven:"seventh",eight:"eighth",nine:"ninth",ten:"tenth",eleven:"eleventh",twelve:"twelfth"};function h(e){return n.test(e)||r.test(e)?e+"th":o.test(e)?e.replace(o,"ieth"):i.test(e)?e.replace(i,a):e}function a(e,t){return s[t]}var u=10,d=100,p=1e3,v=1e6,b=1e9,y=1e12,c=1e15,g=9007199254740992,m=["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"],w=["zero","ten","twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety"];function x(e,t){var n,r=parseInt(e,10);if(!f(r))throw new TypeError("Not a finite number: "+e+" ("+typeof e+")");if(!l(r))throw new RangeError("Input is not a safe number, it’s either too large or too small.");return n=function e(t){var n,r,o=arguments[1];if(0===t)return o?o.join(" ").replace(/,$/,""):"zero";o||(o=[]);t<0&&(o.push("minus"),t=Math.abs(t));t<20?(n=0,r=m[t]):t<d?(n=t%u,r=w[Math.floor(t/u)],n&&(r+="-"+m[n],n=0)):t<p?(n=t%d,r=e(Math.floor(t/d))+" hundred"):t<v?(n=t%p,r=e(Math.floor(t/p))+" thousand,"):t<b?(n=t%v,r=e(Math.floor(t/v))+" million,"):t<y?(n=t%b,r=e(Math.floor(t/b))+" billion,"):t<c?(n=t%y,r=e(Math.floor(t/y))+" trillion,"):t<=g&&(n=t%c,r=e(Math.floor(t/c))+" quadrillion,");o.push(r);return e(n,o)}(r),t?h(n):n}var M={toOrdinal:function(e){var t=parseInt(e,10);if(!f(t))throw new TypeError("Not a finite number: "+e+" ("+typeof e+")");if(!l(t))throw new RangeError("Input is not a safe number, it’s either too large or too small.");var n=String(t),r=Math.abs(t%100),o=11<=r&&r<=13,i=n.charAt(n.length-1);return n+(o?"th":"1"===i?"st":"2"===i?"nd":"3"===i?"rd":"th")},toWords:x,toWordsOrdinal:function(e){return h(x(e))}};"undefined"!=typeof exports?("undefined"!=typeof module&&module.exports&&(exports=module.exports=M),exports.numberToWords=M):e.numberToWords=M}();
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 
-},{}],17:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 "use strict";
 
 var primeFactor = {
@@ -7331,6 +8073,6 @@ var primeFactor = {
 };
 
 module.exports = primeFactor;
-},{}]},{},[5])(5)
+},{}]},{},[6])(6)
 });
 //# sourceMappingURL=microtonal-utils.js.map
