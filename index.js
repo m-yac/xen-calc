@@ -240,19 +240,20 @@ function getResults() {
       const symbs = res.symb["ups-and-downs"].map(symb => fmtExtExprLink(symb).prop('outerHTML'));
       rows.push(["Ups-and-downs notation:", symbs.join(", ")]);
     }
-    if (res.symb["color"]) {
-      let str = fmtExtExprLink(res.symb["color-abbrev"]).prop('outerHTML');
-      str += " (" + res.symb["color"] + ")";
-      rows.push(["Color notation:", str]);
-    }
-    else if (res.symb["color-abbrev"]) {
-      rows.push(["Color notation:", fmtExtExprLink(res.symb["color-abbrev"])]);
-    }
   }
   const addS = res.english && res.english.length > 1 ? "(s):" : ":";
   if (res.english && res.english.length > 0){
     const end = res.english.length > 1 ? "(s):" : ":";
     rows.push(["(Possible) English name" + end, res.english.join("<br>")]);
+  }
+  // Add color notation symbols
+  if (res.symb && res.symb["color"]) {
+    const shortName = fmtExtExprLink(res.symb["color-abbrev"]).prop('outerHTML');
+    const longName = res.symb["color"].replace(" 1st", " unison").replace(" 8th", " octave");
+    rows.push(["Color notation:", shortName + " (" + longName + ")"]);
+  }
+  else if (res.symb && res.symb["color-abbrev"]) {
+    rows.push(["Color notation:", fmtExtExprLink(res.symb["color-abbrev"])]);
   }
   // Add a note's interval reference
   if (res.type === "note" && !res.intvToRef.equals(1)) {
