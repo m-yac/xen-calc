@@ -220,6 +220,15 @@ function getResults() {
   }
   // Add any symbols
   if (res.symb) {
+    if (res.symb["color-abbrev"]) {
+      let str = fmtExtExprLink(res.symb["color-abbrev"]).prop('outerHTML');
+      if (res.symb["color"]) {
+        const longName = res.symb["color"].replace(" 1st", " unison")
+                                          .replace(" 8th", " octave");
+        str = longName + " (" + str + ")";
+      }
+      rows.push(["Color name:", str]);
+    }
     if (res.symb["FJS"] &&
         // for now we only have integer accidentals, since I'm not sure how
         //  useful showing non-integer accidentals actually is
@@ -245,15 +254,6 @@ function getResults() {
   if (res.english && res.english.length > 0){
     const end = res.english.length > 1 ? "(s):" : ":";
     rows.push(["(Possible) English name" + end, res.english.join("<br>")]);
-  }
-  // Add color notation symbols
-  if (res.symb && res.symb["color"]) {
-    const shortName = fmtExtExprLink(res.symb["color-abbrev"]).prop('outerHTML');
-    const longName = res.symb["color"].replace(" 1st", " unison").replace(" 8th", " octave");
-    rows.push(["Color notation:", shortName + " (" + longName + ")"]);
-  }
-  else if (res.symb && res.symb["color-abbrev"]) {
-    rows.push(["Color notation:", fmtExtExprLink(res.symb["color-abbrev"])]);
   }
   // Add a note's interval reference
   if (res.type === "note" && !res.intvToRef.equals(1)) {
