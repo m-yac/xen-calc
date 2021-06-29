@@ -233,16 +233,6 @@ function getResults() {
   }
   // Add any symbols
   if (res.symb) {
-    if (res.symb["color-abbrev"]) {
-      let str = fmtExtExprLink(res.symb["color-abbrev"]).prop('outerHTML');
-      if (res.symb["color"]) {
-        const longName = res.symb["color"].replace(" 1st", " unison")
-                                          .replace(" 8th", " octave");
-        str = longName + " (" + str + ")";
-      }
-      const colorLink = fmtInlineLink("Color name", "https://en.xen.wiki/w/Color_notation");
-      rows.push([colorLink, str]);
-    }
     if (res.symb["FJS"] &&
         // for now we only have integer accidentals, since I'm not sure how
         //  useful showing non-integer accidentals actually is
@@ -271,6 +261,17 @@ function getResults() {
     const end = res.english.length > 1 ? "(s)" : "";
     const enNameLink = fmtInlineLink("(Possible) English name" + end, "#englishNames", true);
     rows.push([enNameLink, res.english.join("<br>")]);
+  }
+  // Add any color name
+  if (res.symb && res.symb["color-abbrev"]) {
+    let str = fmtExtExprLink(res.symb["color-abbrev"]).prop('outerHTML');
+    if (res.symb["color"]) {
+      const longName = res.symb["color"].replace(" 1st", " unison")
+                                        .replace(" 8th", " octave");
+      str = longName + ", " + str;
+    }
+    const colorLink = fmtInlineLink("Color name", "https://en.xen.wiki/w/Color_notation");
+    rows.push([colorLink, str]);
   }
   // Add a note's interval reference
   if (res.type === "note" && !res.intvToRef.equals(1)) {
