@@ -270,7 +270,7 @@ function getResults() {
                                         .replace(" 8th", " octave");
       str = longName + ", " + str;
     }
-    const colorLink = fmtInlineLink("Color name", "https://en.xen.wiki/w/Color_notation");
+    const colorLink = fmtInlineLink("Color notation", "https://en.xen.wiki/w/Color_notation");
     rows.push([colorLink, str]);
   }
   // Add a note's interval reference
