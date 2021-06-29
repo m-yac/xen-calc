@@ -163,6 +163,12 @@ function fmtExtExprLink(str, linkstr) {
                      .html(str);
   return link;
 }
+// Wrap a given string in an <a> tag with the default class
+function fmtInlineLink(str, url, sameTab) {
+  const a = $('<a>').attr("href", url).html(str);
+  if (sameTab) { return a.prop('outerHTML'); }
+  else { return a.attr("target", "_blank").prop('outerHTML'); }
+}
 
 // ================================================================
 // Filling in the results section
@@ -179,44 +185,51 @@ function getResults() {
   if (res.type === "interval") {
     res.hertz = res.intv.mul(res.ref.hertz).valueOf();
     typeStr = "Interval";
-    rows.push(["Size in cents:", fmtExtExprLink(fmtCents(res.cents, 5))]);
+    const centsLink = fmtInlineLink("Size in cents", "https://en.wikipedia.org/wiki/Cent_(music)");
+    rows.push([centsLink, fmtExtExprLink(fmtCents(res.cents, 5))]);
     if (res.ratio) {
-      rows.push(["Ratio:", fmtExtExprLink(toRatioStr(res.ratio))]);
+      const ratioLink = fmtInlineLink("Ratio", "https://en.wikipedia.org/wiki/Just_intonation");
+      rows.push([ratioLink, fmtExtExprLink(toRatioStr(res.ratio))]);
     }
     else {
       try {
         if (res.intv.toNthRoot().n <= 6) {
-          rows.push(["Expression:", fmtExtExprLink(res.intv.toNthRootString())]);
+          rows.push(["Expression", fmtExtExprLink(res.intv.toNthRootString())]);
         }
       }
       catch (err) {}
     }
     const fact = fmtFactorization(res.intv);
     if (fact.length > 0) {
-      rows.push(["Prime factorization:", fmtExtExprLink(fact)]);
+      rows.push(["Prime factorization", fmtExtExprLink(fact)]);
       let monzo = res.intv.toMonzo();
       if (monzo.length <= 18*7) {
         if (res.intv.isFrac()) {
-          rows.push(["Monzo:", fmtExtExprLink("|" + monzo.join(", ") + "⟩")]);
+          const monzoLink = fmtInlineLink("Monzo", "https://en.xen.wiki/w/Monzo");
+          rows.push([monzoLink, fmtExtExprLink("|" + monzo.join(", ") + "⟩")]);
         }
         else {
           monzo = monzo.map(x => x.toFraction());
-          rows.push(["Fractional monzo:", "|" + monzo.join(", ") + "⟩"]);
+          const frMonzoLink = fmtInlineLink("Fractional monzo", "https://en.xen.wiki/w/Fractional_monzo");
+          rows.push([frMonzoLink, "|" + monzo.join(", ") + "⟩"]);
         }
       }
     }
     if (res.ratio) {
-      rows.push(["Tenney height:", +res.height.tenney.toFixed(5) + " (log2(" + res.height.benedetti + "))"])
+      const tenneyLink = fmtInlineLink("Tenney height", "https://en.xen.wiki/w/Tenney_height");
+      rows.push([tenneyLink, +res.height.tenney.toFixed(5) + " (log2(" + res.height.benedetti + "))"])
     }
     if (res.edoSteps) {
-      rows.push(["EDO steps:", fmtExtExprLink(fmtEDOStep(res.edoSteps))]);
+      const edoLink = fmtInlineLink("EDO", "https://en.wikipedia.org/wiki/Equal_temperament");
+      rows.push([edoLink + " steps", fmtExtExprLink(fmtEDOStep(res.edoSteps))]);
     }
   }
   // Add note-specific rows
   if (res.type === "note") {
     typeStr = "Note";
-    rows.push(["Frequency in hertz:", fmtExtExprLink(fmtHertz(res.hertz, 5))]);
-    rows.push(["Tuning meter read-out:", res.tuningMeter]);
+    const hertzLink = fmtInlineLink("Frequency in hertz", "https://en.wikipedia.org/wiki/Hertz");
+    rows.push([hertzLink, fmtExtExprLink(fmtHertz(res.hertz, 5))]);
+    rows.push(["Tuning meter read-out", res.tuningMeter]);
   }
   // Add any symbols
   if (res.symb) {
@@ -227,13 +240,15 @@ function getResults() {
                                           .replace(" 8th", " octave");
         str = longName + " (" + str + ")";
       }
-      rows.push(["Color name:", str]);
+      const colorLink = fmtInlineLink("Color name", "https://en.xen.wiki/w/Color_notation");
+      rows.push([colorLink, str]);
     }
     if (res.symb["FJS"] &&
         // for now we only have integer accidentals, since I'm not sure how
         //  useful showing non-integer accidentals actually is
         !(res.symb["FJS"].includes("root") || res.symb["FJS"].includes("sqrt"))) {
-      rows.push(["FJS name:", fmtExtExprLink(res.symb["FJS"])]);
+      const fjsLink = fmtInlineLink("FJS name", "https://en.xen.wiki/w/Functional_Just_System");
+      rows.push([fjsLink, fmtExtExprLink(res.symb["FJS"])]);
     }
     if (res.symb["NFJS"] &&
         // for now we only have integer accidentals, since I'm not sure how
@@ -243,31 +258,33 @@ function getResults() {
       if (res.symb["NFJS"] !== microtonal_utils.parseCvt(res.symb["NFJS"]).symb["NFJS"]) {
         linkStr = "NFJS(" + res.symb["NFJS"] + ")";
       }
-      rows.push(["Neutral FJS name:", fmtExtExprLink(res.symb["NFJS"], linkStr)]);
+      const nfjsLink = fmtInlineLink("Neutral FJS name", "https://en.xen.wiki/w/User:M-yac/Neutral_Intervals_and_the_FJS");
+      rows.push([nfjsLink, fmtExtExprLink(res.symb["NFJS"], linkStr)]);
     }
     if (res.symb["ups-and-downs"]) {
+      const updnsLink = fmtInlineLink("Ups-and-downs notation", "https://en.xen.wiki/w/Ups_and_Downs_Notation");
       const symbs = res.symb["ups-and-downs"].map(symb => fmtExtExprLink(symb).prop('outerHTML'));
-      rows.push(["Ups-and-downs notation:", symbs.join(", ")]);
+      rows.push([updnsLink, symbs.join(", ")]);
     }
   }
-  const addS = res.english && res.english.length > 1 ? "(s):" : ":";
   if (res.english && res.english.length > 0){
-    const end = res.english.length > 1 ? "(s):" : ":";
-    rows.push(["(Possible) English name" + end, res.english.join("<br>")]);
+    const end = res.english.length > 1 ? "(s)" : "";
+    const enNameLink = fmtInlineLink("(Possible) English name" + end, "#englishNames", true);
+    rows.push([enNameLink, res.english.join("<br>")]);
   }
   // Add a note's interval reference
   if (res.type === "note" && !res.intvToRef.equals(1)) {
     rows.push([]);
     const refSymb = microtonal_utils.pyNote(res.ref.intvToA4);
     if (res.edoStepsToRef) {
-      rows.push(["Interval from reference note:",
+      rows.push(["Interval from reference note",
                 fmtExtExprLink(fmtEDOStep(res.edoStepsToRef))]);
     }
     else {
-      rows.push(["Interval from reference note:",
+      rows.push(["Interval from reference note",
                 fmtExtExprLink(fmtExpression(res.intvToRef))]);
     }
-    rows.push(["Reference note and frequency:", refSymb + " = " + fmtHertz(res.ref.hertz, 2)])
+    rows.push(["Reference note and frequency", refSymb + " = " + fmtHertz(res.ref.hertz, 2)])
   }
   // Format the interval for use in Scale Workshop
   if (res.type == "interval") {
@@ -298,7 +315,7 @@ function updateResults() {
     $('#resTable').empty();
     for (const [n,v] of rows) {
       let row = $('<tr>');
-      row.append($('<td>').addClass("resLeftColumn").html(n));
+      row.append($('<td>').addClass("resLeftColumn").html(n ? n + ":" : n));
       row.append($('<td>').addClass("resRightColumn").html(v));
       $('#resTable').append(row);
     }
