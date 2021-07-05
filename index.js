@@ -69,7 +69,7 @@ function reformatURL(str) {
   // encode spaces as "+"s
   str = str.replaceAll(/%20/gi, "+");
   // un-encode some characters for nicer-to-read URLs
-  ['/','-',','/*,'[',']','|','<','>'*/].forEach(function (c) {
+  ['/','-','^',','/*,'[',']','|','<','>'*/].forEach(function (c) {
     const pat = new RegExp('%' + c.charCodeAt(0).toString(16), 'gi');
     str = str.replaceAll(pat, c);
   })
