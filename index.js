@@ -158,7 +158,7 @@ function fmtExtExprLink(str, linkstr) {
   if (linkstr === undefined) {
     linkstr = str
   }
-  let link = $('<a>').attr("href", "?expr=" + encodeURIComponent(linkstr))
+  let link = $('<a>').attr("href", "?q=" + encodeURIComponent(linkstr))
                      .attr("style", "vertical-align: top;")
                      .html(str);
   return link;
@@ -620,7 +620,11 @@ function setStateFromParams(urlParams, e) {
     return urlParams.has(param) ? urlParams.get(param) : deflt;
   }
   // pull everything from urlParams
-  const expr       = getWithDefault(urlParams, 'expr'      , "");
+  let expr = getWithDefault(urlParams, 'q', "");
+  if (urlParams.has('expr')) {
+    expr = urlParams.get('expr');
+    updateURLWithParams({q: expr, expr: ""}, true);
+  }
   const primeLimit = getWithDefault(urlParams, 'primeLimit', defaultPrimeLimit);
   const oddLimit   = getWithDefault(urlParams, 'oddLimit'  , defaultOddLimit);
   const sortRat    = getWithDefault(urlParams, 'sortRat'   , defaultSortRat);
@@ -630,7 +634,7 @@ function setStateFromParams(urlParams, e) {
   moreRat          = getWithDefault(urlParams, 'moreRat'   , defaultMoreRat);
   moreEDO          = getWithDefault(urlParams, 'moreEDO'   , defaultMoreEDO);
   // update the expr fields and all the dropdowns based on the above
-  $('#expr').val(urlParams.has('expr') ? urlParams.get('expr') : "");
+  $('#expr').val(expr);
   updateDropdown($('#primeLimit'), primeLimitOpts, primeLimit);
   updateDropdown($('#oddLimit')  , oddLimitOpts(sortRat), oddLimit);
   updateDropdown($('#sortRat')   , sortRatOpts(oddLimit), sortRat);
@@ -711,7 +715,7 @@ $(document).ready(function() {
     moreRat = defaultMoreRat; moreEDO = defaultMoreEDO;
     updateTitle();
     updateResults();
-    let params = {"expr": $('#expr').val()};
+    let params = {q: $('#expr').val()};
     params["moreRat"] = ""; params["moreEDO"] = "";
     updateURLWithParams(params);
   });
