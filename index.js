@@ -60,6 +60,22 @@ function updateTitle() {
   }
 }
 
+function reformatURL(str) {
+  // encode a couple more characters from RFC 3986
+  // (adapted from: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent)
+  str = str.replaceAll(/[!']/g, function(c) {
+    return '%' + c.charCodeAt(0).toString(16);
+  });
+  // encode spaces as "+"s
+  str = str.replaceAll(/%20/gi, "+");
+  // un-encode some characters for nicer-to-read URLs
+  ['/','-','^',','/*,'[',']','|','<','>'*/].forEach(function (c) {
+    const pat = new RegExp('%' + c.charCodeAt(0).toString(16), 'gi');
+    str = str.replaceAll(pat, c);
+  })
+  return str;
+}
+
 // ================================================================
 // State variables
 // ================================================================
@@ -158,7 +174,8 @@ function fmtExtExprLink(str, linkstr) {
   if (linkstr === undefined) {
     linkstr = str
   }
-  let link = $('<a>').attr("href", "?expr=" + encodeURIComponent(linkstr))
+  const queryStr = reformatURL(encodeURIComponent(linkstr));
+  let link = $('<a>').attr("href", "?q=" + queryStr)
                      .attr("style", "vertical-align: top;")
                      .html(str);
   return link;
@@ -578,16 +595,17 @@ function updateURLWithParams(paramsToUpdate, doReplace) {
 }
 
 function updateURLTo(newURL, doReplace) {
+  const newURLStr = reformatURL(newURL.toString());
   const st = { html: $("#results").prop("outerHTML"), res: res };
   if (doReplace) {
     console.log(Date.now() + " [replaced] " + newURL.searchParams);
     console.log(res);
-    history.replaceState(st, $("#expr").val(), newURL);
+    history.replaceState(st, $("#expr").val(), newURLStr);
   }
   else {
     console.log(Date.now() + " [pushed] " + newURL.searchParams);
     console.log(res);
-    history.pushState(st, $("#expr").val(), newURL);
+    history.pushState(st, $("#expr").val(), newURLStr);
   }
 }
 
@@ -620,7 +638,11 @@ function setStateFromParams(urlParams, e) {
     return urlParams.has(param) ? urlParams.get(param) : deflt;
   }
   // pull everything from urlParams
-  const expr       = getWithDefault(urlParams, 'expr'      , "");
+  let expr = getWithDefault(urlParams, 'q', "");
+  if (urlParams.has('expr')) {
+    expr = urlParams.get('expr');
+    updateURLWithParams({q: expr, expr: ""}, true);
+  }
   const primeLimit = getWithDefault(urlParams, 'primeLimit', defaultPrimeLimit);
   const oddLimit   = getWithDefault(urlParams, 'oddLimit'  , defaultOddLimit);
   const sortRat    = getWithDefault(urlParams, 'sortRat'   , defaultSortRat);
@@ -630,7 +652,7 @@ function setStateFromParams(urlParams, e) {
   moreRat          = getWithDefault(urlParams, 'moreRat'   , defaultMoreRat);
   moreEDO          = getWithDefault(urlParams, 'moreEDO'   , defaultMoreEDO);
   // update the expr fields and all the dropdowns based on the above
-  $('#expr').val(urlParams.has('expr') ? urlParams.get('expr') : "");
+  $('#expr').val(expr);
   updateDropdown($('#primeLimit'), primeLimitOpts, primeLimit);
   updateDropdown($('#oddLimit')  , oddLimitOpts(sortRat), oddLimit);
   updateDropdown($('#sortRat')   , sortRatOpts(oddLimit), sortRat);
@@ -711,7 +733,7 @@ $(document).ready(function() {
     moreRat = defaultMoreRat; moreEDO = defaultMoreEDO;
     updateTitle();
     updateResults();
-    let params = {"expr": $('#expr').val()};
+    let params = {q: $('#expr').val()};
     params["moreRat"] = ""; params["moreEDO"] = "";
     updateURLWithParams(params);
   });
