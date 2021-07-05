@@ -60,6 +60,22 @@ function updateTitle() {
   }
 }
 
+function reformatURL(str) {
+  // encode a couple more characters from RFC 3986
+  // (adapted from: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent)
+  str = str.replaceAll(/[!']/g, function(c) {
+    return '%' + c.charCodeAt(0).toString(16);
+  });
+  // encode spaces as "+"s
+  str = str.replaceAll(/%20/gi, "+");
+  // un-encode some characters for nicer-to-read URLs
+  ['/','-',','/*,'[',']','|','<','>'*/].forEach(function (c) {
+    const pat = new RegExp('%' + c.charCodeAt(0).toString(16), 'gi');
+    str = str.replaceAll(pat, c);
+  })
+  return str;
+}
+
 // ================================================================
 // State variables
 // ================================================================
@@ -158,7 +174,8 @@ function fmtExtExprLink(str, linkstr) {
   if (linkstr === undefined) {
     linkstr = str
   }
-  let link = $('<a>').attr("href", "?q=" + encodeURIComponent(linkstr))
+  const queryStr = reformatURL(encodeURIComponent(linkstr));
+  let link = $('<a>').attr("href", "?q=" + queryStr)
                      .attr("style", "vertical-align: top;")
                      .html(str);
   return link;
@@ -578,16 +595,17 @@ function updateURLWithParams(paramsToUpdate, doReplace) {
 }
 
 function updateURLTo(newURL, doReplace) {
+  const newURLStr = reformatURL(newURL.toString());
   const st = { html: $("#results").prop("outerHTML"), res: res };
   if (doReplace) {
     console.log(Date.now() + " [replaced] " + newURL.searchParams);
     console.log(res);
-    history.replaceState(st, $("#expr").val(), newURL);
+    history.replaceState(st, $("#expr").val(), newURLStr);
   }
   else {
     console.log(Date.now() + " [pushed] " + newURL.searchParams);
     console.log(res);
-    history.pushState(st, $("#expr").val(), newURL);
+    history.pushState(st, $("#expr").val(), newURLStr);
   }
 }
 
