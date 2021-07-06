@@ -29,7 +29,7 @@
 
 <h1><a href=".">xen-calc</a></h1>
 
-<input type="text" spellcheck="false" id="expr" class="exprInput" placeholder="e.g. 5/4 / M2"></input>
+<input type="text" spellcheck="false" id="expr" class="exprInput" placeholder="e.g. 5/4 / M2" aria-label="Main input">
 <div class="buttons">
 <div class="alignleft"><!--
 --><div class="buttonContainer"><button id="reset" title="Reset calculator">Reset</button></div><!--
@@ -81,13 +81,13 @@
 
     <div class="approxsDesc">
       <div id="primeLimitContainer" class="selectContainer twoDigitSelect">
-        <select id="primeLimit" title="Prime limit"></select>
+        <select id="primeLimit" title="Prime limit" aria-label="Prime limit"></select>
       </div>-limit,
       <div id="oddLimitContainer" class="selectContainer twoDigitSelect">
-        <select id="oddLimit" title="Odd limit"></select>
+        <select id="oddLimit" title="Odd limit" aria-label="Odd limit"></select>
       </div>-odd-limit, sorted by
       <div id="sortRatContainer" class="selectContainer sortRatSelect">
-        <select id="sortRat" title="Sort best rational approximations"></select>
+        <select id="sortRat" title="Sort best rational approximations" aria-label="Sort best rational approximations"></select>
       </div><span id="cutoffRatSpan">, cutoff at <span id="cutoffRat"></span></span>
     </div>
 
@@ -100,13 +100,13 @@
 
     <div class="approxsDesc">
       <div id="loEDOContainer" class="selectContainer threeDigitSelect">
-        <select id="loEDO" title="Lowest EDO"></select>
+        <select id="loEDO" title="Lowest EDO" aria-label="Lowest EDO"></select>
       </div>-EDO to
       <div id="hiEDOContainer" class="selectContainer threeDigitSelect">
-        <select id="hiEDO" title="Highest EDO"></select>
+        <select id="hiEDO" title="Highest EDO" aria-label="Highest EDO"></select>
       </div>-EDO, sorted by
       <div id="sortEDOContainer" class="selectContainer sortEDOSelect">
-        <select id="sortEDO" title="Sort best EDO approximations"></select>
+        <select id="sortEDO" title="Sort best EDO approximations" aria-label="Sort best EDO approximations"></select>
       </div><span id="cutoffEDOSpan">, cutoff at <span id="cutoffEDO"></span></span>
     </div>
 
