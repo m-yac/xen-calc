@@ -338,9 +338,7 @@ function updateResults() {
       row.append($('<td>').addClass("resRightColumn").html(v));
       $('#resTable').append(row);
     }
-    if (res.ratio) {
-      addXenWikiLink(toRatioStr(res.ratio));
-    }
+    addXenWikiLink();
     $('#resAudioHeader').html(typeStr + " audio");
     let scaleWorkshopLink = "http://sevish.com/scaleworkshop/";
     scaleWorkshopLink += "?waveform=sine&ampenv=perc-medium";
@@ -385,7 +383,17 @@ function updateResults() {
 
 // Asynchronously add a Xenharmonic wiki link (if it exists) to the results
 // table
-function addXenWikiLink(xenPageName) {
+function addXenWikiLink() {
+  let xenPageName = "";
+  if (res.ratio) {
+    xenPageName = toRatioStr(res.ratio);
+  }
+  else if (res.edoSteps) {
+    xenPageName = res.edoSteps[1] + "edo";
+  }
+  else {
+    return;
+  }
   const xenURL = "https://en.xen.wiki/w/" + xenPageName;
   const pageExists = xenWikiPageExists(xenPageName);
   if (pageExists) {
@@ -668,9 +676,7 @@ function setStateFromParams(urlParams, e) {
   if (e && e.state && e.state.html && e.state.html.trim() !== "") {
     $('#results').replaceWith(e.state.html);
     res = e.state.res;
-    if (res.ratio) {
-      addXenWikiLink(toRatioStr(res.ratio));
-    }
+    addXenWikiLink();
   }
   else {
     updateResults();
