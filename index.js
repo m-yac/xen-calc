@@ -184,7 +184,8 @@ function fmtExtExprLink(str, linkstr) {
 function fmtInlineLink(str, url, sameTab) {
   const a = $('<a>').attr("href", url).html(str);
   if (sameTab) { return a.prop('outerHTML'); }
-  else { return a.attr("target", "_blank").prop('outerHTML'); }
+  else { return a//.attr("target", "_blank")
+                 .prop('outerHTML'); }
 }
 
 // ================================================================
@@ -390,7 +391,7 @@ function addXenWikiLink(xenPageName) {
   if (pageExists) {
     pageExists.then(function(exists) {
       if (exists) {
-        let link = $('<a>').attr("target", "_blank")
+        let link = $('<a>')//.attr("target", "_blank")
                            .attr("href", xenURL)
                            .append(xenURL.replace("https://",""));
         let row = $('<tr>');
