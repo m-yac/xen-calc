@@ -184,7 +184,8 @@ function fmtExtExprLink(str, linkstr) {
 function fmtInlineLink(str, url, sameTab) {
   const a = $('<a>').attr("href", url).html(str);
   if (sameTab) { return a.prop('outerHTML'); }
-  else { return a.attr("target", "_blank").prop('outerHTML'); }
+  else { return a//.attr("target", "_blank")
+                 .prop('outerHTML'); }
 }
 
 // ================================================================
@@ -337,9 +338,7 @@ function updateResults() {
       row.append($('<td>').addClass("resRightColumn").html(v));
       $('#resTable').append(row);
     }
-    if (res.ratio) {
-      addXenWikiLink(toRatioStr(res.ratio));
-    }
+    addXenWikiLink();
     $('#resAudioHeader').html(typeStr + " audio");
     let scaleWorkshopLink = "http://sevish.com/scaleworkshop/";
     scaleWorkshopLink += "?waveform=sine&ampenv=perc-medium";
@@ -384,13 +383,23 @@ function updateResults() {
 
 // Asynchronously add a Xenharmonic wiki link (if it exists) to the results
 // table
-function addXenWikiLink(xenPageName) {
+function addXenWikiLink() {
+  let xenPageName = "";
+  if (res.ratio) {
+    xenPageName = toRatioStr(res.ratio);
+  }
+  else if (res.edoSteps) {
+    xenPageName = res.edoSteps[1] + "edo";
+  }
+  else {
+    return;
+  }
   const xenURL = "https://en.xen.wiki/w/" + xenPageName;
   const pageExists = xenWikiPageExists(xenPageName);
   if (pageExists) {
     pageExists.then(function(exists) {
       if (exists) {
-        let link = $('<a>').attr("target", "_blank")
+        let link = $('<a>')//.attr("target", "_blank")
                            .attr("href", xenURL)
                            .append(xenURL.replace("https://",""));
         let row = $('<tr>');
@@ -614,10 +623,12 @@ function initState() {
   // On my machine firefox has weird behavior on refresh, so I always pushState
   // when refreshing on firefox on a non-blank page (which still gives weird
   // behavior, but at least it's better)
-  const doReplace =
-    [...url.searchParams.entries()].length == 0
-    || !navigator.userAgent.toLowerCase().includes("firefox");
-  updateURLTo(url, doReplace);
+  // const doReplace =
+  //   [...url.searchParams.entries()].length == 0;
+  //   || !navigator.userAgent.toLowerCase().includes("firefox")
+  //   || (performance && performance.getEntriesByType("navigation")[0].type != "reload");
+  // ^ Commenting out this "fix" for now, because I can't replicate it (7/7/21)
+  updateURLTo(url, true); // doReplace);
 }
 
 window.onpopstate = function(e) {
@@ -665,9 +676,7 @@ function setStateFromParams(urlParams, e) {
   if (e && e.state && e.state.html && e.state.html.trim() !== "") {
     $('#results').replaceWith(e.state.html);
     res = e.state.res;
-    if (res.ratio) {
-      addXenWikiLink(microtonal_utils.Fraction(toRatioStr(res.ratio)));
-    }
+    addXenWikiLink();
   }
   else {
     updateResults();
