@@ -349,6 +349,14 @@
     <a class="expr" href="?q=root12(2)">root12(2)</a>,
     <a class="expr" href="?q=sqrt(3/2)">sqrt(3/2)</a>.
   </li>
+  <li>
+    Certain intervals have FJS and Neutral FJS symbols which conflict. For
+    example, <a class="expr" href="?q=M7^11,11">M7^11,11</a> interpreted as
+    an FJS symbol gives 264627/131072, but interpreted as a NFJS symbol gives
+    121/64. Such symbols are always interpreted as FJS symbols unless
+    wrapped in "NFJS", as in
+    <a class="expr" href="?q=NFJS(M7^11,11)">NFJS(M7^11,11)</a>.
+  </li>
 </ol>
 
 <h3 id="examples">Examples</h3>
