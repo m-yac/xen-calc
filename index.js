@@ -151,7 +151,7 @@ function fmtHertz(cents, decimalPlaces, trailingZeros) {
 function fmtFactorization(intv) {
   let fact = [];
   for (const [p,e] of Object.entries(intv)) {
-    if (e.n == 1) { fact.push(p); }
+    if (e.equals(1)) { fact.push(p); }
     else if (e.d == 1) { fact.push(p + "^" + (e.s*e.n)); }
     else { fact.push(p + "^(" + e.toFraction() + ")"); }
   }
