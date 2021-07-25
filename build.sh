@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Update submodules + get jquery
+git submodule update --init
+curl -o jquery-min.js https://code.jquery.com/jquery-3.6.0.min.js
+
 # Clear out the `dist` directory
 rm -rf dist
 mkdir dist
