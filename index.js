@@ -402,10 +402,12 @@ function addXenWikiLink() {
         let link = $('<a>')//.attr("target", "_blank")
                            .attr("href", xenURL)
                            .append(xenURL.replace("https://",""));
-        let row = $('<tr>');
+        let row = $('<tr id="xenWikiLinkRow">');
         row.append($('<td>').addClass("resLeftColumn").html("Xenharmonic wiki page:"));
         row.append($('<td>').addClass("resRightColumn").html(link));
-        $('#resTable').append(row);
+        if (!document.getElementById("xenWikiLinkRow")) {
+          $('#resTable').append(row);
+        }
       }
     });
   }
@@ -518,11 +520,11 @@ function updateEDOApproxs(toUpdate) {
     let row = $('<tr>');
     let firstNonZero = steps.findIndex(step => step[0] != 0);
     if (firstNonZero == -1) { firstNonZero = steps.length; }
-    let stepStrs = steps.map(fmtEDOStep);
+    let stepStrs = steps.map(step => fmtExtExprLink(fmtEDOStep(step)).prop("outerHTML"));
     if (firstNonZero >= 4) {
       stepStrs = stepStrs.slice(0,2).concat(["..."]).concat(stepStrs.slice(firstNonZero-1));
     }
-    const lhs = fmtExtExprLink(stepStrs.join(", "));
+    const lhs = stepStrs.join(", ");
     row.append($('<td>').addClass("approxsLeftColumn").html(lhs));
     let diffStr = diff == 0 ? "exact" : (diff < 0 ? "+" : "-") +
                                         fmtCents(Math.abs(diff), 3, true);
