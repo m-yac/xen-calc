@@ -288,7 +288,7 @@ function getResults() {
     if (res.symb["color"]) {
       const longName = res.symb["color"].replace(" 1st", " unison")
                                         .replace(" 8th", " octave");
-      str = longName + ", " + str;
+      str = fmtExtExprLink(longName, res.symb["color"]).prop('outerHTML') + ", " + str;
     }
     const colorLink = fmtInlineLink("Color notation", "https://en.xen.wiki/w/Color_notation");
     rows.push([colorLink, str]);
