@@ -6,6 +6,7 @@ To get this website working locally (assuming `git`, `curl`, and `npm` are insta
 ```
 $ git clone https://github.com/m-yac/xen-calc.git
 $ cd xen-calc
+$ git submodule update --init
 $ sh build.sh
 ```
 then open `dist/index.html` in a web browser.
