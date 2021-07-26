@@ -87,14 +87,14 @@ const primeLimitOpts =
 const defaultOddLimit = 81;
 function oddLimitOpts(sortRat) {
   let opts = range(3, 100, 2); // all odd numbers from 3 to 99
-  if (sortRat !== "difference") { opts.push("-"); }
+  if (sortRat !== "difference") { opts.push("–"); }
   return opts;
 }
 
 const defaultSortRat = "No-2s Tenney height";
 function sortRatOpts(oddLimit) {
   let opts = ["Tenney height", "No-2s Tenney height", "denominator"];
-  if (oddLimit !== "-") { opts.push("difference"); }
+  if (oddLimit !== "–") { opts.push("difference"); }
   return opts;
 }
 
