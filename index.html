@@ -88,7 +88,8 @@
       </div>-odd-limit, sorted by
       <div id="sortRatContainer" class="selectContainer sortRatSelect">
         <select id="sortRat" title="Sort best rational approximations" aria-label="Sort best rational approximations"></select>
-      </div><span id="cutoffRatSpan">, cutoff at <span id="cutoffRat"></span></span>
+      </div><sup id="sortRatQ" style="margin-left: 1px"><a href="#sortRatExpl" class="alt">?</a></sup><span id="cutoffRatSpan">,
+      cutoff at <span id="cutoffRat"></span></span>
     </div>
 
     <div id="ratTableDiv">
@@ -220,7 +221,7 @@
     List possible English names for an interval using an algorithm based on the
     interval's Neutral FJS name or ups-and-downs notation. See
     <a class="alt" href="https://github.com/m-yac/microtonal-utils/blob/main/lib/english.js" style="font-family: monospace;">english.js</a> in
-    <a href="https://github.com/m-yac/microtonal-utils" class="alt">microtonal-utils</a>.
+    <a class="alt" href="https://github.com/m-yac/microtonal-utils">microtonal-utils</a>.
   </li>
   <li>
     Play intervals and notes (using the synth from Sevish's
@@ -230,15 +231,26 @@
     List best rational approximations of an interval, with options to set the
     <a class="alt" href="https://en.xen.wiki/w/Harmonic_limit">prime limit</a> and
     <a class="alt" href="https://en.xen.wiki/w/Odd_limit">odd limit</a>.
-    By default, the results are sorted by
-    <a class="alt" href="https://en.xen.wiki/w/Tenney_height">Tenney height</a>,
-    a measure of the harmonic complexity of a just ratio. I find this often
-    gives better results than sorting by denominator, though the latter is
-    closest to the output of untwelve's interval calculator (their output also
-    includes semi-convergents which are not best approximations).
+    <span id="sortRatExpl">
+      The results can be sorted by
+      <a class="alt" href="https://en.xen.wiki/w/Tenney_height">Tenney height</a>,
+      no-2s Tenney height (where all factors of 2 are removed before computing
+      the height), the denominator of the ratio, or by the ratio's cents
+      difference. Tenney height and no-2s Tenney height can be thought of as
+      measures of a ratio's harmonic complexity (or dissonance). The latter is
+      selected by default, since I find it often gives the most familiar
+      results. For example, the results for <a class="expr" href="?q=M3%5C12">M3\12</a>
+      and <a class="expr" href="?q=m3%5C12">m3\12</a> are exactly the
+      corresponding 5-limit and 3-limit thirds when sorting by No-2s Tenney
+      height. I find both of these sorts give better results than sorting by
+      denominator, though the latter is closest to the output of untwelve's
+      interval calculator (untwelve's output also includes semi-convergents
+      which are not best approximations).
+    </span>
   </li>
   <li>
-    List best EDO approximations of an interval.
+    List best EDO approximations of an interval. The results can be sorted by
+    EDO or by cents difference.
   </li>
   <li>
     Compute a number of useful functions:
