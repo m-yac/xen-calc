@@ -91,9 +91,9 @@ function oddLimitOpts(sortRat) {
   return opts;
 }
 
-const defaultSortRat = "Tenney height";
+const defaultSortRat = "No-2s Tenney height";
 function sortRatOpts(oddLimit) {
-  let opts = ["Tenney height", "denominator"];
+  let opts = ["Tenney height", "No-2s Tenney height", "denominator"];
   if (oddLimit !== "-") { opts.push("difference"); }
   return opts;
 }
@@ -150,7 +150,7 @@ function fmtHertz(cents, decimalPlaces, trailingZeros) {
 // Given an interval, returns its factorization as a string
 function fmtFactorization(intv) {
   let fact = [];
-  for (const [p,e] of Object.entries(intv)) {
+  for (const [p,e] of intv.factors()) {
     if (e.equals(1)) { fact.push(p); }
     else if (e.d == 1) { fact.push(p + "^" + (e.s*e.n)); }
     else { fact.push(p + "^(" + e.toFraction() + ")"); }
@@ -220,22 +220,24 @@ function getResults() {
     const fact = fmtFactorization(res.intv);
     if (fact.length > 0) {
       rows.push(["Prime factorization", fmtExtExprLink(fact)]);
-      let monzo = res.intv.toMonzo();
+      let [monzo, monzoLink] = [res.intv.toMonzo(), undefined];
       if (monzo.length <= 18*7) {
         if (res.intv.isFrac()) {
-          const monzoLink = fmtInlineLink("Monzo", "https://en.xen.wiki/w/Monzo");
-          rows.push([monzoLink, fmtExtExprLink("|" + monzo.join(", ") + "⟩")]);
+          monzoLink = fmtInlineLink("Monzo", "https://en.xen.wiki/w/Monzo");
         }
         else {
           monzo = monzo.map(x => x.toFraction());
-          const frMonzoLink = fmtInlineLink("Fractional monzo", "https://en.xen.wiki/w/Fractional_monzo");
-          rows.push([frMonzoLink, "|" + monzo.join(", ") + "⟩"]);
+          monzoLink = fmtInlineLink("Fractional monzo", "https://en.xen.wiki/w/Fractional_monzo");
         }
+        rows.push([monzoLink, fmtExtExprLink("|" + monzo.join(", ") + "⟩")]);
       }
     }
     if (res.ratio) {
-      const tenneyLink = fmtInlineLink("Tenney height", "https://en.xen.wiki/w/Tenney_height");
-      rows.push([tenneyLink, +res.height.tenney.toFixed(5) + " (log2(" + res.height.benedetti + "))"])
+      const benedettiLink = fmtInlineLink("Benedetti height", "https://en.xen.wiki/w/Benedetti_height");
+      const tenneyLink    = fmtInlineLink("Tenney height",    "https://en.xen.wiki/w/Tenney_height");
+      const no2Benedetti = microtonal_utils.Interval(res.height.benedetti).factorOut(2)[1].valueOf();
+      rows.push([benedettiLink, res.height.benedetti + " (no-2s: " + no2Benedetti + ")"]);
+      rows.push([tenneyLink, +res.height.tenney.toFixed(5) + " (no-2s: " + Math.log2(no2Benedetti).toFixed(5) + ")"]);
     }
     if (res.edoSteps) {
       const edoLink = fmtInlineLink("EDO", "https://en.wikipedia.org/wiki/Equal_temperament");
@@ -402,10 +404,12 @@ function addXenWikiLink() {
         let link = $('<a>')//.attr("target", "_blank")
                            .attr("href", xenURL)
                            .append(xenURL.replace("https://",""));
-        let row = $('<tr>');
+        let row = $('<tr id="xenWikiLinkRow">');
         row.append($('<td>').addClass("resLeftColumn").html("Xenharmonic wiki page:"));
         row.append($('<td>').addClass("resRightColumn").html(link));
-        $('#resTable').append(row);
+        if (!document.getElementById("xenWikiLinkRow")) {
+          $('#resTable').append(row);
+        }
       }
     });
   }
@@ -439,9 +443,10 @@ function updateRatApproxs(toUpdate) {
                  , primeLimit: isNaN(primeLimit) ? undefined : primeLimit
                  , oddLimit  : isNaN(oddLimit)   ? undefined : oddLimit
                  , numIterations: moreRat };
-  const fn = sortRat === "difference"  ? microtonal_utils.bestRationalApproxsByDiff :
-             sortRat === "denominator" ? microtonal_utils.bestRationalApproxsByDenom
-                                       : microtonal_utils.bestRationalApproxsByHeight;
+  const fn = sortRat === "difference"    ? microtonal_utils.bestRationalApproxsByDiff :
+             sortRat === "denominator"   ? microtonal_utils.bestRationalApproxsByDenom :
+             sortRat === "Tenney height" ? microtonal_utils.bestRationalApproxsByHeight
+                                         : microtonal_utils.bestRationalApproxsByNo2sHeight;
   const ratApproxsOut = fn(res.intv, params);
   const ratApproxs = sortRat === "difference" ? ratApproxsOut.slice(0,10*moreRat)
                                               : ratApproxsOut[1];
@@ -466,10 +471,15 @@ function updateRatApproxs(toUpdate) {
     $('#ratTableMore').html(link);
   }
   else if (sortRat !== "difference" && !ratApproxsOut[0]) {
+    const bnd = sortRat === "denominator"   ? moreRat*100 :
+                sortRat === "Tenney height" ? Math.log2(moreRat*microtonal_utils.bestRationalApproxsByHeightIterationSize(params.primeLimit)).toFixed(2)
+                                            : Math.log2(2*moreRat*microtonal_utils.bestRationalApproxsByNo2sHeightIterationSize(params.primeLimit) + 1).toFixed(2);
+    const abbr = sortRat === "denominator"   ? "d" :
+                 sortRat === "Tenney height" ? "TH"
+                                             : "no-2s TH";
     let link = $('<a>').attr("href", "javascript:void(0)")
                        .attr("id", "ratTableMoreLink")
-                       .html("search for more"
-                             + (moreRat > 1 ? " (x" + moreRat + ")" : ""));
+                       .html("show more (" + abbr + " > " + bnd + ")");
     link.click(function() { moreRat++; updateRatApproxs("moreRat"); });
     $('#ratTableMore').html(link);
   }
@@ -518,13 +528,13 @@ function updateEDOApproxs(toUpdate) {
     let row = $('<tr>');
     let firstNonZero = steps.findIndex(step => step[0] != 0);
     if (firstNonZero == -1) { firstNonZero = steps.length; }
-    let stepStrs = steps.map(fmtEDOStep);
+    let stepStrs = steps.map(step => fmtExtExprLink(fmtEDOStep(step)).prop("outerHTML"));
     if (firstNonZero >= 4) {
       stepStrs = stepStrs.slice(0,2).concat(["..."]).concat(stepStrs.slice(firstNonZero-1));
     }
-    const lhs = fmtExtExprLink(stepStrs.join(", "));
+    const lhs = stepStrs.join(", ");
     row.append($('<td>').addClass("approxsLeftColumn").html(lhs));
-    let diffStr = diff == 0 ? "exact" : (diff < 0 ? "+" : "-") +
+    let diffStr = diff == 0 ? "exact" : (diff < 0 ? "-" : "+") +
                                         fmtCents(Math.abs(diff), 3, true);
     row.append($('<td>').addClass("approxsRightColumn").html(diffStr));
     $("#edoTable").append(row);
@@ -713,6 +723,7 @@ $(document).ready(function() {
     for (const [param,_] of [...url.searchParams.entries()]) {
       url.searchParams.delete(param);
     }
+    url.hash = "";
     updateURLTo(url);
   });
 

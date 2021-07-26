@@ -7,9 +7,9 @@ The main datatype of this library is `Interval`, located in `lib/interval.js`. I
 Like [`fraction.js`](https://github.com/infusion/Fraction.js/), you can perform calculations using `Intervals` without losing any precision. For example, notice that the representations of `5/4 * 4\12 / 1\12` and `5/4 * 3\12` are identical:
 ```javascript
 > Interval(5,4).mul(Interval(2).pow(4,12)).div(Interval(2).pow(1,12))
-{ '2': { s: -1n, n: 7n, d: 4n }, '5': { s: 1n, n: 1n, d: 1n } }
+{ _fact: { '2': { s: -1n, n: 7n, d: 4n }, '5': { s: 1n, n: 1n, d: 1n } } }
 > Interval(5,4).mul(Interval(2).pow(3,12))
-{ '2': { s: -1n, n: 7n, d: 4n }, '5': { s: 1n, n: 1n, d: 1n } }
+{ _fact: { '2': { s: -1n, n: 7n, d: 4n }, '5': { s: 1n, n: 1n, d: 1n } } }
 ```
 This is because both have the factorization `2^(-7/4) * 5^1`. Trying to do this same calculation with javascript's number type, we get imprecision:
 ```javascript
@@ -68,11 +68,31 @@ $ npm run test
     ✓ root/toNthRoot: Interval(fr).root(n).toNthRoot() == {k: fr, n: n}
     ✓ root/valueOf: Interval(fr).root(n).valueOf() ~= Math.pow(fr, 1/n)
     ✓ factorOut: i1 == i2.pow(i1.factorOut(i2)[0]).mul(i1.factorOut(i2)[1])
+    ✓ pow/valueOf_log: i.pow(fr).valueOf_log(i) == fr.valueOf()
+    ✓ valueOf_log: i1.valueOf_log(i2) ~= Math.log(i1) / Math.log(i2)
+    ✓ toCents: i.toCents() ~= 1200 * Math.log2(i)
     ✓ isPrimeLimit: i.inPrimeLimit(k) for all k >= i.primeLimit()
     ✓ isPrimeLimit: !i.inPrimeLimit(k) for all k < i.primeLimit()
     ✓ isOddLimit: Interval(fr).inOddLimit(k) for all k >= Interval(fr).oddLimit()
     ✓ isOddLimit: !Interval(fr).inOddLimit(k) for k < Interval(fr).oddLimit()
     ✓ oddLimit: Interval(odd,even).oddLimit() == Interval(even,odd).oddLimit() == odd
+
+  Best approximations
+    ✓ regression: bestRationalApproxsByNo2sHeight({2: 400/1200})
+    ✓ regression: bestRationalApproxsByNo2sHeight({2: 400/1200}, {primeLimit: 13})
+    ✓ regression: bestRationalApproxsByNo2sHeight({2: 300/1200}, {numIterations: 3})
+    ✓ regression: bestRationalApproxsByNo2sHeight({2: 300/1200}, {primeLimit: 13, numIterations: 2})
+    ✓ regression: bestRationalApproxsByNo2sHeight({2: 600/1200})
+    ✓ regression: bestRationalApproxsByNo2sHeight({2: 600/1200}, {primeLimit: 13, oddLimit: 81})
+    ✓ regression: bestRationalApproxsByNo2sHeight(81,64, {primeLimit: 13, oddLimit: 81})
+    ✓ regression: bestRationalApproxsByHeight({2: 400/1200}, {primeLimit: 19})
+    ✓ regression: bestRationalApproxsByHeight({2: 300/1200}, {primeLimit: 13})
+    ✓ regression: bestRationalApproxsByHeight({2: 600/1200}, {primeLimit: 13, oddLimit: 81})
+    ✓ regression: bestRationalApproxsByHeight(81,64, {primeLimit: 19})
+    ✓ regression: bestRationalApproxsByDiff({2: 350/1200}, {oddLimit: 9})
+    ✓ regression: bestEDOApproxsByEDO(5,4)
+    ✓ regression: bestEDOApproxsByEDO({2: 100/1200})
+    ✓ regression: bestEDOApproxsByDiff(5,4)
 
   Pythagorean intervals
     ✓ pyDegree(pyInterval(d,o/4)) == d (if d != -1)
@@ -89,6 +109,6 @@ $ npm run test
     ✓ colorTemperament(135,128) == layobi
     ✓ colorTemperament([24,-21,4]) == sasa-quadyo
 
-  34 passing (233ms)
+  52 passing (328ms)
 
 ```

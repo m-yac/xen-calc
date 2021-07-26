@@ -14,7 +14,7 @@
 <meta name="theme-color" content="#ffffff">
 <link rel="stylesheet" href="style.css" />
 <!-- Includes: -->
-<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script type="text/javascript" src="jquery.min.js"></script>
 <script type="text/javascript" src="microtonal-utils/dist/microtonal-utils.js"></script>
 <script type="text/javascript" src="scale-workshop/src/lib/ramda-0.27.1.min.js"></script>
 <script type="text/javascript" src="scale-workshop/src/js/helpers.js"></script>
@@ -88,7 +88,8 @@
       </div>-odd-limit, sorted by
       <div id="sortRatContainer" class="selectContainer sortRatSelect">
         <select id="sortRat" title="Sort best rational approximations" aria-label="Sort best rational approximations"></select>
-      </div><span id="cutoffRatSpan">, cutoff at <span id="cutoffRat"></span></span>
+      </div><sup id="sortRatQ" style="margin-left: 1px"><a href="#sortRatExpl" class="alt">?</a></sup><span id="cutoffRatSpan">,
+      cutoff at <span id="cutoffRat"></span></span>
     </div>
 
     <div id="ratTableDiv">
@@ -220,7 +221,7 @@
     List possible English names for an interval using an algorithm based on the
     interval's Neutral FJS name or ups-and-downs notation. See
     <a class="alt" href="https://github.com/m-yac/microtonal-utils/blob/main/lib/english.js" style="font-family: monospace;">english.js</a> in
-    <a href="https://github.com/m-yac/microtonal-utils" class="alt">microtonal-utils</a>.
+    <a class="alt" href="https://github.com/m-yac/microtonal-utils">microtonal-utils</a>.
   </li>
   <li>
     Play intervals and notes (using the synth from Sevish's
@@ -230,15 +231,26 @@
     List best rational approximations of an interval, with options to set the
     <a class="alt" href="https://en.xen.wiki/w/Harmonic_limit">prime limit</a> and
     <a class="alt" href="https://en.xen.wiki/w/Odd_limit">odd limit</a>.
-    By default, the results are sorted by
-    <a class="alt" href="https://en.xen.wiki/w/Tenney_height">Tenney height</a>,
-    a measure of the harmonic complexity of a just ratio. I find this often
-    gives better results than sorting by denominator, though the latter is
-    closest to the output of untwelve's interval calculator (their output also
-    includes semi-convergents which are not best approximations).
+    <span id="sortRatExpl">
+      The results can be sorted by
+      <a class="alt" href="https://en.xen.wiki/w/Tenney_height">Tenney height</a>,
+      no-2s Tenney height (where all factors of 2 are removed before computing
+      the height), the denominator of the ratio, or by the ratio's cents
+      difference. Tenney height and no-2s Tenney height can be thought of as
+      measures of a ratio's harmonic complexity (or dissonance). The latter is
+      selected by default, since I find it often gives the most familiar
+      results. For example, the results for <a class="expr" href="?q=M3%5C12">M3\12</a>
+      and <a class="expr" href="?q=m3%5C12">m3\12</a> are exactly the
+      corresponding 5-limit and 3-limit thirds when sorting by No-2s Tenney
+      height. I find both of these sorts give better results than sorting by
+      denominator, though the latter is closest to the output of untwelve's
+      interval calculator (untwelve's output also includes semi-convergents
+      which are not best approximations).
+    </span>
   </li>
   <li>
-    List best EDO approximations of an interval.
+    List best EDO approximations of an interval. The results can be sorted by
+    EDO or by cents difference.
   </li>
   <li>
     Compute a number of useful functions:
@@ -349,6 +361,14 @@
     <a class="expr" href="?q=root12(2)">root12(2)</a>,
     <a class="expr" href="?q=sqrt(3/2)">sqrt(3/2)</a>.
   </li>
+  <li>
+    Certain intervals have FJS and Neutral FJS symbols which conflict. For
+    example, <a class="expr" href="?q=M7^11,11">M7^11,11</a> interpreted as
+    an FJS symbol gives 264627/131072, but interpreted as a NFJS symbol gives
+    121/64. Such symbols are always interpreted as FJS symbols unless
+    wrapped in "NFJS", as in
+    <a class="expr" href="?q=NFJS(M7^11,11)">NFJS(M7^11,11)</a>.
+  </li>
 </ol>
 
 <h3 id="examples">Examples</h3>
@@ -388,7 +408,7 @@ Here are a few examples of ways you can use this tool:
   <li>
     <p>
       Suppose we wanted to find just ratios for a neutral third. (The
-      <a href="https://en.wikipedia.org/wiki/Neutral_third" class="alt" target="_blank">Wikipedia page for neutral third</a>
+      <a href="https://en.wikipedia.org/wiki/Neutral_third" class="alt">Wikipedia page for neutral third</a>
       can tell us, but suppose we want to figure it out ourselves.) A neutral
       third is an interval roughly halfway between a major third and minor
       third, so I would start by typing in something like
@@ -427,8 +447,8 @@ Here are a few examples of ways you can use this tool:
   <li>
     <p>
       The following is a quote from the fantastic Youtube video
-      <a href="https://www.youtube.com/watch?v=7EveJYDloAc" class="alt" target="_blank">Analyzing The Saxophone Solo From Dolphin Shoals</a>
-      (at <a href="https://www.youtube.com/watch?v=7EveJYDloAc&t=514s" class="alt" target="_blank">8:34</a>).
+      <a href="https://www.youtube.com/watch?v=7EveJYDloAc" class="alt">Analyzing The Saxophone Solo From Dolphin Shoals</a>
+      (at <a href="https://www.youtube.com/watch?v=7EveJYDloAc&t=514s" class="alt">8:34</a>).
     </p>
     <blockquote cite="https://www.youtube.com/watch?v=7EveJYDloAc">
         Another
@@ -446,7 +466,7 @@ Here are a few examples of ways you can use this tool:
     </blockquote>
     <p>
       The
-      <a href="https://en.wikipedia.org/wiki/Blue_note" class="alt" target="_blank">Wikipedia page for blue note</a>,
+      <a href="https://en.wikipedia.org/wiki/Blue_note" class="alt">Wikipedia page for blue note</a>,
       seems to suggest that this blue "lowered third" ought to be around
       <a class="expr" href="?q=6/5">6/5</a>, or possibly somewhere in the
       neutral third range when slurred with
@@ -455,7 +475,7 @@ Here are a few examples of ways you can use this tool:
     <p>
       So what interval does Katsuta actually play? I used a spectrum analyzer
       (specifically
-      <a href="https://www.sonicvisualiser.org/" class="alt" target="_blank">Sonic Visualizer</a>,
+      <a href="https://www.sonicvisualiser.org/" class="alt">Sonic Visualizer</a>,
       but any will do) and found that this note starts at around 1500Hz,
       stays at 1513Hz for a good chunk of the middle, and ends at around
       1520Hz. I also checked a couple of other notes and it seems like the piece
