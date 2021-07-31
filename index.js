@@ -251,9 +251,20 @@ function getResults() {
     rows.push([hertzLink, fmtExtExprLink(fmtHertz(res.hertz, 5))]);
     rows.push(["Tuning meter read-out", res.tuningMeter]);
   }
+  let did_merged_FJS_color = false;
+  // Special case for "colorless" notes - the FJS and color notations are the same!
+  if (res.type == "note" && res.symb && res.symb["FJS"] && res.symb["color-abbrev"]
+                                     && res.symb["FJS"] == res.symb["color-abbrev"]) {
+    const linkStr = fmtInlineLink("FJS", "https://en.xen.wiki/w/Functional_Just_System")
+                    + "/" +
+                    fmtInlineLink("color", "https://en.xen.wiki/w/Color_notation")
+                    + " name";
+    rows.push([linkStr + "", fmtExtExprLink(res.symb["FJS"])]);
+    did_merged_FJS_color = true;
+  }
   // Add any symbols
   if (res.symb) {
-    if (res.symb["FJS"] &&
+    if (res.symb["FJS"] && !did_merged_FJS_color &&
         // for now we only have integer accidentals, since I'm not sure how
         //  useful showing non-integer accidentals actually is
         !(res.symb["FJS"].includes("root") || res.symb["FJS"].includes("sqrt"))) {
@@ -279,11 +290,11 @@ function getResults() {
   }
   if (res.english && res.english.length > 0){
     const end = res.english.length > 1 ? "(s)" : "";
-    const enNameLink = fmtInlineLink("(Possible) English name" + end, "#englishNames", true);
+    const enNameLink = fmtInlineLink("(Possible) English name" + end, "about.html#englishNames", true);
     rows.push([enNameLink, res.english.join("<br>")]);
   }
   // Add any color name
-  if (res.symb && res.symb["color-abbrev"]) {
+  if (res.symb && res.symb["color-abbrev"] && !did_merged_FJS_color) {
     let str = fmtExtExprLink(res.symb["color-abbrev"]).prop('outerHTML');
     if (res.symb["color"]) {
       const longName = res.symb["color"].replace(" 1st", " unison")
@@ -375,7 +386,7 @@ function updateResults() {
       let nb = $('<p>').attr("style", "font-size: 95%; text-align: left;");
       nb.append("Perhaps you're trying to mix multiplicative and additive "
                 + "expressions? See ");
-      nb.append($('<a>').addClass("alt").attr("href", "#tipMulAddExprs")
+      nb.append($('<a>').addClass("alt").attr("href", "about.html#tipMulAddExprs")
                         .html("this tip"));
       nb.append(".");
       $('#errors').append(nb);
