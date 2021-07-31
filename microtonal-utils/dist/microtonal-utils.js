@@ -884,9 +884,10 @@ function colorSymb(a,b, opts) {
   * @param {integer} m the magnitude
   * @param {Interval} iNo23 cannot contain factors of 2 or 3
   * @param {integer} d the degree
+  * @param {boolean} [logCorrections] defaults to false
   * @returns {Interval}
   */
-function colorFromSymb(cos, m, iNo23, d) {
+function colorFromSymb(cos, m, iNo23, d, logCorrections) {
   iNo23 = Interval(iNo23);
   if (iNo23.hasExp(2) || iNo23.hasExp(3)) {
     throw new Error("Second argument to colorFromSymb has a factor of 2 or 3")
@@ -916,14 +917,16 @@ function colorFromSymb(cos, m, iNo23, d) {
   const e2 = -3*zd_diff - 11*k;
   const e3 = 2*zd_diff + 7*k;
 
-  // The above is sometimes different from what's given on:
-  // https://en.xen.wiki/w/Color_notation
-  const e3_xenWiki = mod(2*zd - 2*zdNo23 + 3, 7) + 7*m - 3;
-  const e2_xenWiki = (zd - zdNo23 - 11*e3_xenWiki) / 7;
-  if (e2 != e2_xenWiki || e3 != e3_xenWiki) {
-    const ab1 = "a=" + e2_xenWiki + ",b=" + e3_xenWiki;
-    const ab2 = "a=" + e2 + ",b=" + e3;
-    console.log("Corrected ratio-from-color formula: " + ab1 + " ~> " + ab2);
+  if (logCorrections) {
+    // The above is sometimes different from what's given on:
+    // https://en.xen.wiki/w/Color_notation
+    const e3_xenWiki = mod(2*zd - 2*zdNo23 + 3, 7) + 7*m - 3;
+    const e2_xenWiki = (zd - zdNo23 - 11*e3_xenWiki) / 7;
+    if (e2 != e2_xenWiki || e3 != e3_xenWiki) {
+      const ab1 = "a=" + e2_xenWiki + ",b=" + e3_xenWiki;
+      const ab2 = "a=" + e2 + ",b=" + e3;
+      console.log("Corrected ratio-from-color formula: " + ab1 + " ~> " + ab2);
+    }
   }
 
   return iNo23.mul(Interval([cos+e2,e3]));
@@ -957,7 +960,7 @@ function colorNote(a,b, opts) {
   let [e2,iNo2] = i.factorOut(2);
   let [e3,iNo23] = iNo2.factorOut(3);
   if (iNo23.equals(1)) {
-    return pyNote(pyi, useASCII);
+    return pyNote(i, useASCII);
   }
   for (const [p,e] of iNo23.factors()) {
     const j = colorFromSymb(0, 0, Interval(p), 1).pow(e);
@@ -1842,11 +1845,12 @@ module['exports']['Interval'] = require('./interval.js');
 Object.assign(module['exports'], require('./pythagorean.js'));
 Object.assign(module['exports'], require('./fjs.js'));
 Object.assign(module['exports'], require('./edo.js'));
+Object.assign(module['exports'], require('./color.js'));
 Object.assign(module['exports'], require('./approx.js'));
 Object.assign(module['exports'], require('./english.js'));
 Object.assign(module['exports'], require('./parser.js'));
 
-},{"./approx.js":1,"./edo.js":3,"./english.js":4,"./fjs.js":5,"./interval.js":7,"./parser.js":8,"./pythagorean.js":11,"fraction.js":15}],7:[function(require,module,exports){
+},{"./approx.js":1,"./color.js":2,"./edo.js":3,"./english.js":4,"./fjs.js":5,"./interval.js":7,"./parser.js":8,"./pythagorean.js":11,"fraction.js":15}],7:[function(require,module,exports){
 /**
  * The interval datatype, based on `Fraction` from `fraction.js` on npm
  * @copyright 2021 Matthew Yacavone (matthew [at] yacavone [dot] net)
