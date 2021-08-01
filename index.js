@@ -442,13 +442,7 @@ function updateRatApproxs(toUpdate) {
   updateDropdown($('#sortRat')   , sortRatOpts(oddLimit), sortRat);
 
   const cutoffDenom = res.edoSteps ? res.edoSteps[1] : 12;
-  if (sortRat === "difference") {
-    $('#cutoffRatSpan').addClass("hidden");
-  }
-  else {
-    $('#cutoffRatSpan').removeClass("hidden");
-    $('#cutoffRat').html("±" + fmtCents(600/cutoffDenom, 1));
-  }
+  $('#cutoffRat').html("±" + fmtCents(600/cutoffDenom, 1));
 
   const params = { cutoff: microtonal_utils.Interval(2).pow(1, 2*cutoffDenom)
                  , primeLimit: isNaN(primeLimit) ? undefined : primeLimit
