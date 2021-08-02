@@ -295,12 +295,22 @@ function getResults() {
   }
   // Add any color name
   if (res.symb && res.symb["color-abbrev"] && !did_merged_FJS_color) {
-    let str = fmtExtExprLink(res.symb["color-abbrev"]).prop('outerHTML');
-    if (res.symb["color"]) {
-      const longName = res.symb["color"].replace(" 1st", " unison")
-                                        .replace(" 8th", " octave");
-      str = fmtExtExprLink(longName, res.symb["color"]).prop('outerHTML') + ", " + str;
+    let str = "";
+    if (res.type == "interval" && res.cents < 0) {
+      const name = microtonal_utils.colorSymb(res.intv.recip(), {verbosity: 1});
+      const dispName = microtonal_utils.colorSymb(res.intv.recip(), {verbosity: 1, useWordNegative: true})
+                                       .replace(" 1st", " unison")
+                                       .replace(" 8th", " octave");
+      str += "descending " + fmtExtExprLink(dispName, name).prop('outerHTML') + ",<br>";
     }
+    if (res.symb["color"]) {
+      const name = microtonal_utils.colorSymb(res.intv, {verbosity: 1});
+      const dispName = microtonal_utils.colorSymb(res.intv, {verbosity: 1, useWordNegative: true})
+                                       .replace(" 1st", " unison")
+                                       .replace(" 8th", " octave");
+      str += fmtExtExprLink(dispName, name).prop('outerHTML') + ", ";
+    }
+    str += fmtExtExprLink(res.symb["color-abbrev"]).prop('outerHTML');
     const colorLink = fmtInlineLink("Color notation", "https://en.xen.wiki/w/Color_notation");
     rows.push([colorLink, str]);
   }
