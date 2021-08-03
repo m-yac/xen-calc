@@ -149,13 +149,22 @@ function fmtHertz(cents, decimalPlaces, trailingZeros) {
 }
 // Given an interval, returns its factorization as a string
 function fmtFactorization(intv) {
-  let fact = [];
+  let [fact_off, fact_on] = [[], []];
   for (const [p,e] of intv.factors()) {
-    if (e.equals(1)) { fact.push(p); }
-    else if (e.d == 1) { fact.push(p + "^" + (e.s*e.n)); }
-    else { fact.push(p + "^(" + e.toFraction() + ")"); }
+    if (e.equals(1)) {
+      fact_off.push(p);
+      fact_on.push(p);
+    }
+    else if (e.d == 1) {
+      fact_off.push(p + "<sup>" + (e.s*e.n) + "</sup>");
+      fact_on.push(p + "^" + (e.s*e.n));
+    }
+    else {
+      fact_off.push(p + "<sup>" + e.toFraction() + "</sup>")
+      fact_on.push(p + "^(" + e.toFraction() + ")");
+    }
   }
-  return fact.join(" * ");
+  return [fact_off.join(" * "), fact_on.join(" * ")];
 }
 // Given an interval, returns it formatted as a ratio if it's a ratio, an
 //  nth root if its an nth root for n <= 6 or n equal to the second argument, or
@@ -163,7 +172,8 @@ function fmtFactorization(intv) {
 function fmtExpression(intv, prefEDO) {
   try {
     if (intv.toNthRoot().n <= 6) {
-      return intv.toNthRootString();
+      const nthRootStr = intv.toNthRootString();
+      return [nthRootStr, nthRootStr];
     }
   }
   catch (err) {}
@@ -198,6 +208,7 @@ function fmtInlineLink(str, url, sameTab) {
 // should be the contents of the results table
 function getResults() {
   res = microtonal_utils.parseCvt($('#expr').val());
+  const intv = res.type == "interval" ? res.intv : res.intvToRef.mul(res.ref.intvToA4);
   let [typeStr, rows, scaleWorkshopData] = ["", [], ""];
   // Add interval-specific rows
   if (res.type === "interval") {
@@ -217,9 +228,15 @@ function getResults() {
       }
       catch (err) {}
     }
-    const fact = fmtFactorization(res.intv);
-    if (fact.length > 0) {
-      rows.push(["Prime factorization", fmtExtExprLink(fact)]);
+    const [fact_off, fact_on] = fmtFactorization(res.intv);
+    if (fact_off.length > 0) {
+      if (fact_off !== fact_on) {
+        rows.push(["Prime factorization", { hoverSwap_off: fact_off
+                                          , hoverSwap_on: fmtExtExprLink(fact_on) }]);
+      }
+      else {
+        rows.push(["Prime factorization", fmtExtExprLink(fact_on)]);
+      }
       let [monzo, monzoLink] = [res.intv.toMonzo(), undefined];
       if (monzo.length <= 18*7) {
         if (res.intv.isFrac()) {
@@ -269,18 +286,42 @@ function getResults() {
         //  useful showing non-integer accidentals actually is
         !(res.symb["FJS"].includes("root") || res.symb["FJS"].includes("sqrt"))) {
       const fjsLink = fmtInlineLink("FJS name", "https://en.xen.wiki/w/Functional_Just_System");
-      rows.push([fjsLink, fmtExtExprLink(res.symb["FJS"])]);
+      const {otos, utos, pyi} = microtonal_utils.fjsAccidentals(intv);
+      if (otos.length != 0 || utos.length != 0) {
+        const otoStr = otos.length == 0 ? "" : "<sup>" + otos.join(",") + "</sup>";
+        const utoStr = utos.length == 0 ? "" : "<sub>" + utos.join(",") + "</sub>";
+        const withSupsSubs = (res.type == "interval" ? microtonal_utils.pySymb(pyi)
+                                                     : microtonal_utils.pyNote(pyi))
+                             + '<span class="supsub">' + otoStr + utoStr + '</span>';
+        rows.push([fjsLink, { hoverSwap_off: withSupsSubs
+                            , hoverSwap_on: fmtExtExprLink(res.symb["FJS"]) }]);
+      }
+      else {
+        rows.push([fjsLink, fmtExtExprLink(res.symb["FJS"])]);
+      }
     }
     if (res.symb["NFJS"] &&
         // for now we only have integer accidentals, since I'm not sure how
         //  useful showing non-integer accidentals actually is
         !(res.symb["NFJS"].includes("root") || res.symb["NFJS"].includes("sqrt"))) {
+      const nfjsLink = fmtInlineLink("Neutral FJS name", "https://en.xen.wiki/w/User:M-yac/Neutral_Intervals_and_the_FJS");
       let linkStr = res.symb["NFJS"];
       if (res.symb["NFJS"] !== microtonal_utils.parseCvt(res.symb["NFJS"]).symb["NFJS"]) {
         linkStr = "NFJS(" + res.symb["NFJS"] + ")";
       }
-      const nfjsLink = fmtInlineLink("Neutral FJS name", "https://en.xen.wiki/w/User:M-yac/Neutral_Intervals_and_the_FJS");
-      rows.push([nfjsLink, fmtExtExprLink(res.symb["NFJS"], linkStr)]);
+      const {otos, utos, pyi} = microtonal_utils.fjsAccidentals(intv, microtonal_utils.nfjsSpec);
+      if (otos.length != 0 || utos.length != 0) {
+        const otoStr = otos.length == 0 ? "" : "<sup>" + otos.join(",") + "</sup>";
+        const utoStr = utos.length == 0 ? "" : "<sub>" + utos.join(",") + "</sub>";
+        const withSupsSubs = (res.type == "interval" ? microtonal_utils.pySymb(pyi)
+                                                     : microtonal_utils.pyNote(pyi))
+                             + '<span class="supsub">' + otoStr + utoStr + '</span>';
+        rows.push([fjsLink, { hoverSwap_off: withSupsSubs
+                            , hoverSwap_on: fmtExtExprLink(res.symb["NFJS"], linkStr) }]);
+      }
+      else {
+        rows.push([nfjsLink, fmtExtExprLink(res.symb["NFJS"], linkStr)]);
+      }
     }
     if (res.symb["ups-and-downs"]) {
       const updnsLink = fmtInlineLink("Ups-and-downs notation", "https://en.xen.wiki/w/Ups_and_Downs_Notation");
@@ -296,23 +337,33 @@ function getResults() {
   // Add any color name
   if (res.symb && res.symb["color-abbrev"] && !did_merged_FJS_color) {
     let str = "";
+    const symbFn = res.type == "interval" ? microtonal_utils.colorSymb
+                                          : microtonal_utils.colorNote;
     if (res.type == "interval" && res.cents < 0) {
-      const name = microtonal_utils.colorSymb(res.intv.recip(), {verbosity: 1});
-      const dispName = microtonal_utils.colorSymb(res.intv.recip(), {verbosity: 1, useWordNegative: true})
-                                       .replace(" 1st", " unison")
-                                       .replace(" 8th", " octave");
+      const name = symbFn(intv.recip(), {verbosity: 1});
+      const dispName = symbFn(intv.recip(), {verbosity: 1, useWordNegative: true})
+                         .replace(" 1st", " unison")
+                         .replace(" 8th", " octave");
       str += "descending " + fmtExtExprLink(dispName, name).prop('outerHTML') + ",<br>";
     }
     if (res.symb["color"]) {
-      const name = microtonal_utils.colorSymb(res.intv, {verbosity: 1});
-      const dispName = microtonal_utils.colorSymb(res.intv, {verbosity: 1, useWordNegative: true})
-                                       .replace(" 1st", " unison")
-                                       .replace(" 8th", " octave");
+      const name = symbFn(intv, {verbosity: 1});
+      const dispName = symbFn(intv, {verbosity: 1, useWordNegative: true})
+                         .replace(" 1st", " unison")
+                         .replace(" 8th", " octave");
       str += fmtExtExprLink(dispName, name).prop('outerHTML') + ", ";
     }
-    str += fmtExtExprLink(res.symb["color-abbrev"]).prop('outerHTML');
     const colorLink = fmtInlineLink("Color notation", "https://en.xen.wiki/w/Color_notation");
-    rows.push([colorLink, str]);
+    const withSupsSubs = symbFn(intv, {addHTMLExps: true});
+    if (withSupsSubs !== res.symb["color-abbrev"]) {
+      const str_off = str + withSupsSubs;
+      const str_on = str + fmtExtExprLink(res.symb["color-abbrev"]).prop("outerHTML");
+      rows.push([colorLink, { hoverSwap_off: str_off, hoverSwap_on: str_on }]);
+    }
+    else {
+      str += fmtExtExprLink(res.symb["color-abbrev"]).prop("outerHTML");
+      rows.push([colorLink, str])
+    }
   }
   // Add a note's interval reference
   if (res.type === "note" && !res.intvToRef.equals(1)) {
@@ -323,8 +374,9 @@ function getResults() {
                 fmtExtExprLink(fmtEDOStep(res.edoStepsToRef))]);
     }
     else {
-      rows.push(["Interval from reference note",
-                fmtExtExprLink(fmtExpression(res.intvToRef))]);
+      const [expr_off, expr_on] = fmtExpression(res.intvToRef);
+      rows.push(["Interval from reference note", { hoverSwap_off: expr_off
+                                                 , hoverSwap_on: fmtExtExprLink(expr_on) }]);
     }
     rows.push(["Reference note and frequency", refSymb + " = " + fmtHertz(res.ref.hertz, 2)])
   }
@@ -358,7 +410,15 @@ function updateResults() {
     for (const [n,v] of rows) {
       let row = $('<tr>');
       row.append($('<td>').addClass("resLeftColumn").html(n ? n + ":" : n));
-      row.append($('<td>').addClass("resRightColumn").html(v));
+      if (v && (v.hoverSwap_off || v.hoverSwap_on)) {
+        const cell = $('<td>').addClass("resRightColumn").addClass("hoverSwap");
+        cell.append($('<span>').addClass('hoverSwap_off').html(v.hoverSwap_off || ""));
+        cell.append($('<span>').addClass('hoverSwap_on').html(v.hoverSwap_on || ""));
+        row.append(cell);
+      }
+      else {
+        row.append($('<td>').addClass("resRightColumn").html(v));
+      }
       $('#resTable').append(row);
     }
     addXenWikiLink();

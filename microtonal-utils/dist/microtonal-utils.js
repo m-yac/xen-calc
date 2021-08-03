@@ -616,15 +616,28 @@ function colorMultiPrefix(n) {
   *
   * @param {integer} p a prime
   * @param {integer} e the prime exponent
-  * @param {boolean} [abbreviate=false]
+  * @param {Object=} opts
+  * @param {integer=} opts.verbosity verbosity can be the default 0
+  *                                  (e.g. "17ooo"), 1 (e.g. "triso-a"), or 2
+  *                                  (the same as 1 for this function)
+  * @param {boolean=} opts.addHTMLExps defaults to false
   * @returns {string}
   */
-function colorFactorPrefix(p, e, verbosity) {
+function colorFactorPrefix(p, e, opts) {
   if (e == 0) { return ""; }
+  if (opts == undefined) { opts = {}; }
+  const {verbosity, addHTMLExps} = opts;
+  if (verbosity == undefined) { verbosity = 0; }
+
   const base = colorPrimePrefix(p, e > 0 ? "o" : "u", verbosity == 0);
   const eAbs = Math.abs(e);
   if (verbosity == 0) {
-    return base + base[base.length-1].repeat(eAbs-1);
+    if (addHTMLExps && eAbs > 2) {
+      return base + "<sup>" + eAbs + "</sup>";
+    }
+    else {
+      return base + base[base.length-1].repeat(eAbs-1);
+    }
   }
   else {
     if (eAbs == 1) { return base; }
@@ -670,6 +683,7 @@ function findRuns(factors) {
   * @param {boolean=} opts.hideMagnitude defaults to false
   * @param {boolean=} opts.useFullMagnitude defaults to false
   * @param {boolean=} opts.keepTrailingHyphen defaults to false
+  * @param {boolean=} opts.addHTMLExps defaults to false
   * @returns {string}
   */
 function colorPrefix(a,b, opts) {
@@ -729,12 +743,12 @@ function colorPrefix(a,b, opts) {
   let pStr = "";
   // the wa case
   if (factors.length == 0) {
-    pStr = colorFactorPrefix(3, 1, verbosity);
+    pStr = colorFactorPrefix(3, 1, opts);
   }
   // if verbosity != 0, pull out runs of prime exponents
   else if (verbosity != 0) {
     for (const [ps,e] of findRuns(factors)) {
-      const psStrs = ps.map(([p,si]) => colorFactorPrefix(p, si, verbosity));
+      const psStrs = ps.map(([p,si]) => colorFactorPrefix(p, si, opts));
       if (e == 1) { pStr = psStrs.reverse().join("") + pStr }
       else if (e == 2 && ps.length == 1) { pStr = psStrs[0] + psStrs[0] + pStr; }
       else { pStr = colorMultiPrefix(e) + psStrs.reverse().join("") + "-a" + pStr; }
@@ -742,7 +756,7 @@ function colorPrefix(a,b, opts) {
   }
   else {
     for (const [p,e] of factors) {
-      pStr = colorFactorPrefix(p, e.valueOf(), verbosity) + pStr;
+      pStr = colorFactorPrefix(p, e.valueOf(), opts) + pStr;
     }
   }
   // get rid of a trailing "-a"
@@ -790,6 +804,7 @@ function colorPrefix(a,b, opts) {
   *                                       a "co" prefix is never added
   * @param {boolean=} opts.useFullMagnitude defaults to false
   * @param {boolean=} opts.useWordNegative defaults to false
+  * @param {boolean=} opts.addHTMLExps defaults to false
   * @returns {string}
   */
 function colorSymb(a,b, opts) {
@@ -798,12 +813,13 @@ function colorSymb(a,b, opts) {
     opts = b;
     b = undefined;
   }
-  let {verbosity, addCosAfterDeg, useFullMagnitude, useWordNegative} = opts || {};
+  let {verbosity, addCosAfterDeg, useFullMagnitude, useWordNegative, addHTMLExps} = opts || {};
   if (verbosity == undefined) { verbosity = 0; }
   if (addCosAfterDeg == undefined) { addCosAfterDeg = 13; }
   const optsToPass = { verbosity: verbosity
                      , addCosAfterDeg: addCosAfterDeg
-                     , useFullMagnitude: useFullMagnitude };
+                     , useFullMagnitude: useFullMagnitude
+                     , addHTMLExps: addHTMLExps };
 
   const i = Interval(a,b);
   const i_logval = i.valueOf_log();
@@ -887,6 +903,7 @@ function colorFromSymb(cos, m, iNo23, d, logCorrections) {
   *                                  (e.g. "17ogC5"), 1 (e.g. "sogu C5"), or 2
   *                                  (the same as 1 for this function)
   * @param {boolean=} opts.useASCII defaults to false
+  * @param {boolean=} opts.addHTMLExps defaults to false
   * @returns {string}
   */
 function colorNote(a,b, opts) {
@@ -895,11 +912,12 @@ function colorNote(a,b, opts) {
     opts = b;
     b = undefined;
   }
-  let {verbosity, useASCII} = opts || {};
+  let {verbosity, useASCII, addHTMLExps} = opts || {};
   if (verbosity == undefined) { verbosity = 0; }
   const optsToPass = { verbosity: verbosity
                      , addCosAfterDeg: Infinity
-                     , hideMagnitude: true };
+                     , hideMagnitude: true
+                     , addHTMLExps: addHTMLExps };
 
   const i = Interval(a,b);
   let [e2,iNo2] = i.factorOut(2);
@@ -1285,7 +1303,7 @@ const primeNames = { '5':  ["classic", "cls."]
   * Neutral FJS and ups-and-downs notations.
   *
   * @param {Interval} i
-  * @param {{abbreviate: boolean, prefEDO: }=} opts
+  * @param {{abbreviate: boolean, prefEDO: integer}=} opts
   * @returns {Array.<string>}
   */
 function enNames(a,b, opts) {
@@ -1728,7 +1746,7 @@ function fjsAccidentals(a,b, spec) {
   if (py.isPythagorean(pyi) && py.pyGenerator(pyi) % modulus == 0) {
     const otoStr = otos.length == 0 ? "" : "^" + otos.join(",");
     const utoStr = utos.length == 0 ? "" : "_" + utos.join(",");
-    return { accStr: otoStr + utoStr, pyi: pyi };
+    return { otos: otos, utos: utos, accStr: otoStr + utoStr, pyi: pyi };
   }
 }
 
@@ -3214,7 +3232,8 @@ function evalExpr(e, r, opts, state) {
       const m  = evalExpr(e[2], r, opts, state).val;
       const pps = e[3].map(ei => evalExpr(ei, r, opts, state).val); // prime powers
       const ps = pps.map(pp => pp.factors()[0][0]); // the primes in pps
-      const [d, loc] = [e[4], e[5]];
+      const d = evalExpr(e[4], r, opts, state).val;
+      const loc = e[5];
       // ensure the list is decreasing
       if (pps.length > 0 && !ps.every((p,i) => i == 0 || p <= ps[i-1])) {
         throw new OtherError("Invalid color prefix (non-decreasing)", loc);
@@ -3249,6 +3268,13 @@ function evalExpr(e, r, opts, state) {
         throw new OtherError("Expected a prime number", loc);
       }
       return { val: Interval(p).pow(x) };
+    }
+    else if (e[0] == "!ordinalOctave") {
+      const [d, loc] = [e[1], e[2]];
+      if (d == 1 || (d-1) % 7 != 0) {
+        throw new OtherError("Degree is not some number of octaves", loc);
+      }
+      return { val: d };
     }
     else if (e[0] == "!clrMPs") {
       const [ps, loc] = [e[1].map(ei => evalExpr(ei, r, opts, state).val), e[2]];
@@ -3777,7 +3803,7 @@ var grammar = {
     {"name": "colorNote", "symbols": ["clrNote"], "postprocess": id},
     {"name": "aclrIntv$ebnf$1", "symbols": []},
     {"name": "aclrIntv$ebnf$1", "symbols": ["aclrIntv$ebnf$1", {"literal":"c"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "aclrIntv", "symbols": ["aclrIntv$ebnf$1", "aclrM", "aclrP", "clrDeg"], "postprocess": (d,loc,_) => ["!clrIntv", d[0].length, d[1], d[2], d[3], loc]},
+    {"name": "aclrIntv", "symbols": ["aclrIntv$ebnf$1", "aclrM", "aclrP", "aclrDeg"], "postprocess": (d,loc,_) => ["!clrIntv", d[0].length, d[1], d[2], d[3], loc]},
     {"name": "aclrNote", "symbols": ["aclrP", "pyNote"], "postprocess": (d,loc,_) => ["!clrNote", d[0], d[1], loc]},
     {"name": "aclrM", "symbols": [], "postprocess": d => 0},
     {"name": "aclrM$ebnf$1", "symbols": [{"literal":"L"}]},
@@ -3800,14 +3826,10 @@ var grammar = {
     {"name": "aclrPP$ebnf$2", "symbols": [{"literal":"u"}]},
     {"name": "aclrPP$ebnf$2", "symbols": ["aclrPP$ebnf$2", {"literal":"u"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "aclrPP", "symbols": ["posInt", "aclrPP$ebnf$2"], "postprocess": (d,loc,_) => ["!aclrPP", parseInt(d[0]), -d[1].length, loc]},
+    {"name": "aclrDeg", "symbols": ["posInt"], "postprocess": d => parseInt(d[0])},
+    {"name": "aclrDeg", "symbols": [{"literal":"-"}, "posInt"], "postprocess": d => - parseInt(d[1])},
+    {"name": "clrIntv", "symbols": ["clrCos", "clrM", "clrP", "aclrDeg"], "postprocess": (d,loc,_) => ["!clrIntv", d[0], d[1], d[2], d[3], loc]},
     {"name": "clrIntv", "symbols": ["clrCos", "clrM", "clrP", "clrDeg"], "postprocess": (d,loc,_) => ["!clrIntv", d[0], d[1], d[2], d[3], loc]},
-    {"name": "clrIntv$ebnf$1", "symbols": [{"literal":"-"}], "postprocess": id},
-    {"name": "clrIntv$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "clrIntv", "symbols": ["clrCos", "clrM", "clrP", "__", "clrIntv$ebnf$1", "ordinal"], "postprocess": (d,loc,_) => ["!clrIntv", d[0], d[1], d[2], (d[4] ? -1 : 1) * parseInt(d[5]), loc]},
-    {"name": "clrIntv$string$1", "symbols": [{"literal":"u"}, {"literal":"n"}, {"literal":"i"}, {"literal":"s"}, {"literal":"o"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrIntv", "symbols": ["clrCos", "clrM", "clrP", "__", "clrIntv$string$1"], "postprocess": (d,loc,_) => ["!clrIntv", d[0], d[1], d[2], 1, loc]},
-    {"name": "clrIntv$string$2", "symbols": [{"literal":"o"}, {"literal":"c"}, {"literal":"t"}, {"literal":"a"}, {"literal":"v"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrIntv", "symbols": ["clrCos", "clrM", "clrP", "__", "clrIntv$string$2"], "postprocess": (d,loc,_) => ["!clrIntv", d[0], d[1], d[2], 8, loc]},
     {"name": "clrNote", "symbols": ["clrP", "pyNote"], "postprocess": (d,loc,_) => ["!clrNote", d[0], d[1], loc]},
     {"name": "clrCos", "symbols": [], "postprocess": d => 0},
     {"name": "clrCos$ebnf$1$string$1", "symbols": [{"literal":"c"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
@@ -3882,8 +3904,20 @@ var grammar = {
     {"name": "clrPP", "symbols": ["clrPP$string$6"], "postprocess": d => Interval(1,11)},
     {"name": "clrPP", "symbols": ["clrGenPP", {"literal":"o"}], "postprocess": d => d[0]},
     {"name": "clrPP", "symbols": ["clrGenPP", {"literal":"u"}], "postprocess": d => ["recip", d[0]]},
-    {"name": "clrDeg", "symbols": ["posInt"], "postprocess": d => d[0]},
-    {"name": "clrDeg", "symbols": [{"literal":"-"}, "posInt"], "postprocess": d => -d[1]},
+    {"name": "clrDeg$string$1", "symbols": [{"literal":"n"}, {"literal":"e"}, {"literal":"g"}, {"literal":"a"}, {"literal":"t"}, {"literal":"i"}, {"literal":"v"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrDeg", "symbols": ["__", "clrDeg$string$1", "clrPosDeg"], "postprocess": d => ["*", -1, d[2]]},
+    {"name": "clrDeg", "symbols": ["__", {"literal":"-"}, "clrOrdinalDeg"], "postprocess": d => ["*", -1, d[2]]},
+    {"name": "clrDeg", "symbols": ["clrPosDeg"], "postprocess": id},
+    {"name": "clrPosDeg$string$1", "symbols": [{"literal":"u"}, {"literal":"n"}, {"literal":"i"}, {"literal":"s"}, {"literal":"o"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrPosDeg", "symbols": ["__", "clrPosDeg$string$1"], "postprocess": d => 1},
+    {"name": "clrPosDeg$string$2", "symbols": [{"literal":"o"}, {"literal":"c"}, {"literal":"t"}, {"literal":"a"}, {"literal":"v"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrPosDeg", "symbols": ["__", "clrPosDeg$string$2"], "postprocess": d => 8},
+    {"name": "clrPosDeg", "symbols": ["__", "clrOrdinalDeg"], "postprocess": d => d[1]},
+    {"name": "clrOrdinalDeg$string$1", "symbols": [{"literal":"1"}, {"literal":"s"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrOrdinalDeg", "symbols": ["clrOrdinalDeg$string$1"], "postprocess": d => 1},
+    {"name": "clrOrdinalDeg$string$2", "symbols": [{"literal":"v"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrOrdinalDeg", "symbols": ["posInt", "clrOrdinalDeg$string$2"], "postprocess": (d,loc,_) => ["!ordinalOctave", d[0], loc]},
+    {"name": "clrOrdinalDeg", "symbols": ["ordinal"], "postprocess": d => parseInt(d[0])},
     {"name": "clrMPs$ebnf$1", "symbols": ["clrMP"]},
     {"name": "clrMPs$ebnf$1", "symbols": ["clrMPs$ebnf$1", "clrMP"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "clrMPs", "symbols": ["clrMPs$ebnf$1"], "postprocess": (d,loc,_) => ["!clrMPs", d[0], loc]},
