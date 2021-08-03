@@ -231,8 +231,8 @@ function getResults() {
     const [fact_off, fact_on] = fmtFactorization(res.intv);
     if (fact_off.length > 0) {
       if (fact_off !== fact_on) {
-        rows.push(["Prime factorization", { hoverSwap_off: fact_off
-                                          , hoverSwap_on: fmtExtExprLink(fact_on) }]);
+        rows.push(["Prime factorization", { hoverSwap_off: fmtExtExprLink(fact_off, fact_on)
+                                          , hoverSwap_on : fmtExtExprLink(fact_on) }]);
       }
       else {
         rows.push(["Prime factorization", fmtExtExprLink(fact_on)]);
@@ -295,8 +295,8 @@ function getResults() {
         const withSupsSubs = (res.type == "interval" ? microtonal_utils.pySymb(pyi)
                                                      : microtonal_utils.pyNote(pyi))
                              + '<span class="supsub">' + otoStr + utoStr + '</span>';
-        rows.push([fjsLink, { hoverSwap_off: withSupsSubs
-                            , hoverSwap_on: fmtExtExprLink(res.symb["FJS"]) }]);
+        rows.push([fjsLink, { hoverSwap_off: fmtExtExprLink(withSupsSubs, res.symb["FJS"])
+                            , hoverSwap_on : fmtExtExprLink(res.symb["FJS"]) }]);
       }
       else {
         rows.push([fjsLink, fmtExtExprLink(res.symb["FJS"])]);
@@ -318,8 +318,8 @@ function getResults() {
         const withSupsSubs = (res.type == "interval" ? microtonal_utils.pySymb(pyi)
                                                      : microtonal_utils.pyNote(pyi))
                              + '<span class="supsub">' + otoStr + utoStr + '</span>';
-        rows.push([nfjsLink, { hoverSwap_off: withSupsSubs
-                             , hoverSwap_on: fmtExtExprLink(res.symb["NFJS"], linkStr) }]);
+        rows.push([nfjsLink, { hoverSwap_off: fmtExtExprLink(withSupsSubs, linkStr)
+                             , hoverSwap_on : fmtExtExprLink(res.symb["NFJS"], linkStr) }]);
       }
       else {
         rows.push([nfjsLink, fmtExtExprLink(res.symb["NFJS"], linkStr)]);
@@ -359,8 +359,8 @@ function getResults() {
     const abbrevName = symbFn(intv, {useExps: true});
     const withSupsSubs = symbFn(intv, {useHTMLExps: true});
     if (withSupsSubs !== abbrevName) {
-      const str_off = str + withSupsSubs;
-      const str_on = str + fmtExtExprLink(abbrevName).prop("outerHTML");
+      const str_off = str + fmtExtExprLink(withSupsSubs, abbrevName).prop("outerHTML");
+      const str_on  = str + fmtExtExprLink(abbrevName).prop("outerHTML");
       rows.push([colorLink, { hoverSwap_off: str_off, hoverSwap_on: str_on }]);
     }
     else {
@@ -378,8 +378,8 @@ function getResults() {
     }
     else {
       const [expr_off, expr_on] = fmtExpression(res.intvToRef);
-      rows.push(["Interval from reference note", { hoverSwap_off: expr_off
-                                                 , hoverSwap_on: fmtExtExprLink(expr_on) }]);
+      rows.push(["Interval from reference note", { hoverSwap_off: fmtExtExprLink(expr_off, expr_on)
+                                                 , hoverSwap_on : fmtExtExprLink(expr_on) }]);
     }
     rows.push(["Reference note and frequency", refSymb + " = " + fmtHertz(res.ref.hertz, 2)])
   }
