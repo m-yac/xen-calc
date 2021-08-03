@@ -346,14 +346,14 @@ function getResults() {
       if (res.type == "interval" && res.cents < 0) {
         const name = symbFn(intv.recip(), {verbosity: 1});
         const dispName = symbFn(intv.recip(), {verbosity: 1, useWordNegative: true})
-                           .replace(" 1st", " unison")
-                           .replace(" 8th", " octave");
+                           .replace(" 1sn", " unison")
+                           .replace(" 8ve", " octave");
         str += "descending " + fmtExtExprLink(dispName, name).prop('outerHTML') + ",<br>";
       }
       const name = symbFn(intv, {verbosity: 1});
       const dispName = symbFn(intv, {verbosity: 1, useWordNegative: true})
-                         .replace(" 1st", " unison")
-                         .replace(" 8th", " octave");
+                         .replace(" 1sn", " unison")
+                         .replace(" 8ve", " octave");
       str += fmtExtExprLink(dispName, name).prop('outerHTML') + ", ";
     }
     const abbrevName = symbFn(intv, {useExps: true});

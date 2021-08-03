@@ -3293,13 +3293,6 @@ function evalExpr(e, r, opts, state) {
       }
       return { val: Interval(p).pow(x) };
     }
-    else if (e[0] == "!ordinalOctave") {
-      const [d, loc] = [e[1], e[2]];
-      if (d == 1 || (d-1) % 7 != 0) {
-        throw new OtherError("Degree is not some number of octaves", loc);
-      }
-      return { val: d };
-    }
     else if (e[0] == "!clrMPs") {
       const [ps, loc] = [e[1].map(ei => evalExpr(ei, r, opts, state).val), e[2]];
       // ensure the list is decreasing
@@ -3957,8 +3950,8 @@ var grammar = {
     {"name": "clrPosDeg", "symbols": ["__", "clrOrdinalDeg"], "postprocess": d => d[1]},
     {"name": "clrOrdinalDeg$string$1", "symbols": [{"literal":"1"}, {"literal":"s"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "clrOrdinalDeg", "symbols": ["clrOrdinalDeg$string$1"], "postprocess": d => 1},
-    {"name": "clrOrdinalDeg$string$2", "symbols": [{"literal":"v"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrOrdinalDeg", "symbols": ["posInt", "clrOrdinalDeg$string$2"], "postprocess": (d,loc,_) => ["!ordinalOctave", d[0], loc]},
+    {"name": "clrOrdinalDeg$string$2", "symbols": [{"literal":"8"}, {"literal":"v"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrOrdinalDeg", "symbols": ["clrOrdinalDeg$string$2"], "postprocess": d => 8},
     {"name": "clrOrdinalDeg", "symbols": ["ordinal"], "postprocess": d => parseInt(d[0])},
     {"name": "clrMPs$ebnf$1", "symbols": ["clrMP"]},
     {"name": "clrMPs$ebnf$1", "symbols": ["clrMPs$ebnf$1", "clrMP"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
@@ -4300,14 +4293,12 @@ function pyDegreeString(d, verbosity) {
     return d;
   }
   if (verbosity == 1) {
+    if (Math.abs(d) == 1) { return "1sn"; }
+    if (Math.abs(d) == 1) { return "8ve"; }
     return ntw.toOrdinal(Math.abs(d));
   }
-  if (Math.abs(d) == 1) {
-    return "unison"
-  }
-  if (Math.abs(d) == 8) {
-    return "octave"
-  }
+  if (Math.abs(d) == 1) { return "unison"; }
+  if (Math.abs(d) == 1) { return "octave"; }
   return ntw.toWordsOrdinal(Math.abs(d));
 }
 
