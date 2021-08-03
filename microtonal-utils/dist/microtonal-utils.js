@@ -620,24 +620,27 @@ function colorMultiPrefix(n) {
   * @param {integer=} opts.verbosity verbosity can be the default 0
   *                                  (e.g. "17ooo"), 1 (e.g. "triso-a"), or 2
   *                                  (the same as 1 for this function)
-  * @param {boolean=} opts.addHTMLExps defaults to false
+  * @param {boolean} opts.useExps defaults to false
+  * @param {boolean=} opts.useHTMLExps defaults to false
   * @returns {string}
   */
 function colorFactorPrefix(p, e, opts) {
   if (e == 0) { return ""; }
   if (opts == undefined) { opts = {}; }
-  const {verbosity, addHTMLExps} = opts;
+  const {verbosity, useExps, useHTMLExps} = opts;
   if (verbosity == undefined) { verbosity = 0; }
 
   const base = colorPrimePrefix(p, e > 0 ? "o" : "u", verbosity == 0);
   const eAbs = Math.abs(e);
   if (verbosity == 0) {
-    if (addHTMLExps && eAbs > 2) {
-      return base + "<sup>" + eAbs + "</sup>";
+    if (eAbs == 1) { return base; }
+    if (eAbs == 2) { return base + base[base.length-1]; }
+    if (useHTMLExps) { return base + "<sup>" + eAbs + "</sup>"; }
+    if (useExps) {
+      if ((''+eAbs).length == 1) { return base + "^" + eAbs; }
+      else { return base + "^(" + eAbs + ")"; }
     }
-    else {
-      return base + base[base.length-1].repeat(eAbs-1);
-    }
+    return base + base[base.length-1].repeat(eAbs-1);
   }
   else {
     if (eAbs == 1) { return base; }
@@ -683,7 +686,8 @@ function findRuns(factors) {
   * @param {boolean=} opts.hideMagnitude defaults to false
   * @param {boolean=} opts.useFullMagnitude defaults to false
   * @param {boolean=} opts.keepTrailingHyphen defaults to false
-  * @param {boolean=} opts.addHTMLExps defaults to false
+  * @param {boolean} opts.useExps defaults to false
+  * @param {boolean=} opts.useHTMLExps defaults to false
   * @returns {string}
   */
 function colorPrefix(a,b, opts) {
@@ -692,7 +696,8 @@ function colorPrefix(a,b, opts) {
     opts = b;
     b = undefined;
   }
-  let {verbosity, addCosAfterDeg, hideMagnitude, useFullMagnitude, keepTrailingHyphen} = opts || {};
+  let { verbosity, addCosAfterDeg, hideMagnitude,
+        useFullMagnitude, keepTrailingHyphen, useExps, useHTMLExps} = opts || {};
   if (verbosity == undefined) { verbosity = 0; }
   if (addCosAfterDeg == undefined) { addCosAfterDeg = 13; }
 
@@ -709,7 +714,15 @@ function colorPrefix(a,b, opts) {
     i = i.div(Interval(2).pow(cos));
   }
   if (verbosity == 0) {
-    coStr = "c".repeat(Math.abs(cos));
+    if (cos == 0) { coStr = "" }
+    else if (cos == 1) { coStr = "c"; }
+    else if (cos == 2) { coStr = "cc"; }
+    else if (useHTMLExps) { coStr = "c<sup>" + cos + "</sup>"; }
+    else if (useExps) {
+      if ((''+cos).length == 1) { coStr = "c^" + cos; }
+      else { coStr = "c^(" + cos + ")"; }
+    }
+    else { coStr = "c".repeat(cos); }
   }
   else {
     if (cos == 1) { coStr = "co"; }
@@ -726,7 +739,16 @@ function colorPrefix(a,b, opts) {
   if (m != 0 && !hideMagnitude) {
     mAbs = Math.abs(m);
     if (verbosity == 0) {
-      mStr = (m > 0 ? "L" : "s").repeat(mAbs);
+      const c = m > 0 ? "L" : "s";
+      if (mAbs == 0) { mStr = ""; }
+      else if (mAbs == 1) { mStr = c; }
+      else if (mAbs == 2) { mStr = c + c; }
+      else if (useHTMLExps) { mStr = c + "<sup>" + mAbs + "</sup>"; }
+      else if (useExps) {
+        if ((''+mAbs).length == 1) { mStr = c + "^" + mAbs; }
+        else { mStr = c + "^(" + mAbs + ")"; }
+      }
+      else { mStr = c.repeat(mAbs); }
     }
     else if (!useFullMagnitude) {
       mStr = m > 0 ? "la" : "sa";
@@ -804,7 +826,8 @@ function colorPrefix(a,b, opts) {
   *                                       a "co" prefix is never added
   * @param {boolean=} opts.useFullMagnitude defaults to false
   * @param {boolean=} opts.useWordNegative defaults to false
-  * @param {boolean=} opts.addHTMLExps defaults to false
+  * @param {boolean} opts.useExps defaults to false
+  * @param {boolean=} opts.useHTMLExps defaults to false
   * @returns {string}
   */
 function colorSymb(a,b, opts) {
@@ -813,13 +836,14 @@ function colorSymb(a,b, opts) {
     opts = b;
     b = undefined;
   }
-  let {verbosity, addCosAfterDeg, useFullMagnitude, useWordNegative, addHTMLExps} = opts || {};
+  let {verbosity, addCosAfterDeg, useFullMagnitude, useWordNegative, useExps, useHTMLExps} = opts || {};
   if (verbosity == undefined) { verbosity = 0; }
   if (addCosAfterDeg == undefined) { addCosAfterDeg = 13; }
   const optsToPass = { verbosity: verbosity
                      , addCosAfterDeg: addCosAfterDeg
                      , useFullMagnitude: useFullMagnitude
-                     , addHTMLExps: addHTMLExps };
+                     , useExps: useExps
+                     , useHTMLExps: useHTMLExps };
 
   const i = Interval(a,b);
   const i_logval = i.valueOf_log();
@@ -2815,7 +2839,7 @@ function parse(str, opts) {
     results = results.filter(d => !(d.type[0] == "note" && d.type[1] != "symbol"));
   }
   if (results.length > 1) {
-    console.log("Parse was ambiguous! Full results:");
+    console.dir("Parse was ambiguous on: \'" + str + "\' - full results:");
     console.dir(results, { depth: null });
   }
   let ret = { type: results[0].type[0]
@@ -3801,21 +3825,39 @@ var grammar = {
     {"name": "colorIntv", "symbols": ["clrIntv"], "postprocess": id},
     {"name": "colorNote", "symbols": ["aclrNote"], "postprocess": id},
     {"name": "colorNote", "symbols": ["clrNote"], "postprocess": id},
-    {"name": "aclrIntv$ebnf$1", "symbols": []},
-    {"name": "aclrIntv$ebnf$1", "symbols": ["aclrIntv$ebnf$1", {"literal":"c"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "aclrIntv", "symbols": ["aclrIntv$ebnf$1", "aclrM", "aclrP", "aclrDeg"], "postprocess": (d,loc,_) => ["!clrIntv", d[0].length, d[1], d[2], d[3], loc]},
+    {"name": "aclrIntv", "symbols": ["aclrCos", "aclrM", "aclrP", "aclrDeg"], "postprocess": (d,loc,_) => ["!clrIntv", d[0], d[1], d[2], d[3], loc]},
     {"name": "aclrNote", "symbols": ["aclrP", "pyNote"], "postprocess": (d,loc,_) => ["!clrNote", d[0], d[1], loc]},
+    {"name": "aclrCos", "symbols": [], "postprocess": d => 0},
+    {"name": "aclrCos$ebnf$1", "symbols": [{"literal":"c"}]},
+    {"name": "aclrCos$ebnf$1", "symbols": ["aclrCos$ebnf$1", {"literal":"c"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "aclrCos", "symbols": ["aclrCos$ebnf$1"], "postprocess": d => d[0].length},
+    {"name": "aclrCos$string$1", "symbols": [{"literal":"c"}, {"literal":"^"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "aclrCos", "symbols": ["aclrCos$string$1", /[1-9]/], "postprocess": d => parseInt(d[1])},
+    {"name": "aclrCos$string$2", "symbols": [{"literal":"c"}, {"literal":"^"}, {"literal":"("}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "aclrCos", "symbols": ["aclrCos$string$2", "posInt", {"literal":")"}], "postprocess": d => parseInt(d[1])},
     {"name": "aclrM", "symbols": [], "postprocess": d => 0},
     {"name": "aclrM$ebnf$1", "symbols": [{"literal":"L"}]},
     {"name": "aclrM$ebnf$1", "symbols": ["aclrM$ebnf$1", {"literal":"L"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "aclrM", "symbols": ["aclrM$ebnf$1"], "postprocess": d => d[0].length},
+    {"name": "aclrM$string$1", "symbols": [{"literal":"L"}, {"literal":"^"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "aclrM", "symbols": ["aclrM$string$1", /[1-9]/], "postprocess": d => parseInt(d[1])},
+    {"name": "aclrM$string$2", "symbols": [{"literal":"L"}, {"literal":"^"}, {"literal":"("}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "aclrM", "symbols": ["aclrM$string$2", "posInt", {"literal":")"}], "postprocess": d => parseInt(d[1])},
     {"name": "aclrM$ebnf$2", "symbols": [{"literal":"s"}]},
     {"name": "aclrM$ebnf$2", "symbols": ["aclrM$ebnf$2", {"literal":"s"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "aclrM", "symbols": ["aclrM$ebnf$2"], "postprocess": d => -d[0].length},
+    {"name": "aclrM$string$3", "symbols": [{"literal":"s"}, {"literal":"^"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "aclrM", "symbols": ["aclrM$string$3", /[1-9]/], "postprocess": d => -parseInt(d[1])},
+    {"name": "aclrM$string$4", "symbols": [{"literal":"s"}, {"literal":"^"}, {"literal":"("}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "aclrM", "symbols": ["aclrM$string$4", "posInt", {"literal":")"}], "postprocess": d => -parseInt(d[1])},
     {"name": "aclrP", "symbols": [{"literal":"w"}], "postprocess": d => []},
-    {"name": "aclrP$ebnf$1", "symbols": ["aclrPP"]},
-    {"name": "aclrP$ebnf$1", "symbols": ["aclrP$ebnf$1", "aclrPP"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "aclrP", "symbols": ["aclrP$ebnf$1"], "postprocess": d => d[0]},
+    {"name": "aclrP$ebnf$1", "symbols": ["aclrPP1"]},
+    {"name": "aclrP$ebnf$1", "symbols": ["aclrP$ebnf$1", "aclrPP1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "aclrP", "symbols": ["aclrP$ebnf$1"], "postprocess": d => d[0].flat(1)},
+    {"name": "aclrPP1", "symbols": ["aclrPP"], "postprocess": d => [d[0]]},
+    {"name": "aclrPP1", "symbols": ["aclrPP", {"literal":"^"}, /[1-9]/], "postprocess": d => Array(parseInt(d[2])).fill(d[0])},
+    {"name": "aclrPP1$string$1", "symbols": [{"literal":"^"}, {"literal":"("}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "aclrPP1", "symbols": ["aclrPP", "aclrPP1$string$1", "posInt", {"literal":")"}], "postprocess": d => Array(parseInt(d[2])).fill(d[0])},
     {"name": "aclrPP", "symbols": [{"literal":"y"}], "postprocess": d => Interval(5)},
     {"name": "aclrPP", "symbols": [{"literal":"g"}], "postprocess": d => Interval(1,5)},
     {"name": "aclrPP", "symbols": [{"literal":"z"}], "postprocess": d => Interval(7)},

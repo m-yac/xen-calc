@@ -253,7 +253,9 @@ function getResults() {
       const benedettiLink = fmtInlineLink("Benedetti height", "https://en.xen.wiki/w/Benedetti_height");
       const tenneyLink    = fmtInlineLink("Tenney height",    "https://en.xen.wiki/w/Tenney_height");
       const no2Benedetti = microtonal_utils.Interval(res.height.benedetti).factorOut(2)[1].valueOf();
-      rows.push([benedettiLink, res.height.benedetti + " (no-2s: " + no2Benedetti + ")"]);
+      if (res.height.tenney < 50) {
+        rows.push([benedettiLink, res.height.benedetti + " (no-2s: " + no2Benedetti + ")"]);
+      }
       rows.push([tenneyLink, +res.height.tenney.toFixed(5) + " (no-2s: " + Math.log2(no2Benedetti).toFixed(5) + ")"]);
     }
     if (res.edoSteps) {
@@ -336,28 +338,29 @@ function getResults() {
   }
   // Add any color name
   if (res.symb && res.symb["color-abbrev"] && !did_merged_FJS_color) {
+    const colorLink = fmtInlineLink("Color notation", "https://en.xen.wiki/w/Color_notation");
     let str = "";
     const symbFn = res.type == "interval" ? microtonal_utils.colorSymb
                                           : microtonal_utils.colorNote;
-    if (res.type == "interval" && res.cents < 0) {
-      const name = symbFn(intv.recip(), {verbosity: 1});
-      const dispName = symbFn(intv.recip(), {verbosity: 1, useWordNegative: true})
-                         .replace(" 1st", " unison")
-                         .replace(" 8th", " octave");
-      str += "descending " + fmtExtExprLink(dispName, name).prop('outerHTML') + ",<br>";
-    }
     if (res.symb["color"]) {
+      if (res.type == "interval" && res.cents < 0) {
+        const name = symbFn(intv.recip(), {verbosity: 1});
+        const dispName = symbFn(intv.recip(), {verbosity: 1, useWordNegative: true})
+                           .replace(" 1st", " unison")
+                           .replace(" 8th", " octave");
+        str += "descending " + fmtExtExprLink(dispName, name).prop('outerHTML') + ",<br>";
+      }
       const name = symbFn(intv, {verbosity: 1});
       const dispName = symbFn(intv, {verbosity: 1, useWordNegative: true})
                          .replace(" 1st", " unison")
                          .replace(" 8th", " octave");
       str += fmtExtExprLink(dispName, name).prop('outerHTML') + ", ";
     }
-    const colorLink = fmtInlineLink("Color notation", "https://en.xen.wiki/w/Color_notation");
-    const withSupsSubs = symbFn(intv, {addHTMLExps: true});
-    if (withSupsSubs !== res.symb["color-abbrev"]) {
+    const abbrevName = symbFn(intv, {useExps: true});
+    const withSupsSubs = symbFn(intv, {useHTMLExps: true});
+    if (withSupsSubs !== abbrevName) {
       const str_off = str + withSupsSubs;
-      const str_on = str + fmtExtExprLink(res.symb["color-abbrev"]).prop("outerHTML");
+      const str_on = str + fmtExtExprLink(abbrevName).prop("outerHTML");
       rows.push([colorLink, { hoverSwap_off: str_off, hoverSwap_on: str_on }]);
     }
     else {
