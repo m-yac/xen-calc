@@ -318,8 +318,8 @@ function getResults() {
         const withSupsSubs = (res.type == "interval" ? microtonal_utils.pySymb(pyi)
                                                      : microtonal_utils.pyNote(pyi))
                              + '<span class="supsub">' + otoStr + utoStr + '</span>';
-        rows.push([fjsLink, { hoverSwap_off: withSupsSubs
-                            , hoverSwap_on: fmtExtExprLink(res.symb["NFJS"], linkStr) }]);
+        rows.push([nfjsLink, { hoverSwap_off: withSupsSubs
+                             , hoverSwap_on: fmtExtExprLink(res.symb["NFJS"], linkStr) }]);
       }
       else {
         rows.push([nfjsLink, fmtExtExprLink(res.symb["NFJS"], linkStr)]);
