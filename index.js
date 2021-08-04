@@ -332,9 +332,11 @@ function getResults() {
     }
   }
   if (res.english && res.english.length > 0){
-    const end = res.english.length > 1 ? "(s)" : "";
-    const enNameLink = fmtInlineLink("(Possible) English name" + end, "about.html#englishNames", true);
-    rows.push([enNameLink, res.english.join("<br>")]);
+    let link = "(Possible) English name" + (res.english.length > 1 ? "s" : "");
+    link += $('<sup>').html($('<a>').addClass("alt").text("?")
+                                    .prop("href","about.html#englishNames"))
+                      .prop("outerHTML");
+    rows.push([link, res.english.join("<br>")]);
   }
   // Add any color name
   if (res.symb && res.symb["color-abbrev"] && !did_merged_FJS_color) {

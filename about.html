@@ -127,11 +127,18 @@
     or set a reference note with automatically chosen tuning
     (e.g. <a class="expr" href="./?q=F♯%5C12+/+D+where+D+%3D+D%5C12">F♯\12 / D where D = D\12</a>).
   </li>
-  <li id="englishNames">
-    List possible English names for an interval using an algorithm based on the
-    interval's Neutral FJS name or ups-and-downs notation. See
-    <a class="alt" href="https://github.com/m-yac/microtonal-utils/blob/main/lib/english.js" style="font-family: monospace;">english.js</a> in
-    <a class="alt" href="https://github.com/m-yac/microtonal-utils">microtonal-utils</a>.
+  <li>
+    List possible English names for an interval. <span id="englishNames">These
+    names are automaticlly generated based on the interval's Neutral FJS name or
+    ups-and-downs notation, e.g. "undecimal neutral third" for
+    <a class="expr" href="./?q=n3^11">n3^11</a> or "22-EDO downmajor third" for
+    <a class="expr" href="./?q=vM3%5C22">vM3\22</a>. Names are also
+    automatically generated for harmonics, e.g. "15th harmonic" for
+    <a class="expr" href="./?q=15/1">15/1</a>, and there are special cases for
+    the names "tritone" and "Pythagorean comma". See
+    <a class="alt" href="https://github.com/m-yac/microtonal-utils/blob/main/lib/english.js"">english.js</a> in
+    <a class="alt" href="https://github.com/m-yac/microtonal-utils">microtonal-utils</a>
+    for the exact algorithm.</span>
   </li>
   <li>
     Play intervals and notes (using the synth from Sevish's
