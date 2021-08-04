@@ -204,7 +204,7 @@ h4 {
 .hoverSwap:focus .hoverSwap_off { display: none; }
 
 sup, sub {
-  margin: 0 2px;
+  margin-left: 2px;
   vertical-align: baseline;
   position: relative;
 }
