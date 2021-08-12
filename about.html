@@ -135,7 +135,8 @@
     <a class="expr" href="./?q=vM3%5C22">vM3\22</a>. Names are also
     automatically generated for harmonics, e.g. "15th harmonic" for
     <a class="expr" href="./?q=15/1">15/1</a>, and there are special cases for
-    the names "tritone" and "Pythagorean comma". See
+    the names "Pythagorean comma" and
+    "<a class="alt" href="https://en.xen.wiki/w/Acoustic_phi">phi</a>". See
     <a class="alt" href="https://github.com/m-yac/microtonal-utils/blob/main/lib/english.js"">english.js</a> in
     <a class="alt" href="https://github.com/m-yac/microtonal-utils">microtonal-utils</a>
     for the exact algorithm.</span>
@@ -170,6 +171,30 @@
     EDO or by cents difference.
   </li>
   <li>
+    Solve for intervals in
+    <a class="alt" href="https://en.xen.wiki/w/Isoharmonic_chords">isoharmonic</a> or
+    <a class="alt" href="https://en.xen.wiki/w/Linear_chord">linear chords</a>
+    (e.g. <a class="expr" href="./?q=4+%3A+5+%3A+?">4 : 5 : ?</a>,
+          <a class="expr" href="./?q=1+%3A+?+%3A+sqrt(5)">1 : ? : sqrt(5)</a>).
+    Only two intervals are needed to define an isoharmonic/linear chord, the
+    rest can be left as dashes
+    (e.g. <a class="expr" href="./?q=1+%3A+-+%3A+%3F+%3A+5/4">1 : - : ? : 5/4</a>).
+    As alternate notation, there are the functions
+    isoUp (e.g. <a class="expr" href="./?q=isoUp(5/4)">isoUp(5/4)</a>, which is
+                <a class="expr" href="./?q=1+%3F+5/4+%3F+?">1 : 5/4 : ?</a>),
+    isoDown (e.g. <a class="expr" href="./?q=isoDown(5,6)">isoDown(5,6)</a>, which is
+                  <a class="expr" href="./?q=?+%3F+5+%3F+6">? : 5 : 6</a>), and
+    isoMid (e.g. <a class="expr" href="./?q=isoMid(sqrt(5))">isoMid(sqrt(5))</a>, which is
+                 <a class="expr" href="./?q=1+%3A+?+%3A+sqrt(5)">1 : ? : sqrt(5)</a>),
+    each of which can take one or two arguments.
+    There is also the function iso which generalizes all of them
+    (e.g. <a class="expr" href="./?q=iso(5/4,2)">iso(5/4,2)</a>),
+          <a class="expr" href="./?q=iso(5,6,-1)">iso(5,6,-1)</a>),
+          <a class="expr" href="./?q=iso(sqrt(5),1/2)">iso(sqrt(5),1/2)</a>)).
+    The solution to <a class="expr" href="./?q=1+%3A+?+%3A+sqrt(5)">1 : ? : sqrt(5)</a>
+    is <a class="expr" href="./?q=phi">phi</a>.
+  </li>
+  <li>
     Compute a number of useful functions:
     <ul>
       <li>
@@ -189,6 +214,12 @@
         <a class="alt" href="https://en.xen.wiki/w/Mediant">mediant</a>
         of two just intervals
         (e.g. <a class="expr" href="./?q=med(5/4,+9/7)">med(5/4, 9/7)</a>).
+      </li>
+      <li>
+        Take the
+        <a class="alt" href="https://en.xen.wiki/w/Merciful_intonation">noble mediant</a>
+        of two just intervals
+        (e.g. <a class="expr" href="./?q=nobleMed(5/4,+9/7)">nobleMed(5/4, 9/7)</a>).
       </li>
       <li>
         Find the best approximation of an interval in a given EDO

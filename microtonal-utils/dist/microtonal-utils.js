@@ -87,7 +87,7 @@ function bestRationalApproxsByNo2sHeight(a,b, opts) {
       const j_approx_dist = Math.abs(fractionalPart(j_no2s_logval - intv_logval));
       if (j_approx_dist < approx_dist_bound) {
         const j_diff = j_no2s.div(intv).reb();
-        const j = j_no2s.mul(Interval(2).pow(intv.expOf(2).add(j_diff.expOf(2))));
+        const j = j_diff.mul(intv);
         if (!oddLimit || j.inOddLimit(oddLimit)) {
           const j_dist = j_diff.distance();
           if (j_dist.compare(dist_bound) <= 0) {
@@ -351,10 +351,11 @@ function bestEDOApproxsByEDO(a,b, opts) {
   const intv = Interval(a,b);
   const intv_logval = intv.valueOf_log();
   if (opts == undefined) { opts = {}; }
-  let {cutoff, startEDO, endEDO, useExactDiffs} = opts;
+  let {cutoff, startEDO, endEDO, useExactDiffs, debug} = opts;
   if (cutoff == undefined) { cutoff = Interval(2).pow(1,12).sqrt(); }
   if (startEDO == undefined) { startEDO = 5; }
   if (endEDO == undefined) { endEDO = 60; }
+  if (debug) { console.time("bestEDOApproxsByEDO"); }
 
   let [foundExact, ret] = [false, []];
   let [dist_bound, approx_dist_bound] = [cutoff, cutoff.valueOf_log() + epsilon];
@@ -376,6 +377,7 @@ function bestEDOApproxsByEDO(a,b, opts) {
     }
   }
 
+  if (debug) { console.timeEnd("bestEDOApproxsByEDO"); }
   return ret;
 }
 
@@ -402,9 +404,10 @@ function bestEDOApproxsByDiff(a,b, opts) {
   }
   const intv = Interval(a,b);
   if (opts == undefined) { opts = {}; }
-  let {startEDO, endEDO, useExactDiffs} = opts;
+  let {startEDO, endEDO, useExactDiffs, debug} = opts;
   if (startEDO == undefined) { startEDO = 5; }
   if (endEDO == undefined) { endEDO = 60; }
+  if (debug) { console.time("bestEDOApproxsByDiff"); }
 
   let ret = [];
   for (let edo = startEDO; edo <= endEDO; edo++) {
@@ -432,6 +435,7 @@ function bestEDOApproxsByDiff(a,b, opts) {
     }
   }
 
+  if (debug) { console.timeEnd("bestEDOApproxsByDiff"); }
   return ret.map(x => ({ steps: x.steps, diff: useExactDiffs ? x.diff : x.diff.toCents() }));
 }
 
@@ -1045,7 +1049,7 @@ const py = require('./pythagorean.js');
   * @returns {integer}
   */
 function edoApprox(edo,a,b) {
-  return Math.round(edo * Interval(a,b).toCents() / 1200);
+  return Math.round(edo * Interval(a,b).valueOf_log());
 }
 
 /**
@@ -1169,13 +1173,19 @@ function addUpdns(edo, steps) {
     }
   }
   for (let i = 0; i < edo; i++) {
-    let [minUpdns, hasNonNeutral] = [edo, false];
+    let [minUpdns, minUpdnsIsNeutral] = [edo, false];
     for (const [uds, k] of new_steps[i]) {
-      minUpdns = Math.min(minUpdns, Math.abs(uds));
-      hasNonNeutral = hasNonNeutral || Number.isInteger(k);
+      const abs_uds = Math.abs(uds);
+      if (abs_uds < minUpdns) {
+        minUpdns = abs_uds;
+        minUpdnsIsNeutral = !Number.isInteger(k);
+      }
+      if (abs_uds == minUpdns) {
+        minUpdnsIsNeutral &= !Number.isInteger(k);
+      }
     }
     new_steps[i] = new_steps[i].filter(udsk => Math.abs(udsk[0]) <= minUpdns
-                                               && (!hasNonNeutral || Number.isInteger(udsk[1])))
+                                               && (minUpdnsIsNeutral || Number.isInteger(udsk[1])))
                                .sort((a,b) => a[0] == b[0] ? Math.abs(a[1]) - Math.abs(b[1])
                                                            : b[0] - a[0]);
   }
@@ -1343,10 +1353,16 @@ function enNames(a,b, opts) {
 
   let nms = [];
 
-  // special case for the tritone
-  if (intv.equals(Interval(2).sqrt())) {
-    nms.push("tritone");
+  // handle approximate intervals separately
+  if (!intv.hasFactors()) {
+    const k = Math.floor(intv.valueOf_log());
+    if (intv.div(Interval(2).pow(k)).equals(Interval.phi)) {
+      const pyi = pyInterval(6,0).mul(Interval(2).pow(k));
+      nms.push("phi " + pySymb(pyi, {verbosity: verbosity}));
+    }
+    return nms;
   }
+
   // special case for the Pythagorean comma
   if (intv.equals(pyInterval(-2,-1.5))) {
     nms.push("Pythagorean comma");
@@ -1360,7 +1376,7 @@ function enNames(a,b, opts) {
     }
   }
   // special case for multiple octaves
-  if (intv.toMonzo().length == 1 && intv.expOf(2).d == 1 && intv.expOf(2).n > 1
+  if (intv.inPrimeLimit(2) && intv.expOf(2).d == 1 && intv.expOf(2).n > 1
       /* ^ is a non-zero integer power of 2 */) {
     const invStr = intv.expOf(2) < 0 ? " (inverted)" : "";
     nms.push(ntw.toWords(intv.expOf(2).n) + " octaves" + invStr);
@@ -1429,7 +1445,7 @@ function enNames(a,b, opts) {
   }
 
   // ups-and-downs intervals
-  else if (intv.toMonzo().length <= 1 /* only has factors of 2 */) {
+  else if (intv.inPrimeLimit(2)) {
     const e2 = intv.expOf(2);
     const edo = prefEDO ? prefEDO : e2.d;
     const edo_str = edo + "-EDO ";
@@ -1456,6 +1472,9 @@ function enNames(a,b, opts) {
         intv_strs.push(uds_str + pyi_symb);
       }
       nms.push(edo_str + intv_strs.join(" / "));
+      if (n == edo / 2) {
+        nms.push(edo_str + "tritone");
+      }
     }
   }
 
@@ -1848,72 +1867,162 @@ const bigInt = require('big-integer');
 const Fraction = require('fraction.js');
 const BigFraction = require('fraction.js/bigfraction.js');
 
-// used in the `Interval` constructor
-const parse = function(a, b) {
-  if (a === undefined || a === null) {
-    return {};
+// helper functions used when constructing `Interval`s in this file
+
+function parse(a,b) {
+  // no arguments given
+  if (a == undefined) {
+    return { _fact: {} };
   }
-  else if (b !== undefined) {
-    if (a == 0 || a < 0 || b == 0 || b < 0) {
-      throw new Error("non-positive number cannot be converted into an interval");
+  // two arguments given
+  else if (b != undefined) {
+    const [n,d] = [Number(a), Number(b)];
+    if (n % 1 != 0 || !isFinite(n) || d % 1 != 0 || !isFinite(d)) {
+      throw new Error(`Invalid integer parameters to Interval: ${a}, ${b}`);
     }
-    const afs = pf.getPrimeExponentObject(Number(a));
-    const bfs = pf.getPrimeExponentObject(Number(b));
-    let fact = {};
-    for (const p of keys(afs, bfs)) {
-      fact[p] = BigFraction((afs[p] || 0) - (bfs[p] || 0));
-    }
-    return fact;
+    return parseRatio(n,d);
   }
-  // if the input is a monzo
+  // a single array argument given
   else if (Array.isArray(a)) {
-    let fact = {};
-    if (a.length > 0) {
-      let i = 0;
-      for (const p of primes()) {
-        if (i >= a.length) { break; }
-        const ai = BigFraction(a[i]);
-        if (!ai.equals(0)) {
-          fact[p] = ai;
-        }
-        i++;
-      }
-    }
-    return fact;
+    return parseMonzo(a);
+  }
+  // a single BigInt argument given
+  else if (typeof a == "bigint") {
+    return parseRatio(Number(a), 1);
   }
   else if (typeof a == "object") {
-    // if the input is an Interval object
-    if ("_fact" in a) {
-      return parse(a._fact);
-    }
-    // if the input is a Fraction object
-    else if ("d" in a && "n" in a) {
-      let sn = a["n"];
-      if ("s" in a) {
-        sn *= a["s"];
+    // a single Fraction/BigFraction-like argument given
+    if ("d" in a && "n" in a) {
+      const n = Number("s" in a ? a["s"] * a["n"] : a["n"]);
+      const d = Number(a["d"]);
+      if (n % 1 != 0 || !isFinite(n) || d % 1 != 0 || !isFinite(d)) {
+        throw new Error(`Invalid Fraction-like parameter to Interval: ${a}`);
       }
-      return parse(sn, a["d"]);
+      return parseRatio(n,d);
     }
-    // otherwise the input is assumed to be a factorization
+    // a single Interval-like argument given
+    else if ("_fact" in a) {
+      return parseFactorization(a._fact, a._isApprox, a._isApprox);
+    }
+    // otherwise we assume a single object argument is a factorization object
     else {
-      let allPrimes = true
-      let fact = {};
-      for (const i of Object.keys(a)) {
-        allPrimes &= pf.isPrime(Number(i));
-        const ai = BigFraction(a[i]);
-        if (!ai.equals(0)) {
-          fact[i] = ai;
-        }
+      return parseFactorization(a, true);
+    }
+  }
+  // a single number argument given
+  else if (isFinite(Number(a))) {
+    if (!(Number(a) > 0)) {
+      throw new Error(`${a} <= 0 cannot be represented as an Interval`);
+    }
+    return parseNumber(Number(a));
+  }
+  // a single string argument given (which is not a valid Number string)
+  else if (typeof a == "string") {
+    const fr = BigFraction(a);
+    const [n, d] = [Number(fr.s * fr.n), Number(fr.d)];
+    if (n % 1 != 0 || !isFinite(n) || d % 1 != 0 || !isFinite(d)) {
+      throw new Error(`Invalid string parameter to Interval: ${a}`);
+    }
+    return parseRatio(n, d);
+  }
+  // otherwise we error
+  else {
+    throw new Error(`Invalid parameter to Interval: ${a}`)
+  }
+}
+
+function parseRatio(n,d) {
+  if (!(n > 0) || !(d > 0)) {
+    throw new Error(`${n}/${d} <= 0 cannot be represented as an Interval`);
+  }
+  const n_fact = pf.getPrimeExponentObject(n);
+  const d_fact = pf.getPrimeExponentObject(d);
+  let fact = {};
+  for (const p of keys(n_fact, d_fact)) {
+    fact[p] = BigFraction((n_fact[p] || 0) - (d_fact[p] || 0));
+  }
+  return { _fact: fact };
+}
+
+function parseMonzo(a) {
+  let fact = {};
+  let ps = primes();
+  for (const ai of a) {
+    const e = BigFraction(ai);
+    const p = ps.next().value;
+    if (!e.equals(0)) {
+      fact[p] = e;
+    }
+  }
+  return { _fact: fact };
+}
+
+function parseFactorization(obj, allowApproxs, knownIsApprox) {
+  let [fact, isApprox] = [{}, false];
+  for (const i of Object.keys(obj)) {
+    const e = BigFraction(obj[i]);
+    if (!e.equals(0)) {
+      if (pf.isPrime(Number(i))) {
+        fact[i] = e;
       }
-      if (allPrimes) {
-        return fact;
-      } else {
-        throw new Error("invalid arguments to Interval: " + a + ", " + b);
+      else if (allowApproxs && (knownIsApprox || parseNumber(i)._isApprox)) {
+        fact[i] = e;
+        isApprox = true;
+      }
+      else {
+        throw new Error(`non-prime in factorization parameter to Interval: ${i}`);
       }
     }
   }
+  if (isApprox) { return { _isApprox: true, _fact: fact }; }
+  else          { return { _fact: fact }; }
+}
+
+function parseNumber(x) {
+  if (x % 1 == 0) {
+    return parseRatio(x, 1);
+  }
+  try {
+    // covers nth roots between 1 and 5
+    for (let [xpk, k] = [x, 1]; k <= 5; [xpk, k] = [xpk*x, k+1]) {
+      let fact = numberToSmallFact(xpk);
+      if (fact) {
+        for (const p in fact) {
+          fact[p] = fact[p].div(k);
+        }
+        return { _fact: fact };
+      }
+    }
+    // covers fractional powers of 2, 3, and 5
+    for (const base of [2,3,5]) {
+      const e = BigFraction(Math.log2(x) / cachedLog2(base));
+      if (e.d < 200) {
+        return { _fact: { [base]: e } };
+      }
+    }
+  }
+  catch (e) {
+  }
+  // otherwise we return an approximation
+  if (x >= 1) {
+    return { _isApprox: true, _fact: {[x]: BigFraction(1)} };
+  }
   else {
-    return parse(BigFraction(a));
+    return { _isApprox: true, _fact: {[1/x]: BigFraction(-1)} };
+  }
+}
+
+function numberToSmallFact(x) {
+  const fr = Fraction(x);
+  if (isFinite(fr.n) && isFinite(fr.d)) {
+    const fact = parseRatio(fr.n, fr.d)._fact;
+    let squared_sum_of_prime_digits = 0;
+    for (const p in fact) {
+      squared_sum_of_prime_digits += p.toString().length ** 2;
+    }
+    if (squared_sum_of_prime_digits <= 9) {
+      return fact;
+    }
   }
 }
 
@@ -1941,10 +2050,21 @@ function Interval(a,b) {
     return new Interval(a,b);
   }
 
-  this._fact = parse(a,b);
+  const p = parse(a,b);
+  if (p._isApprox) { this._isApprox = p._isApprox; }
+  this._fact = p._fact;
 }
 
 Interval.prototype = {
+
+  /**
+   * Returns true iff the interval has a known prime factorization.
+   *
+   * @returns {boolean}
+   */
+  "hasFactors": function() {
+    return !this._isApprox;
+  },
 
   /**
    * Returns true iff the exponent of the given prime in an interval's prime
@@ -1956,6 +2076,9 @@ Interval.prototype = {
    * @returns {boolean}
    */
   "hasExp": function(p) {
+    if (this._isApprox) {
+      throw new Error("interval does not have a prime factorization");
+    }
     if (!pf.isPrime(Number(p))) {
       throw new Error(p + " is not prime");
     }
@@ -1993,6 +2116,9 @@ Interval.prototype = {
    * @returns {Array.<Pair.<integer,BigFraction>>}
    */
   "factors": function() {
+    if (this._isApprox) {
+      throw new Error("interval does not have a prime factorization");
+    }
     let fs = [];
     for (const p in this._fact) {
       if (!this._fact[p].equals(0n)) {
@@ -2008,6 +2134,9 @@ Interval.prototype = {
    * @returns {Array.<Pair.<integer,BigFraction>>}
    */
   "factorsBig": function() {
+    if (this._isApprox) {
+      throw new Error("interval does not have a prime factorization");
+    }
     let fs = [];
     for (const p in this._fact) {
       if (!this._fact[p].equals(0n)) {
@@ -2027,12 +2156,12 @@ Interval.prototype = {
    * @returns {Interval}
    */
   "mul": function(a,b) {
-    const rhs_fact = parse(a,b);
+    const rhs = parse(a,b);
     let ret_fact = {};
-    for (const p of keys(this._fact, rhs_fact)) {
-      ret_fact[p] = (this._fact[p] || BigFraction(0)).add(rhs_fact[p] || BigFraction(0));
+    for (const p of keys(this._fact, rhs._fact)) {
+      ret_fact[p] = (this._fact[p] || BigFraction(0)).add(rhs._fact[p] || BigFraction(0));
     }
-    return new Interval(ret_fact);
+    return new Interval({ _fact: ret_fact, _isApprox: this._isApprox || rhs._isApprox });
   },
 
   /**
@@ -2044,12 +2173,12 @@ Interval.prototype = {
    * @returns {Interval}
    */
   "div": function(a,b) {
-    const rhs_fact = parse(a,b);
+    const rhs = parse(a,b);
     let ret_fact = {};
-    for (const p of keys(this._fact, rhs_fact)) {
-      ret_fact[p] = (this._fact[p] || BigFraction(0)).sub(rhs_fact[p] || BigFraction(0));
+    for (const p of keys(this._fact, rhs._fact)) {
+      ret_fact[p] = (this._fact[p] || BigFraction(0)).sub(rhs._fact[p] || BigFraction(0));
     }
-    return new Interval(ret_fact);
+    return new Interval({ _fact: ret_fact, _isApprox: this._isApprox || rhs._isApprox });
   },
 
   /**
@@ -2064,7 +2193,7 @@ Interval.prototype = {
     for (const p in this._fact) {
       ret_fact[p] = this._fact[p].neg();
     }
-    return new Interval(ret_fact);
+    return new Interval({ _fact: ret_fact, _isApprox: this._isApprox });
   },
 
   /**
@@ -2087,7 +2216,7 @@ Interval.prototype = {
     for (const p in this._fact) {
       ret_fact[p] = this._fact[p].mul(k);
     }
-    return new Interval(ret_fact);
+    return new Interval({ _fact: ret_fact, _isApprox: this._isApprox });
   },
 
   /**
@@ -2120,6 +2249,9 @@ Interval.prototype = {
    * @returns {bool}
    */
   "isFrac": function() {
+    if (this._isApprox) {
+      return false;
+    }
     for (const p in this._fact) {
       if (this._fact[p].d != 1n) {
         return false;
@@ -2159,6 +2291,9 @@ Interval.prototype = {
    * @returns {{s: BigInt, n:BigInt, d:BigInt}}
    */
   "toFracRaw": function(allowUnbounded) {
+    if (this._isApprox) {
+      throw new Error("interval does not have a prime factorization");
+    }
     let [n, d] = [1n, 1n];
     for (const p in this._fact) {
       if (this._fact[p].d == 1) {
@@ -2186,6 +2321,7 @@ Interval.prototype = {
    * e.g. `Interval(5,4).med(9,7)` is the mediant of the intervals `5/4` and
    * `9/7`, the interval `14/11`
    *
+   * @param {Interval} i
    * @returns {Interval}
    */
   "med": function(a,b) {
@@ -2222,33 +2358,36 @@ Interval.prototype = {
    *
    * @returns {{k: {s: BigInt, n:BigInt, d:BigInt}, n: Integer}}
    */
-   "toNthRootRaw": function() {
-     const n = this.minPowFracBig();
-     return { k: this.pow(n).toFracRaw(), n: n };
-   },
+  "toNthRootRaw": function() {
+    const n = this.minPowFracBig();
+    return { k: this.pow(n).toFracRaw(), n: n };
+  },
 
-   /**
-    * Returns the smallest integer such that `this.pow(n).isFrac()` is true, i.e.
-    * the `n` in `this.toNthRoot()`.
-    *
-    * @returns {Integer}
-    */
-   "minPowFrac": function() {
-     return Number(this.minPowFracBig());
-   },
+  /**
+   * Returns the smallest integer such that `this.pow(n).isFrac()` is true, i.e.
+   * the `n` in `this.toNthRoot()`.
+   *
+   * @returns {Integer}
+   */
+  "minPowFrac": function() {
+    return Number(this.minPowFracBig());
+  },
 
-   /**
-    * Like `minPowFrac`, but returns a `BigInt`.
-    *
-    * @returns {BigInt}
-    */
-   "minPowFracBig": function() {
-     let ret = 1n;
-     for (const p in this._fact) {
-       ret = BigInt(bigInt.lcm(ret, this._fact[p].d));
-     }
-     return ret;
-   },
+  /**
+   * Like `minPowFrac`, but returns a `BigInt`.
+   *
+   * @returns {BigInt}
+   */
+  "minPowFracBig": function() {
+    if (this._isApprox) {
+      throw new Error("interval does not have a prime factorization");
+    }
+    let ret = 1n;
+    for (const p in this._fact) {
+      ret = BigInt(bigInt.lcm(ret, this._fact[p].d));
+    }
+    return ret;
+  },
 
   /**
    * Converts any interval to a string of its representation as the nth root of
@@ -2261,6 +2400,9 @@ Interval.prototype = {
    * @returns {{k: Fraction, n: Integer}}
    */
   "toNthRootString": function() {
+    if (this._isApprox) {
+      throw new Error("interval does not have a prime factorization");
+    }
     const {k,n} = this.toNthRootBig();
     if (n == 1) { return k.toFraction(); }
     if (n == 2) { return "sqrt(" + k.toFraction() + ")"; }
@@ -2301,19 +2443,21 @@ Interval.prototype = {
    * @returns {integer}
    */
   "compare": function(a,b) {
+    const rhs = Interval(a,b);
     try {
       // this uses the facts that:
       // - x < y iff x/y < 1
       // - k^(1/n) < 1 iff k < 1
       // - n/d < 1 iff n - d < 0
-      const {n, d} = this.div(a,b).toNthRootRaw().k;
+      const {n, d} = this.div(rhs).toNthRootRaw().k;
       const t = n - d;
       return (0 < t) - (t < 0);
     }
     catch(e) {
       // if something goes wrong, just do an approximate comparison
-      const x = this.valueOf_log();
-      const y = Interval(a,b).valueOf_log();
+      const [x, y] =
+        this._isApprox || rhs._isApprox ? [this.valueOf(), rhs.valueOf()]
+                                        : [this.valueOf_log(), rhs.valueOf_log()];
       if (x == y) { return 0; }
       else { return (y < x) - (x < y); }
     }
@@ -2331,9 +2475,14 @@ Interval.prototype = {
    * @returns {boolean}
    */
   "equals": function(a,b) {
-    const rhs_fact = parse(a,b);
-    for (const p of keys(this._fact, rhs_fact)) {
-      if (!(this._fact[p] || BigFraction(0)).equals(rhs_fact[p] || BigFraction(0))) {
+    const rhs = Interval(a,b);
+    if (this._isApprox || rhs._isApprox) {
+      const epsilon = this._isApprox && rhs._isApprox ? 1e-10 : 1e-13;
+      const [this_val, rhs_val] = [this.valueOf(), rhs.valueOf()];
+      return Math.abs(this_val - rhs_val) / Math.max(this_val, rhs_val) < epsilon;
+    }
+    for (const p of keys(this._fact, rhs._fact)) {
+      if (!(this._fact[p] || BigFraction(0)).equals(rhs._fact[p] || BigFraction(0))) {
         return false;
       }
     }
@@ -2367,7 +2516,7 @@ Interval.prototype = {
       for (const p of keys(this._fact, base._fact)) {
         ret_fact[p] = (this._fact[p] || BigFraction(0)).sub((base._fact[p] || BigFraction(0)).mul(g));
       }
-      return [unBigFraction(g), new Interval(ret_fact)];
+      return [unBigFraction(g), new Interval({ _fact: ret_fact, _isApprox: this._isApprox || base._isApprox })];
     }
     else {
       return [Fraction(0), this];
@@ -2504,6 +2653,9 @@ Interval.prototype = {
    * @returns {number}
    */
   "benedettiHeight": function() {
+    if (this._isApprox) {
+      throw new Error("interval does not have a prime factorization");
+    }
     let ret = 1;
     for (const p in this._fact) {
       ret *= p ** this._fact[p].abs().valueOf();
@@ -2520,6 +2672,9 @@ Interval.prototype = {
    * @returns {number}
    */
   "tenneyHD": function() {
+    if (this._isApprox) {
+      throw new Error("interval does not have a prime factorization");
+    }
     let ret = 0;
     for (const p in this._fact) {
       ret += this._fact[p].abs().valueOf() * cachedLog2(p);
@@ -2535,6 +2690,9 @@ Interval.prototype = {
    * @returns {number}
    */
   "toMonzo": function() {
+    if (this._isApprox) {
+      throw new Error("interval does not have a prime factorization");
+    }
     const gp = maxKey(this._fact);
     let [ret, isFrac] = [[], true];
     for (const p of primes()) {
@@ -2555,7 +2713,7 @@ Interval.prototype = {
    * @returns {boolean}
    */
   "inPrimeLimit": function (p) {
-    return 2 <= p && Object.keys(this._fact).every(pi => pi <= p);
+    return !this._isApprox && 2 <= p && Object.keys(this._fact).every(pi => pi <= p);
   },
 
   /**
@@ -2565,6 +2723,9 @@ Interval.prototype = {
    * @returns {integer}
    */
   "primeLimit": function () {
+    if (this._isApprox) {
+      throw new Error("interval does not have a prime factorization");
+    }
     return Math.max(2, ...Object.keys(this._fact).map(pi => parseInt(pi)));
   },
 
@@ -2593,9 +2754,215 @@ Interval.prototype = {
   "oddLimit": function () {
     const {n,d} = this.toFrac();
     return n % 2 == 0 ? d : d % 2 == 0 ? n : Math.max(n,d);
+  },
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~
+  //  Approximate functions
+
+  /**
+   * Adds two intervals together, approximately if either interval is not a
+   * fraction. NB: If either interval is not a fraction, the result may not
+   * have a prime factorization, so functions like `factors`, `hasExp`, etc.
+   * may not work.
+   *
+   * @param {Interval} i
+   * @returns {Interval}
+   */
+  "add": function (a,b) {
+    const rhs = new Interval(a,b);
+    try {
+      const [this_fr, rhs_fr] = [this.toFracRaw(), rhs.toFracRaw()];
+      return new Interval(this_fr.n * rhs_fr.d + rhs_fr.n * this_fr.d,
+                          this_fr.d * rhs_fr.d)
+    }
+    catch (e) {
+      return new Interval(this.valueOf() + rhs.valueOf());
+    }
+  },
+
+  /**
+   * Subtracts two intervals, approximately if either interval is not a
+   * fraction. Errors if the result would not be a valid interval (i.e. <= 0).
+   * NB: If either interval is not a fraction, the result may not have a prime
+   * factorization, so functions like `factors`, `hasExp`, etc. may not work.
+   *
+   * @param {Interval} i
+   * @returns {Interval}
+   */
+  "sub": function (a,b) {
+    const rhs = new Interval(a,b);
+    const x = this.valueOf() - rhs.valueOf();
+    if (x <= 0) {
+      throw new Error("result of `sub` would be " + x + " <= 0")
+    }
+    try {
+      const [this_fr, rhs_fr] = [this.toFracRaw(), rhs.toFracRaw()];
+      return new Interval(this_fr.n * rhs_fr.d - rhs_fr.n * this_fr.d,
+                          this_fr.d * rhs_fr.d)
+    }
+    catch (e) {
+      return new Interval(x);
+    }
+  },
+
+  /**
+   * If "a : b : c" is an isoharmonic triple (e.g. 4 : 5 : 6), then
+   * `c.isoMid(a)` is `b = (c + a)/2`. NB: This function uses `add`, be aware
+   * of the caveats of using that method.
+   *
+   * e.g. `Interval(5).sqrt(2).isoMid()` is the golden ratio: (sqrt(5) + 1)/2
+   *
+   * @param {Interval} [i=Interval(1)]
+   * @returns {Interval}
+   */
+  "isoMid": function(a,b) {
+    return this.add(a,b).div(2);
+  },
+
+  /**
+   * If "a : b : c" is an isoharmonic triple (e.g. 4 : 5 : 6), then
+   * `b.isoMid(a)` is `c = 2*b - a`. NB: This method uses `sub`, be aware of
+   * the caveats of using that method.
+   *
+   * @param {Interval} [i=Interval(1)]
+   * @returns {Interval}
+   */
+  "isoUp": function(a,b) {
+    return this.mul(2).sub(a,b);
+  },
+
+  /**
+   * If "a : b : c" is an isoharmonic triple (e.g. 4 : 5 : 6), then
+   * `c.isoMid(b)` is `a = 2*b - c`. NB: This method uses `sub`, be aware of
+   * the caveats of using that method.
+   *
+   * @param {Interval} [i=Interval(1)]
+   * @returns {Interval}
+   */
+  "isoDown": function(a,b) {
+    return Interval(a,b).mul(2).sub(this);
+  },
+
+  /**
+   * `b.iso(a,n)` is the nth entry in the isoharmonic chord starting "a : b",
+   * i.e. the interval `n*b - (n-1)*a`
+   *
+   * e.g. `Interval(5).iso(4, 2)` is `Interval(6)` (or `Interval(5).isoUp(4)`),
+   *      `Interval(5).iso(4, 3)` is `Interval(7)`,
+   *      `Interval(5).iso(4, 4)` is `Interval(8)`, etc.
+   *
+   * You can also give negative or fractional values to this function.
+   *
+   * e.g. `Interval(5).iso(4, -1)` is `Interval(3)` (or `Interval(5).isoDown(4)`),
+   *      `Interval(6).iso(4, 1/2)` is `Interval(5)` (or `Interval(6).isoMid(4)`)
+   *
+   * NB: This method uses `sub` and `add`, be aware of the caveats of using
+   * these methods.
+   *
+   * @param {Interval} i
+   * @param {Fraction} n
+   * @returns {Interval}
+   */
+  "iso": function(a,b,c,d) {
+    const [rhs,n] = c == undefined ? [Interval(a), Fraction(b)]
+                                   : [Interval(a,b), Fraction(c,d)];
+    const ncmp1 = n.compare(1);
+    if (ncmp1 > 0) {
+      return this.mul(n).sub(rhs.mul(n.sub(1)));
+    }
+    if (ncmp1 == 0) {
+      return this.mul(1);
+    }
+    const ncmp0 = n.compare(0);
+    if (ncmp0 > 0) {
+      return this.mul(n).add(rhs.mul(Fraction(1).sub(n)));
+    }
+    if (ncmp0 == 0) {
+      return rhs;
+    }
+    return rhs.mul(Fraction(1).sub(n)).sub(this.mul(n.neg()));
+  },
+
+  /**
+   * `b.iso1(n)` is the nth entry in the isoharmonic chord starting "1 : b",
+   * the same as `b.iso(1,n)`.
+   *
+   * NB: This method uses `sub` and `add`, be aware of the caveats of using
+   * these methods.
+   *
+   * @param {Fraction} n
+   * @returns {Interval}
+   */
+  "iso1": function(a,b) {
+    return this.iso(1, Fraction(a,b));
+  },
+
+  /**
+   * `b.invIso1(k_max)` returns an array of pairs [(i1,k1), ..., (in,kn)] such
+   * that for each (i,k) in the list, `i.hasFactors()` and b.equals(i.iso1(k))`.
+   * The `k_max` argument limits the values each `k` can take - in particular,
+   * each k will be a ratio whose numerator and denominator are both less than
+   * or equal to k_max (ignoring sign) and which is not equal to 0/1 or 1/1.
+   *
+   * If the interval is a fraction, each possible value of k will be present
+   * in the returned array. Otherwise, there will be at most one entry in the
+   * returned array.
+   *
+   * @param {integer} [k_max=2]
+   * @returns {Array.<Pair.<Interval,integer>>}
+   */
+  "invIso1": function(k_max) {
+    if (k_max == undefined) { k_max = 2; }
+    // if the input is not a fraction, there is at most one possible answer -
+    //  so if this variable is false, we return the first answer found
+    const thisIsFrac = this.isFrac();
+    // if the input is an nth root but not a fraction, there's definitely no answer
+    if (!thisIsFrac && this.hasFactors()) {
+      return [];
+    }
+    let res = [];
+    for (let d = 1; d <= k_max; d++) {
+      for (let n = -k_max; n <= k_max; n++) {
+        const k = Fraction(n,d);
+        if (k.d != d || k.n == 0 || k.equals(1)) { continue; }
+        try {
+          const i = this.iso1(k.inverse());
+          if (i.hasFactors()) {
+            if (thisIsFrac) { res.push([i,k]); }
+            else            { return  [[i,k]]; }
+          }
+        } catch (_) { }
+      }
+    }
+    return res.sort((a,b) => a[1].compare(b[1]));
+  },
+
+  /**
+   * Approximates the noble mediant of two intervals with integer prime
+   * exponents, i.e. two intervals which can be expressed as fractions. NB: The
+   * result of using this method will not have a prime factorization, so
+   * functions like `factors`, `hasExp`, etc. will not work.
+   *
+   * e.g. `Interval(5,4).nobleMed(9,7).toCents()` is `422.4873963821663`
+   *
+   * @param {Interval} i
+   * @returns {Interval}
+   */
+  "nobleMed": function(a,b) {
+    const phi = 1.618033988749895; // Interval.phi.valueOf()
+    let [f1, f2] = [this.toFracRaw(), Interval(a,b).toFracRaw()];
+    return new Interval((Number(f1.n) + Number(f2.n) * phi) /
+                        (Number(f1.d) + Number(f2.d) * phi));
   }
 
 }
+
+/**
+ * The golden ratio: (sqrt(5) + 1)/2.
+ *
+ * @constant {Interval}
+ */
+Interval.phi = Interval(5).sqrt().isoMid();
 
 module.exports = Interval;
 
@@ -2851,7 +3218,7 @@ function parse(str, opts) {
             , prefEDO: results[0].prefEDO };
 
   // If `intv` is an EDO step (i.e. a fractional power of two),
-  if (ret.intv.toMonzo().length <= 1 /* only has factors of 2 */) {
+  if (ret.intv.inPrimeLimit(2)) {
     let e2 = ret.intv.expOf(2);
     // forget `ret.prefEDO` if `ret.intv` is not `2^(k/prefEDO)` (sanity check)
     if (ret.prefEDO && e2.mul(ret.prefEDO).d != 1) {
@@ -2944,14 +3311,22 @@ function parseCvt(str, opts) {
       let e2 = intv.expOf(2).mul(prefEDO);
       ret.edoSteps = [e2.s*e2.n, prefEDO];
     }
-    ret.symb = {};
-    let fjs = fjsSymb(intv);
-    let nfjs = fjsSymb(intv, nfjsSpec);
-    if (fjs) {
-      ret.symb['FJS'] = fjs;
+    if (!intv.isFrac()) {
+      try {
+        const isos = intv.invIso1(6);
+        if (isos.length > 0) { ret.iso = isos[0]; };
+      } catch (_) { }
     }
-    if (nfjs && nfjs != fjs) {
-      ret.symb['NFJS'] = nfjs;
+    ret.symb = {};
+    if (intv.hasFactors()) {
+      let fjs = fjsSymb(intv);
+      let nfjs = fjsSymb(intv, nfjsSpec);
+      if (fjs) {
+        ret.symb['FJS'] = fjs;
+      }
+      if (nfjs && nfjs != fjs) {
+        ret.symb['NFJS'] = nfjs;
+      }
     }
     if (prefEDO) {
       let e2 = intv.expOf(2).mul(prefEDO);
@@ -2965,11 +3340,14 @@ function parseCvt(str, opts) {
         ret.symb['color-abbrev'] = colorSymb(intv, {verbosity: 0});
       } catch (_) {}
     }
-    if (!nfjs && isPythagorean(intv)) {
+    if (!ret.symb['NFJS'] && isPythagorean(intv)) {
       ret.symb['other'] = pySymb(intv);
     }
     if (intv.equals(Interval(2).sqrt())) {
       ret.symb['other'] = "TT";
+    }
+    if (intv.equals(Interval.phi)) {
+      ret.symb['other'] = "phi";
     }
     const nms = enNames(intv, {prefEDO: prefEDO});
     if (nms.length > 0) {
@@ -2993,9 +3371,11 @@ function parseCvt(str, opts) {
               , intvToA4: refNote.intvToA4 };
     ret.symb = {};
 
-    let fjs = fjsNote(intvToA4);
-    if (fjs) {
-      ret.symb['FJS'] = fjs;
+    if (intv.hasFactors()) {
+      let fjs = fjsNote(intvToA4);
+      if (fjs) {
+        ret.symb['FJS'] = fjs;
+      }
     }
     if (prefEDO) {
       const refEDOStepsToA4 = edoPy(prefEDO, refNote.intvToA4);
@@ -3149,7 +3529,63 @@ function evalExpr(e, r, opts, state) {
     }
 
     // 1 | Special cases:
-    if (e[0] == "!refIntvToA4") {
+    if (e[0] == "!isoExpr") {
+      const args = e[1].map(([e1i,loc]) => [evalExpr(e1i, r, opts, state).val, loc]);
+      const loc = e[2];
+      // figure out the shape of the isoharmonic expression
+      let [fstIntv, sndIntv, qs] = [undefined, undefined, 0];
+      for (let i = 0; i < args.length; i++) {
+        const [ai,loc] = args[i];
+        if (ai === "?") {
+          if (qs == 1) {
+            throw new LocatedError("Isoharmonic expression cannot contain more than one `?`", loc);
+          }
+          qs++;
+        }
+        else if (ai !== "-") {
+          if (fstIntv == undefined) {
+            fstIntv = i;
+          }
+          else if (sndIntv == undefined) {
+            sndIntv = i;
+          }
+        }
+      }
+      if (fstIntv == undefined || sndIntv == undefined) {
+        throw new OtherError("Isoharmonic expression must contain at least two intervals", loc);
+      }
+      // check to make sure the whole expression is coherent
+      let res = undefined;
+      for (let i = 0; i < args.length; i++) {
+        const [ai,loc] = args[i];
+        const n = Fraction(i - fstIntv, sndIntv - fstIntv);
+        let expected = undefined;
+        try {
+          expected = args[sndIntv][0].iso(args[fstIntv][0], n);
+        }
+        catch (e) {
+          throw new OtherError("Invalid/impossible position in isoharmonic expression", loc);
+        }
+        if (ai === "?") {
+          res = expected;
+        }
+        else if (ai !== "-" && !expected.equals(ai)) {
+          const str = expected.hasFactors() ? ", should be: " + expected.toNthRootString() : "";
+          throw new OtherError("Incorrect interval in isoharmonic expression" + str, loc);
+        }
+      }
+      // return the result
+      if (res) {
+        return { val: res };
+      }
+      else if (args.length == 2) {
+        return { val: args[1][0].div(args[0][0]) };
+      }
+      else {
+        throw new OtherError("This is a valid isoharmonic chord, but it must contain one `?` to give a result", loc);
+      }
+    }
+    else if (e[0] == "!refIntvToA4") {
       return { val: (r || defaultRefNote).intvToA4 };
     }
     else if (e[0] == "!refHertz") {
@@ -3166,10 +3602,82 @@ function evalExpr(e, r, opts, state) {
         throw new OtherError("One of the arguments to `med` is not a fraction", loc);
       }
     }
+    else if (e[0] == "!nobleMed") {
+      const arg0 = evalExpr(e[1], r, opts, state).val;
+      const arg1 = evalExpr(e[2], r, opts, state).val;
+      const [nm, loc] = [e[3], e[4]];
+      if (arg0.isFrac() && arg1.isFrac()) {
+        return { val: arg0.nobleMed(arg1) };
+      }
+      else {
+        throw new OtherError("One of the arguments to `" + nm + "` is not a fraction", loc);
+      }
+    }
+    else if (e[0] == "!isoUp1" || e[0] == "!isoDown1") {
+      const arg0 = evalExpr(e[1], r, opts, state).val;
+      const [nm, loc] = [e[2], e[3]];
+      try {
+        return { val: e[0] == "!isoUp1" ? arg0.isoUp()
+                                        : arg0.isoDown() };
+      }
+      catch (err) {
+        const str = e[0] == "!isoUp1" ? "greater than 1/2" : "less than 2";
+        throw new OtherError("Argument to `" + nm + "` must be " + str, loc);
+      }
+    }
+    else if (e[0] == "!isoUp2" || e[0] == "!isoDown2") {
+      const arg0 = evalExpr(e[1], r, opts, state).val;
+      const arg1 = evalExpr(e[2], r, opts, state).val;
+      const [nm, loc] = [e[3], e[4]];
+      try {
+        return { val: e[0] == "!isoUp2" ? arg0.isoUp(arg1)
+                                        : arg0.isoDown(arg1) };
+      }
+      catch (err) {
+        const bound = e[0] == "!isoUp2" ? arg1.div(2) : arg1.mul(2);
+        let str;
+        // if arg1 is a 1, 2, 3, or 4th root
+        if (bound.pow(3).isFrac() || bound.pow(4).isFrac()) {
+          str = bound.toNthRootString();
+        }
+        else {
+          str = bound.toCents().toFixed(5) + "c";
+        }
+        str = (e[0] == "!isoUp2" ? "greater than 1/2 * the first, i.e. > "
+                                 : "less than 2 * the first, i.e. < ") + str;
+        throw new OtherError("Second argument to `" + nm + "` must be " + str, loc);
+      }
+    }
+    else if (e[0] == "!iso") {
+      const arg0 = evalExpr(e[1], r, opts, state).val;
+      const arg1 = evalExpr(e[2], r, opts, state).val;
+      const arg2 = evalExpr(e[3], r, opts, state).val;
+      const loc = e[4];
+      try {
+        return { val: arg0.iso(arg1, arg2) };
+      }
+      catch (err) {
+        throw new OtherError("Result of `iso` out of range", loc);
+      }
+    }
     else if (e[0] == "!cents") {
-      const arg0 = Fraction(evalExpr(e[1], r, opts, state).val).div(1200);
-      return { val: Interval(2).pow(arg0)
-             , prefEDO: 48 % arg0.d == 0 ? 24 % arg0.d == 0 ? 12 % arg0.d == 0 ? 12 : 24 : 48 : undefined };
+      const arg0 = evalExpr(e[1], r, opts, state).val.div(1200);
+      if (arg0.d < 100) {
+        return { val: Interval(2).pow(arg0), prefEDO: arg0.d };
+      }
+      if (arg0.d < 1000) {
+        return { val: Interval(2).pow(arg0) };
+      }
+      return { val: Interval(2 ** arg0.valueOf()) };
+    }
+    else if (e[0] == "!hertz") {
+      const arg0 = evalExpr(e[1], r, opts, state).val;
+      const arg1 = evalExpr(e[2], r, opts, state).val;
+      const loc = e[3];
+      if (arg0.compare(0) <= 0) {
+        throw new OtherError("Hertz value cannot be negative or zero", loc);
+      }
+      return { val: Interval(arg0.valueOf()).div(arg1) };
     }
     else if (e[0] == "!edoApprox") {
       const arg0 = evalExpr(e[1], r, opts, state).val;
@@ -3219,8 +3727,8 @@ function evalExpr(e, r, opts, state) {
     }
     else if (e[0] == "!ensureNo2Or3") {
       const [k, loc] = [e[1], e[2]];
-      if (k.hasExp(2) || k.hasExp(3)) {
-        throw new OtherError("FJS accidental cannot contain a factor or 2 or 3", loc);
+      if (k.equals(1) || k.hasExp(2) || k.hasExp(3)) {
+        throw new OtherError("FJS accidental must be > 1 and cannot contain a factor or 2 or 3", loc);
       }
       return { val: k };
     }
@@ -3342,7 +3850,7 @@ function evalExpr(e, r, opts, state) {
     }
     return ret;
   }
-  if (e instanceof Interval && e.toMonzo().length <= 1) {
+  if (e instanceof Interval && e.inPrimeLimit(2) && e.expOf(2) > 2) {
     return { val: e, prefEDO: e.expOf(2).d };
   }
   return { val: e };
@@ -3399,7 +3907,7 @@ var grammar = {
         d1.refNote.hertz    = Interval(2).pow(edoPy(d13,d9),d13).mul(440);
         return d1; } },
     {"name": "top2", "symbols": ["intvSExpr1"], "postprocess": d => ({type: ["interval", "symbol"], expr: d[0]})},
-    {"name": "top2", "symbols": ["intvMExpr1"], "postprocess": d => ({type: ["interval", "multiplicative"], expr: d[0]})},
+    {"name": "top2", "symbols": ["intvMExpr0"], "postprocess": d => ({type: ["interval", "multiplicative"], expr: d[0]})},
     {"name": "top2", "symbols": ["intvAExpr1"], "postprocess": d => ({type: ["interval", "additive"], expr: d[0]})},
     {"name": "top2", "symbols": ["noteSExpr1"], "postprocess": d => ({type: ["note", "symbol"], expr: d[0]})},
     {"name": "top2", "symbols": ["noteMExpr1"], "postprocess": d => ({type: ["note", "multiplicative"], expr: d[0]})},
@@ -3411,33 +3919,75 @@ var grammar = {
           }
           return d0;
         } },
+    {"name": "intvMExpr0", "symbols": ["intvMExprIsoExpr"], "postprocess": (d,loc,_) => ["!isoExpr", d[0], loc]},
+    {"name": "intvMExpr0", "symbols": ["intvMExpr1"], "postprocess": id},
+    {"name": "intvMExprIsoExpr", "symbols": ["intvMExprIsoElt", "_", {"literal":":"}, "_", "intvMExprIsoElt"], "postprocess": d => [d[0], d[4]]},
+    {"name": "intvMExprIsoExpr", "symbols": ["intvMExprIsoElt", "_", {"literal":":"}, "_", "intvMExprIsoExpr"], "postprocess": d => [d[0]].concat(d[4])},
+    {"name": "intvMExprIsoElt", "symbols": ["intvMExpr1"], "postprocess": (d,loc,_) => [d[0], loc]},
+    {"name": "intvMExprIsoElt", "symbols": [{"literal":"?"}], "postprocess": (d,loc,_) => [d[0], loc]},
+    {"name": "intvMExprIsoElt", "symbols": [{"literal":"-"}], "postprocess": (d,loc,_) => [d[0], loc]},
     {"name": "intvMExpr1", "symbols": ["intvMExpr1", "_", {"literal":"*"}, "_", "intvMExpr2"], "postprocess": d => ["mul", d[0], d[4]]},
     {"name": "intvMExpr1", "symbols": ["intvMExpr1", "_", {"literal":"/"}, "_", "intvMExpr2"], "postprocess": d => ["div", d[0], d[4]]},
     {"name": "intvMExpr1", "symbols": ["noteMExpr1", "_", {"literal":"/"}, "_", "noteMExpr2"], "postprocess": d => ["div", d[0], d[4]]},
     {"name": "intvMExpr1", "symbols": ["intvMExpr2"], "postprocess": id},
     {"name": "intvMExpr2", "symbols": ["intvMExpr3", "_", {"literal":"^"}, "_", "frcExpr3"], "postprocess": d => ["pow", d[0], d[4]]},
     {"name": "intvMExpr2$string$1", "symbols": [{"literal":"s"}, {"literal":"q"}, {"literal":"r"}, {"literal":"t"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$1", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["sqrt", d[4]]},
+    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$1", "_", {"literal":"("}, "_", "intvMExpr0", "_", {"literal":")"}], "postprocess": d => ["sqrt", d[4]]},
     {"name": "intvMExpr2$string$2", "symbols": [{"literal":"r"}, {"literal":"o"}, {"literal":"o"}, {"literal":"t"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$2", "posInt", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["root", d[5], d[1]]},
-    {"name": "intvMExpr2$string$3", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$3", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["red", d[4]]},
-    {"name": "intvMExpr2$string$4", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$4", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["reb", d[4]]},
-    {"name": "intvMExpr2$string$5", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$5", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":","}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["red", d[4], d[8]]},
-    {"name": "intvMExpr2$string$6", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$6", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":","}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["reb", d[4], d[8]]},
-    {"name": "intvMExpr2$string$7", "symbols": [{"literal":"m"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$7", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":","}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!med", d[4], d[8], loc]},
-    {"name": "intvMExpr2$string$8", "symbols": [{"literal":"a"}, {"literal":"p"}, {"literal":"p"}, {"literal":"r"}, {"literal":"o"}, {"literal":"x"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$8", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":","}, "_", "posInt", "_", {"literal":")"}], "postprocess": d => ["!edoApprox", d[4], parseInt(d[8])]},
+    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$2", "posInt", "_", {"literal":"("}, "_", "intvMExpr0", "_", {"literal":")"}], "postprocess": d => ["root", d[5], d[1]]},
+    {"name": "intvMExpr2$string$3", "symbols": [{"literal":"m"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$3", "_", {"literal":"("}, "_", "intvMExpr0", "_", {"literal":","}, "_", "intvMExpr0", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!med", d[4], d[8], loc]},
+    {"name": "intvMExpr2", "symbols": ["nmed", "_", {"literal":"("}, "_", "intvMExpr0", "_", {"literal":","}, "_", "intvMExpr0", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!nobleMed", d[4], d[8], d[0], loc]},
+    {"name": "intvMExpr2$macrocall$2", "symbols": ["intvMExpr0"]},
+    {"name": "intvMExpr2$macrocall$1$string$1", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvMExpr2$macrocall$1", "symbols": ["intvMExpr2$macrocall$1$string$1", "_", {"literal":"("}, "_", "intvMExpr2$macrocall$2", "_", {"literal":")"}], "postprocess": d => ["red", d[4][0]]},
+    {"name": "intvMExpr2$macrocall$1$string$2", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvMExpr2$macrocall$1", "symbols": ["intvMExpr2$macrocall$1$string$2", "_", {"literal":"("}, "_", "intvMExpr2$macrocall$2", "_", {"literal":")"}], "postprocess": d => ["reb", d[4][0]]},
+    {"name": "intvMExpr2$macrocall$1$string$3", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvMExpr2$macrocall$1", "symbols": ["intvMExpr2$macrocall$1$string$3", "_", {"literal":"("}, "_", "intvMExpr2$macrocall$2", "_", {"literal":","}, "_", "intvMExpr0", "_", {"literal":")"}], "postprocess": d => ["red", d[4][0], d[8]]},
+    {"name": "intvMExpr2$macrocall$1$string$4", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvMExpr2$macrocall$1", "symbols": ["intvMExpr2$macrocall$1$string$4", "_", {"literal":"("}, "_", "intvMExpr2$macrocall$2", "_", {"literal":","}, "_", "intvMExpr0", "_", {"literal":")"}], "postprocess": d => ["reb", d[4][0], d[8]]},
+    {"name": "intvMExpr2$macrocall$1$string$5", "symbols": [{"literal":"a"}, {"literal":"p"}, {"literal":"p"}, {"literal":"r"}, {"literal":"o"}, {"literal":"x"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvMExpr2$macrocall$1", "symbols": ["intvMExpr2$macrocall$1$string$5", "_", {"literal":"("}, "_", "intvMExpr2$macrocall$2", "_", {"literal":","}, "_", "posInt", "_", {"literal":")"}], "postprocess": d => ["!edoApprox", d[4][0], parseInt(d[8])]},
+    {"name": "intvMExpr2$macrocall$1", "symbols": ["isoUp", "_", {"literal":"("}, "_", "intvMExpr2$macrocall$2", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!isoUp1", d[4][0], d[0], loc]},
+    {"name": "intvMExpr2$macrocall$1", "symbols": ["isoDn", "_", {"literal":"("}, "_", "intvMExpr2$macrocall$2", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!isoDown1", d[4][0], d[0], loc]},
+    {"name": "intvMExpr2$macrocall$1", "symbols": ["isoMid", "_", {"literal":"("}, "_", "intvMExpr2$macrocall$2", "_", {"literal":")"}], "postprocess": d => ["isoMid", d[4][0], Interval(1)]},
+    {"name": "intvMExpr2$macrocall$1", "symbols": ["isoUp", "_", {"literal":"("}, "_", "intvMExpr2$macrocall$2", "_", {"literal":","}, "_", "intvMExpr2$macrocall$2", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!isoUp2", d[8][0], d[4][0], d[0], loc]},
+    {"name": "intvMExpr2$macrocall$1", "symbols": ["isoDn", "_", {"literal":"("}, "_", "intvMExpr2$macrocall$2", "_", {"literal":","}, "_", "intvMExpr2$macrocall$2", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!isoDown2", d[8][0], d[4][0], d[0], loc]},
+    {"name": "intvMExpr2$macrocall$1", "symbols": ["isoMid", "_", {"literal":"("}, "_", "intvMExpr2$macrocall$2", "_", {"literal":","}, "_", "intvMExpr2$macrocall$2", "_", {"literal":")"}], "postprocess": d => ["isoMid", d[8][0], d[4][0]]},
+    {"name": "intvMExpr2$macrocall$1$string$6", "symbols": [{"literal":"i"}, {"literal":"s"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvMExpr2$macrocall$1", "symbols": ["intvMExpr2$macrocall$1$string$6", "_", {"literal":"("}, "_", "intvMExpr2$macrocall$2", "_", {"literal":","}, "_", "frcExpr1", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!iso", d[4][0], Interval(1), d[8], loc]},
+    {"name": "intvMExpr2$macrocall$1$string$7", "symbols": [{"literal":"i"}, {"literal":"s"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvMExpr2$macrocall$1", "symbols": ["intvMExpr2$macrocall$1$string$7", "_", {"literal":"("}, "_", "intvMExpr2$macrocall$2", "_", {"literal":","}, "_", "intvMExpr2$macrocall$2", "_", {"literal":","}, "_", "frcExpr1", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!iso", d[8][0], d[4][0], d[12], loc]},
+    {"name": "intvMExpr2", "symbols": ["intvMExpr2$macrocall$1"], "postprocess": id},
     {"name": "intvMExpr2", "symbols": ["intvSymbol"], "postprocess": id},
     {"name": "intvMExpr2", "symbols": ["intvMExpr3"], "postprocess": id},
     {"name": "intvMExpr3", "symbols": ["posInt"], "postprocess": d => Interval(d[0])},
     {"name": "intvMExpr3", "symbols": ["int", "_", {"literal":"\\"}, "_", "posInt"], "postprocess": d => ["!inEDO", parseInt(d[0]), parseInt(d[4])]},
     {"name": "intvMExpr3", "symbols": ["intvMEDOExpr3", "_", {"literal":"\\"}, "_", "posInt"], "postprocess": d => ["!inEDO", d[0], parseInt(d[4])]},
-    {"name": "intvMExpr3", "symbols": [{"literal":"("}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => d[2]},
+    {"name": "intvMExpr3", "symbols": [{"literal":"("}, "_", "intvMExpr0", "_", {"literal":")"}], "postprocess": d => d[2]},
+    {"name": "isoUp$string$1", "symbols": [{"literal":"i"}, {"literal":"s"}, {"literal":"o"}, {"literal":"u"}, {"literal":"p"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "isoUp", "symbols": ["isoUp$string$1"]},
+    {"name": "isoUp$string$2", "symbols": [{"literal":"i"}, {"literal":"s"}, {"literal":"o"}, {"literal":"U"}, {"literal":"p"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "isoUp", "symbols": ["isoUp$string$2"]},
+    {"name": "isoDn$string$1", "symbols": [{"literal":"i"}, {"literal":"s"}, {"literal":"o"}, {"literal":"d"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "isoDn", "symbols": ["isoDn$string$1"]},
+    {"name": "isoDn$string$2", "symbols": [{"literal":"i"}, {"literal":"s"}, {"literal":"o"}, {"literal":"D"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "isoDn", "symbols": ["isoDn$string$2"]},
+    {"name": "isoDn$string$3", "symbols": [{"literal":"i"}, {"literal":"s"}, {"literal":"o"}, {"literal":"D"}, {"literal":"o"}, {"literal":"w"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "isoDn", "symbols": ["isoDn$string$3"]},
+    {"name": "isoMid$string$1", "symbols": [{"literal":"i"}, {"literal":"s"}, {"literal":"o"}, {"literal":"m"}, {"literal":"i"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "isoMid", "symbols": ["isoMid$string$1"]},
+    {"name": "isoMid$string$2", "symbols": [{"literal":"i"}, {"literal":"s"}, {"literal":"o"}, {"literal":"M"}, {"literal":"i"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "isoMid", "symbols": ["isoMid$string$2"]},
+    {"name": "nmed$string$1", "symbols": [{"literal":"n"}, {"literal":"m"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "nmed", "symbols": ["nmed$string$1"]},
+    {"name": "nmed$string$2", "symbols": [{"literal":"n"}, {"literal":"M"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "nmed", "symbols": ["nmed$string$2"]},
+    {"name": "nmed$string$3", "symbols": [{"literal":"n"}, {"literal":"o"}, {"literal":"b"}, {"literal":"l"}, {"literal":"e"}, {"literal":"M"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "nmed", "symbols": ["nmed$string$3"]},
+    {"name": "nmed$string$4", "symbols": [{"literal":"N"}, {"literal":"o"}, {"literal":"b"}, {"literal":"l"}, {"literal":"e"}, {"literal":"M"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "nmed", "symbols": ["nmed$string$4"]},
     {"name": "noteMExpr1", "symbols": ["noteMExpr1", "_", {"literal":"*"}, "_", "intvMExpr2"], "postprocess": d => ["mul", d[0], d[4]]},
     {"name": "noteMExpr1", "symbols": ["intvMExpr1", "_", {"literal":"*"}, "_", "noteMExpr2"], "postprocess": d => ["mul", d[0], d[4]]},
     {"name": "noteMExpr1", "symbols": ["noteMExpr1", "_", {"literal":"/"}, "_", "intvMExpr2"], "postprocess": d => ["div", d[0], d[4]]},
@@ -3446,7 +3996,7 @@ var grammar = {
     {"name": "noteMExpr2", "symbols": ["noteMExpr2$string$1", "_", {"literal":"("}, "_", "noteMExpr1", "_", {"literal":","}, "_", "posInt", "_", {"literal":")"}], "postprocess": d => ["!edoApprox", d[4], parseInt(d[8])]},
     {"name": "noteMExpr2", "symbols": ["noteSymbol"], "postprocess": id},
     {"name": "noteMExpr2", "symbols": ["noteMEDOExpr2", "_", {"literal":"\\"}, "_", "posInt"], "postprocess": d => ["!inEDO", d[0], parseInt(d[4])]},
-    {"name": "noteMExpr2", "symbols": ["decExpr3", "hertz"], "postprocess": d => ["div", Interval(d[0]), ["!refHertz"]]},
+    {"name": "noteMExpr2", "symbols": ["decExpr3", "hertz"], "postprocess": (d,loc,_) => ["!hertz", d[0], ["!refHertz"], loc]},
     {"name": "noteMExpr2", "symbols": [{"literal":"("}, "_", "noteMExpr1", "_", {"literal":")"}], "postprocess": d => d[2]},
     {"name": "intvAExpr1", "symbols": ["intvAExpr1", "_", {"literal":"+"}, "_", "intvAExpr2"], "postprocess": d => ["mul", d[0], d[4]]},
     {"name": "intvAExpr1", "symbols": ["intvAExpr1", "_", {"literal":"-"}, "_", "intvAExpr2"], "postprocess": d => ["div", d[0], d[4]]},
@@ -3456,17 +4006,29 @@ var grammar = {
     {"name": "intvAExpr2", "symbols": ["frcExpr2", "_", {"literal":"x"}, "_", "intvAExpr3"], "postprocess": d => ["pow", d[4], d[0]]},
     {"name": "intvAExpr2", "symbols": ["intvAExpr3"], "postprocess": id},
     {"name": "intvAExpr3$string$1", "symbols": [{"literal":"c"}, {"literal":"e"}, {"literal":"n"}, {"literal":"t"}, {"literal":"s"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvAExpr3", "symbols": ["intvAExpr3$string$1", "_", {"literal":"("}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => d[4]},
-    {"name": "intvAExpr3$string$2", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvAExpr3", "symbols": ["intvAExpr3$string$2", "_", {"literal":"("}, "_", "intvAExpr1", "_", {"literal":")"}], "postprocess": d => ["red", d[4]]},
-    {"name": "intvAExpr3$string$3", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvAExpr3", "symbols": ["intvAExpr3$string$3", "_", {"literal":"("}, "_", "intvAExpr1", "_", {"literal":")"}], "postprocess": d => ["reb", d[4]]},
-    {"name": "intvAExpr3$string$4", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvAExpr3", "symbols": ["intvAExpr3$string$4", "_", {"literal":"("}, "_", "intvAExpr1", "_", {"literal":","}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["red", d[4], d[8]]},
-    {"name": "intvAExpr3$string$5", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvAExpr3", "symbols": ["intvAExpr3$string$5", "_", {"literal":"("}, "_", "intvAExpr1", "_", {"literal":","}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["reb", d[4], d[8]]},
-    {"name": "intvAExpr3$string$6", "symbols": [{"literal":"a"}, {"literal":"p"}, {"literal":"p"}, {"literal":"r"}, {"literal":"o"}, {"literal":"x"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvAExpr3", "symbols": ["intvAExpr3$string$6", "_", {"literal":"("}, "_", "intvAExpr1", "_", {"literal":","}, "_", "posInt", "_", {"literal":")"}], "postprocess": d => ["!edoApprox", d[4], parseInt(d[8])]},
+    {"name": "intvAExpr3", "symbols": ["intvAExpr3$string$1", "_", {"literal":"("}, "_", "intvMExpr0", "_", {"literal":")"}], "postprocess": d => d[4]},
+    {"name": "intvAExpr3$macrocall$2", "symbols": ["intvAExpr1"]},
+    {"name": "intvAExpr3$macrocall$1$string$1", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvAExpr3$macrocall$1", "symbols": ["intvAExpr3$macrocall$1$string$1", "_", {"literal":"("}, "_", "intvAExpr3$macrocall$2", "_", {"literal":")"}], "postprocess": d => ["red", d[4][0]]},
+    {"name": "intvAExpr3$macrocall$1$string$2", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvAExpr3$macrocall$1", "symbols": ["intvAExpr3$macrocall$1$string$2", "_", {"literal":"("}, "_", "intvAExpr3$macrocall$2", "_", {"literal":")"}], "postprocess": d => ["reb", d[4][0]]},
+    {"name": "intvAExpr3$macrocall$1$string$3", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvAExpr3$macrocall$1", "symbols": ["intvAExpr3$macrocall$1$string$3", "_", {"literal":"("}, "_", "intvAExpr3$macrocall$2", "_", {"literal":","}, "_", "intvMExpr0", "_", {"literal":")"}], "postprocess": d => ["red", d[4][0], d[8]]},
+    {"name": "intvAExpr3$macrocall$1$string$4", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvAExpr3$macrocall$1", "symbols": ["intvAExpr3$macrocall$1$string$4", "_", {"literal":"("}, "_", "intvAExpr3$macrocall$2", "_", {"literal":","}, "_", "intvMExpr0", "_", {"literal":")"}], "postprocess": d => ["reb", d[4][0], d[8]]},
+    {"name": "intvAExpr3$macrocall$1$string$5", "symbols": [{"literal":"a"}, {"literal":"p"}, {"literal":"p"}, {"literal":"r"}, {"literal":"o"}, {"literal":"x"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvAExpr3$macrocall$1", "symbols": ["intvAExpr3$macrocall$1$string$5", "_", {"literal":"("}, "_", "intvAExpr3$macrocall$2", "_", {"literal":","}, "_", "posInt", "_", {"literal":")"}], "postprocess": d => ["!edoApprox", d[4][0], parseInt(d[8])]},
+    {"name": "intvAExpr3$macrocall$1", "symbols": ["isoUp", "_", {"literal":"("}, "_", "intvAExpr3$macrocall$2", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!isoUp1", d[4][0], d[0], loc]},
+    {"name": "intvAExpr3$macrocall$1", "symbols": ["isoDn", "_", {"literal":"("}, "_", "intvAExpr3$macrocall$2", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!isoDown1", d[4][0], d[0], loc]},
+    {"name": "intvAExpr3$macrocall$1", "symbols": ["isoMid", "_", {"literal":"("}, "_", "intvAExpr3$macrocall$2", "_", {"literal":")"}], "postprocess": d => ["isoMid", d[4][0], Interval(1)]},
+    {"name": "intvAExpr3$macrocall$1", "symbols": ["isoUp", "_", {"literal":"("}, "_", "intvAExpr3$macrocall$2", "_", {"literal":","}, "_", "intvAExpr3$macrocall$2", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!isoUp2", d[8][0], d[4][0], d[0], loc]},
+    {"name": "intvAExpr3$macrocall$1", "symbols": ["isoDn", "_", {"literal":"("}, "_", "intvAExpr3$macrocall$2", "_", {"literal":","}, "_", "intvAExpr3$macrocall$2", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!isoDown2", d[8][0], d[4][0], d[0], loc]},
+    {"name": "intvAExpr3$macrocall$1", "symbols": ["isoMid", "_", {"literal":"("}, "_", "intvAExpr3$macrocall$2", "_", {"literal":","}, "_", "intvAExpr3$macrocall$2", "_", {"literal":")"}], "postprocess": d => ["isoMid", d[8][0], d[4][0]]},
+    {"name": "intvAExpr3$macrocall$1$string$6", "symbols": [{"literal":"i"}, {"literal":"s"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvAExpr3$macrocall$1", "symbols": ["intvAExpr3$macrocall$1$string$6", "_", {"literal":"("}, "_", "intvAExpr3$macrocall$2", "_", {"literal":","}, "_", "frcExpr1", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!iso", d[4][0], Interval(1), d[8], loc]},
+    {"name": "intvAExpr3$macrocall$1$string$7", "symbols": [{"literal":"i"}, {"literal":"s"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvAExpr3$macrocall$1", "symbols": ["intvAExpr3$macrocall$1$string$7", "_", {"literal":"("}, "_", "intvAExpr3$macrocall$2", "_", {"literal":","}, "_", "intvAExpr3$macrocall$2", "_", {"literal":","}, "_", "frcExpr1", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!iso", d[8][0], d[4][0], d[12], loc]},
+    {"name": "intvAExpr3", "symbols": ["intvAExpr3$macrocall$1"], "postprocess": id},
     {"name": "intvAExpr3", "symbols": ["intvSymbol"], "postprocess": id},
     {"name": "intvAExpr3", "symbols": ["intvAExpr4"], "postprocess": id},
     {"name": "intvAExpr4", "symbols": ["decExpr3", {"literal":"c"}], "postprocess": d => ["!cents", d[0]]},
@@ -3517,16 +4079,28 @@ var grammar = {
     {"name": "noteAEDOExpr1", "symbols": ["noteAEDOExpr2"], "postprocess": id},
     {"name": "noteAEDOExpr2", "symbols": ["upsDnsNote"], "postprocess": id},
     {"name": "noteAEDOExpr2", "symbols": [{"literal":"("}, "_", "noteAEDOExpr1", "_", {"literal":")"}], "postprocess": d => d[2]},
-    {"name": "intvSExpr1$string$1", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvSExpr1", "symbols": ["intvSExpr1$string$1", "_", {"literal":"("}, "_", "intvSExpr1", "_", {"literal":")"}], "postprocess": d => ["red", d[4]]},
-    {"name": "intvSExpr1$string$2", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvSExpr1", "symbols": ["intvSExpr1$string$2", "_", {"literal":"("}, "_", "intvSExpr1", "_", {"literal":")"}], "postprocess": d => ["reb", d[4]]},
-    {"name": "intvSExpr1$string$3", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvSExpr1", "symbols": ["intvSExpr1$string$3", "_", {"literal":"("}, "_", "intvSExpr1", "_", {"literal":","}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["red", d[4], d[8]]},
-    {"name": "intvSExpr1$string$4", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvSExpr1", "symbols": ["intvSExpr1$string$4", "_", {"literal":"("}, "_", "intvSExpr1", "_", {"literal":","}, "_", "intvMExpr1", "_", {"literal":")"}], "postprocess": d => ["reb", d[4], d[8]]},
-    {"name": "intvSExpr1$string$5", "symbols": [{"literal":"a"}, {"literal":"p"}, {"literal":"p"}, {"literal":"r"}, {"literal":"o"}, {"literal":"x"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvSExpr1", "symbols": ["intvSExpr1$string$5", "_", {"literal":"("}, "_", "intvSExpr1", "_", {"literal":","}, "_", "posInt", "_", {"literal":")"}], "postprocess": d => ["!edoApprox", d[4], parseInt(d[8])]},
+    {"name": "intvSExpr1$macrocall$2", "symbols": ["intvSExpr1"]},
+    {"name": "intvSExpr1$macrocall$1$string$1", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvSExpr1$macrocall$1", "symbols": ["intvSExpr1$macrocall$1$string$1", "_", {"literal":"("}, "_", "intvSExpr1$macrocall$2", "_", {"literal":")"}], "postprocess": d => ["red", d[4][0]]},
+    {"name": "intvSExpr1$macrocall$1$string$2", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvSExpr1$macrocall$1", "symbols": ["intvSExpr1$macrocall$1$string$2", "_", {"literal":"("}, "_", "intvSExpr1$macrocall$2", "_", {"literal":")"}], "postprocess": d => ["reb", d[4][0]]},
+    {"name": "intvSExpr1$macrocall$1$string$3", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvSExpr1$macrocall$1", "symbols": ["intvSExpr1$macrocall$1$string$3", "_", {"literal":"("}, "_", "intvSExpr1$macrocall$2", "_", {"literal":","}, "_", "intvMExpr0", "_", {"literal":")"}], "postprocess": d => ["red", d[4][0], d[8]]},
+    {"name": "intvSExpr1$macrocall$1$string$4", "symbols": [{"literal":"r"}, {"literal":"e"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvSExpr1$macrocall$1", "symbols": ["intvSExpr1$macrocall$1$string$4", "_", {"literal":"("}, "_", "intvSExpr1$macrocall$2", "_", {"literal":","}, "_", "intvMExpr0", "_", {"literal":")"}], "postprocess": d => ["reb", d[4][0], d[8]]},
+    {"name": "intvSExpr1$macrocall$1$string$5", "symbols": [{"literal":"a"}, {"literal":"p"}, {"literal":"p"}, {"literal":"r"}, {"literal":"o"}, {"literal":"x"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvSExpr1$macrocall$1", "symbols": ["intvSExpr1$macrocall$1$string$5", "_", {"literal":"("}, "_", "intvSExpr1$macrocall$2", "_", {"literal":","}, "_", "posInt", "_", {"literal":")"}], "postprocess": d => ["!edoApprox", d[4][0], parseInt(d[8])]},
+    {"name": "intvSExpr1$macrocall$1", "symbols": ["isoUp", "_", {"literal":"("}, "_", "intvSExpr1$macrocall$2", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!isoUp1", d[4][0], d[0], loc]},
+    {"name": "intvSExpr1$macrocall$1", "symbols": ["isoDn", "_", {"literal":"("}, "_", "intvSExpr1$macrocall$2", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!isoDown1", d[4][0], d[0], loc]},
+    {"name": "intvSExpr1$macrocall$1", "symbols": ["isoMid", "_", {"literal":"("}, "_", "intvSExpr1$macrocall$2", "_", {"literal":")"}], "postprocess": d => ["isoMid", d[4][0], Interval(1)]},
+    {"name": "intvSExpr1$macrocall$1", "symbols": ["isoUp", "_", {"literal":"("}, "_", "intvSExpr1$macrocall$2", "_", {"literal":","}, "_", "intvSExpr1$macrocall$2", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!isoUp2", d[8][0], d[4][0], d[0], loc]},
+    {"name": "intvSExpr1$macrocall$1", "symbols": ["isoDn", "_", {"literal":"("}, "_", "intvSExpr1$macrocall$2", "_", {"literal":","}, "_", "intvSExpr1$macrocall$2", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!isoDown2", d[8][0], d[4][0], d[0], loc]},
+    {"name": "intvSExpr1$macrocall$1", "symbols": ["isoMid", "_", {"literal":"("}, "_", "intvSExpr1$macrocall$2", "_", {"literal":","}, "_", "intvSExpr1$macrocall$2", "_", {"literal":")"}], "postprocess": d => ["isoMid", d[8][0], d[4][0]]},
+    {"name": "intvSExpr1$macrocall$1$string$6", "symbols": [{"literal":"i"}, {"literal":"s"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvSExpr1$macrocall$1", "symbols": ["intvSExpr1$macrocall$1$string$6", "_", {"literal":"("}, "_", "intvSExpr1$macrocall$2", "_", {"literal":","}, "_", "frcExpr1", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!iso", d[4][0], Interval(1), d[8], loc]},
+    {"name": "intvSExpr1$macrocall$1$string$7", "symbols": [{"literal":"i"}, {"literal":"s"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "intvSExpr1$macrocall$1", "symbols": ["intvSExpr1$macrocall$1$string$7", "_", {"literal":"("}, "_", "intvSExpr1$macrocall$2", "_", {"literal":","}, "_", "intvSExpr1$macrocall$2", "_", {"literal":","}, "_", "frcExpr1", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!iso", d[8][0], d[4][0], d[12], loc]},
+    {"name": "intvSExpr1", "symbols": ["intvSExpr1$macrocall$1"], "postprocess": id},
     {"name": "intvSExpr1", "symbols": ["intvSExpr2"], "postprocess": id},
     {"name": "intvSExpr2", "symbols": ["intvSymbol"], "postprocess": id},
     {"name": "intvSExpr2", "symbols": ["int", "_", {"literal":"\\"}, "_", "posInt"], "postprocess": d => ["!inEDO", parseInt(d[0]), parseInt(d[4])]},
@@ -3549,6 +4123,11 @@ var grammar = {
     {"name": "intvSymbol", "symbols": ["monzo"], "postprocess": id},
     {"name": "intvSymbol$string$3", "symbols": [{"literal":"T"}, {"literal":"T"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "intvSymbol", "symbols": ["intvSymbol$string$3"], "postprocess": _ => Interval(2).sqrt()},
+    {"name": "intvSymbol", "symbols": ["phi"], "postprocess": _ => Interval.phi},
+    {"name": "phi$string$1", "symbols": [{"literal":"p"}, {"literal":"h"}, {"literal":"i"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "phi", "symbols": ["phi$string$1"]},
+    {"name": "phi", "symbols": [{"literal":"φ"}]},
+    {"name": "phi", "symbols": [{"literal":"ϕ"}]},
     {"name": "noteSymbol", "symbols": ["anyPyNote"], "postprocess": id},
     {"name": "noteSymbol", "symbols": ["strictFJSLikeNote"], "postprocess": id},
     {"name": "noteSymbol$string$1", "symbols": [{"literal":"F"}, {"literal":"J"}, {"literal":"S"}], "postprocess": function joiner(d) {return d.join('');}},
@@ -4025,8 +4604,10 @@ var grammar = {
           throw new OtherError("Division by zero", d[4][1])
         } } },
     {"name": "decExpr2", "symbols": ["decExpr3"], "postprocess": id},
-    {"name": "decExpr3", "symbols": ["decimal"], "postprocess": d => Fraction(d[0])},
-    {"name": "decExpr3", "symbols": [{"literal":"("}, "_", "decExpr1", "_", {"literal":")"}], "postprocess": d => d[2]},
+    {"name": "decExpr3", "symbols": [{"literal":"-"}, "_", "decExpr4"], "postprocess": d => d[2].neg()},
+    {"name": "decExpr3", "symbols": ["decExpr4"], "postprocess": id},
+    {"name": "decExpr4", "symbols": ["decimal"], "postprocess": d => Fraction(d[0])},
+    {"name": "decExpr4", "symbols": [{"literal":"("}, "_", "decExpr1", "_", {"literal":")"}], "postprocess": d => d[2]},
     {"name": "locDecExpr3", "symbols": ["decExpr3"], "postprocess": (d,loc,_) => [d[0],loc]},
     {"name": "posInt$ebnf$1", "symbols": []},
     {"name": "posInt$ebnf$1", "symbols": ["posInt$ebnf$1", /[0-9]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
@@ -4036,25 +4617,22 @@ var grammar = {
     {"name": "int$ebnf$1", "symbols": [{"literal":"-"}], "postprocess": id},
     {"name": "int$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "int", "symbols": ["int$ebnf$1", "nonNegInt"], "postprocess": d => (d[0] || "") + d[1]},
-    {"name": "decimal$ebnf$1", "symbols": [{"literal":"-"}], "postprocess": id},
-    {"name": "decimal$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "decimal$ebnf$2", "symbols": [/[0-9]/]},
-    {"name": "decimal$ebnf$2", "symbols": ["decimal$ebnf$2", /[0-9]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "decimal$ebnf$3$subexpression$1$ebnf$1", "symbols": []},
-    {"name": "decimal$ebnf$3$subexpression$1$ebnf$1", "symbols": ["decimal$ebnf$3$subexpression$1$ebnf$1", /[0-9]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "decimal$ebnf$3$subexpression$1$ebnf$2$subexpression$1$ebnf$1", "symbols": [/[0-9]/]},
-    {"name": "decimal$ebnf$3$subexpression$1$ebnf$2$subexpression$1$ebnf$1", "symbols": ["decimal$ebnf$3$subexpression$1$ebnf$2$subexpression$1$ebnf$1", /[0-9]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "decimal$ebnf$3$subexpression$1$ebnf$2$subexpression$1", "symbols": [{"literal":"("}, "decimal$ebnf$3$subexpression$1$ebnf$2$subexpression$1$ebnf$1", {"literal":")"}]},
-    {"name": "decimal$ebnf$3$subexpression$1$ebnf$2", "symbols": ["decimal$ebnf$3$subexpression$1$ebnf$2$subexpression$1"], "postprocess": id},
-    {"name": "decimal$ebnf$3$subexpression$1$ebnf$2", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "decimal$ebnf$3$subexpression$1", "symbols": [{"literal":"."}, "decimal$ebnf$3$subexpression$1$ebnf$1", "decimal$ebnf$3$subexpression$1$ebnf$2"]},
-    {"name": "decimal$ebnf$3", "symbols": ["decimal$ebnf$3$subexpression$1"], "postprocess": id},
-    {"name": "decimal$ebnf$3", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "decimal", "symbols": ["decimal$ebnf$1", "decimal$ebnf$2", "decimal$ebnf$3"], "postprocess":  d => (d[0] || "") + d[1].join("")
-        + (d[2] ? "." + d[2][1].join("")
-                      + (d[2][2] ? "("+d[2][2][1].join("")+")"
-                                 : "")
-                : "") },
+    {"name": "decimal$ebnf$1", "symbols": [/[0-9]/]},
+    {"name": "decimal$ebnf$1", "symbols": ["decimal$ebnf$1", /[0-9]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "decimal$ebnf$2$subexpression$1$ebnf$1", "symbols": []},
+    {"name": "decimal$ebnf$2$subexpression$1$ebnf$1", "symbols": ["decimal$ebnf$2$subexpression$1$ebnf$1", /[0-9]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "decimal$ebnf$2$subexpression$1$ebnf$2$subexpression$1$ebnf$1", "symbols": [/[0-9]/]},
+    {"name": "decimal$ebnf$2$subexpression$1$ebnf$2$subexpression$1$ebnf$1", "symbols": ["decimal$ebnf$2$subexpression$1$ebnf$2$subexpression$1$ebnf$1", /[0-9]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "decimal$ebnf$2$subexpression$1$ebnf$2$subexpression$1", "symbols": [{"literal":"("}, "decimal$ebnf$2$subexpression$1$ebnf$2$subexpression$1$ebnf$1", {"literal":")"}]},
+    {"name": "decimal$ebnf$2$subexpression$1$ebnf$2", "symbols": ["decimal$ebnf$2$subexpression$1$ebnf$2$subexpression$1"], "postprocess": id},
+    {"name": "decimal$ebnf$2$subexpression$1$ebnf$2", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "decimal$ebnf$2$subexpression$1", "symbols": [{"literal":"."}, "decimal$ebnf$2$subexpression$1$ebnf$1", "decimal$ebnf$2$subexpression$1$ebnf$2"]},
+    {"name": "decimal$ebnf$2", "symbols": ["decimal$ebnf$2$subexpression$1"], "postprocess": id},
+    {"name": "decimal$ebnf$2", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "decimal", "symbols": ["decimal$ebnf$1", "decimal$ebnf$2"], "postprocess":  d => d[0].join("") + (d[1] ? "." + d[1][1].join("")
+              + (d[1][2] ? "("+d[1][2][1].join("")+")"
+                         : "")
+        : "") },
     {"name": "hertz$string$1", "symbols": [{"literal":"h"}, {"literal":"z"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "hertz", "symbols": ["hertz$string$1"]},
     {"name": "hertz$string$2", "symbols": [{"literal":"H"}, {"literal":"z"}], "postprocess": function joiner(d) {return d.join('');}},
@@ -4145,7 +4723,7 @@ const pyA1 = pyInterval(1,1);
   */
 function isPythagorean(a,b) {
   const i = new Interval(a,b);
-  return i.toMonzo().length <= 2 /* only has factors of 2,3 */
+  return i.inPrimeLimit(3)
          && i.expOf(3).mul(4).d == 1
          && i.expOf(2).add(i.expOf(3)).d == 1;
 }
@@ -4973,6 +5551,9 @@ function fractionalPart(n) {
 
 let cached_logs = {}
 function cachedLog2(i) {
+  if (i % 1 != 0) {
+    return Math.log2(i)
+  }
   let entry = cached_logs[i];
   if (entry == undefined) {
     entry = Math.log2(i);

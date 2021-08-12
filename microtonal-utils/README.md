@@ -126,13 +126,15 @@ $ npm run test:all
     ✓ root/valueOf: Interval(fr).root(n).valueOf() ~= Math.pow(fr, 1/n)
     ✓ factorOut: i1 == i2.pow(i1.factorOut(i2)[0]).mul(i1.factorOut(i2)[1])
     ✓ pow/valueOf_log: i.pow(fr).valueOf_log(i) == fr.valueOf()
-    ✓ valueOf_log: i1.valueOf_log(i2) ~= Math.log(i1) / Math.log(i2)
-    ✓ toCents: i.toCents() ~= 1200 * Math.log2(i)
+    ✓ valueOf_log: i.valueOf_log() ~= Math.log2(i)
+    ✓ valueOf_log: i1.valueOf_log(i2) ~= i1.valueOf_log() / i2.valueOf_log()
+    ✓ toCents: i.toCents() ~= 1200 * i.valueOf_log()
     ✓ isPrimeLimit: i.inPrimeLimit(k) for all k >= i.primeLimit()
     ✓ isPrimeLimit: !i.inPrimeLimit(k) for all k < i.primeLimit()
     ✓ isOddLimit: Interval(fr).inOddLimit(k) for all k >= Interval(fr).oddLimit()
     ✓ isOddLimit: !Interval(fr).inOddLimit(k) for k < Interval(fr).oddLimit()
     ✓ oddLimit: Interval(odd,even).oddLimit() == Interval(even,odd).oddLimit() == odd
+    ✓ iso1: i.iso1(fr1).iso1(fr2) == i.iso1(fr1.mul(fr2)) (58ms)
 
   Best approximations
     ✓ regression: bestRationalApproxsByNo2sHeight({2: 400/1200})
@@ -144,7 +146,7 @@ $ npm run test:all
     ✓ regression: bestRationalApproxsByNo2sHeight(81,64, {primeLimit: 13, oddLimit: 81})
     ✓ regression: bestRationalApproxsByHeight({2: 400/1200}, {primeLimit: 19})
     ✓ regression: bestRationalApproxsByHeight({2: 300/1200}, {primeLimit: 13})
-    ✓ regression: bestRationalApproxsByHeight({2: 600/1200}, {primeLimit: 13, oddLimit: 81})
+    ✓ regression: bestRationalApproxsByHeight({2: 600/1200}, {primeLimit: 13, oddLimit: 81}) (38ms)
     ✓ regression: bestRationalApproxsByHeight(81,64, {primeLimit: 19})
     ✓ regression: bestRationalApproxsByDenom({2: 350/1200})
     ✓ regression: bestRationalApproxsByDiff({2: 350/1200}, {oddLimit: 9, cutoff: {2: 1/2}})
@@ -167,20 +169,22 @@ $ npm run test:all
     ✓ colorTemperament(135,128) == layobi
     ✓ colorTemperament([24,-21,4]) == sasa-quadyo
 
-  53 passing (344ms)
+  55 passing (448ms)
 
 
   Intervals and the parser
-    ✓ toNthRootString: i == parseCvt(i.toNthRootString()).intv (347ms)
-    ✓ fr1.mul(fr2) == parseCvt(`${fr1} * ${fr2}`).ratio (353ms)
+    ✓ toNthRootString: i == parseCvt(i.toNthRootString()).intv (310ms)
+    ✓ fr1.mul(fr2) == parseCvt(`${fr1} * ${fr2}`).ratio (395ms)
 
   Pythagorean intervals and the parser
-    ✓ pyi == parseCvt(pySymb(pyi)).intv (412ms)
+    ✓ pyi == parseCvt(pySymb(pyi)).intv (490ms)
 
   Color notation intervals and the parser
-    ✓ fr == parseCvt(colorSymb(fr)).ratio (1060ms)
-    ✓ fr == parseCvt(colorSymb(fr, {verbosity:1})).ratio (728ms)
+    ✓ fr == parseCvt(colorSymb(fr)).ratio (1209ms)
+    ✓ fr == parseCvt(colorSymb(fr, {useExps:1})).ratio (1202ms)
+    ✓ fr == parseCvt(colorSymb(fr, {verbosity:1})).ratio (879ms)
 
-  5 passing (3s)
+
+  6 passing (4s)
 
 ```
