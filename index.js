@@ -136,6 +136,7 @@ function fmtEDOStep(step) {
 //  number of decimal places followed by trailing zeros if the boolean is set
 //  and the letter "c".
 function fmtCents(cents, decimalPlaces, trailingZeros) {
+  if (decimalPlaces == undefined) { return cents + "c"; }
   if (trailingZeros) { return  cents.toFixed(decimalPlaces) + "c"; }
   else               { return +cents.toFixed(decimalPlaces) + "c"; }
 }
@@ -143,9 +144,10 @@ function fmtCents(cents, decimalPlaces, trailingZeros) {
 //  whether to add trailing zeros, return the value truncated to the given
 //  number of decimal places followed by trailing zeros if the boolean is set
 //  and the letters "Hz".
-function fmtHertz(cents, decimalPlaces, trailingZeros) {
-  if (trailingZeros) { return  cents.toFixed(decimalPlaces) + "Hz"; }
-  else               { return +cents.toFixed(decimalPlaces) + "Hz"; }
+function fmtHertz(hertz, decimalPlaces, trailingZeros) {
+  if (decimalPlaces == undefined) { return hertz + "Hz"; }
+  if (trailingZeros) { return  hertz.toFixed(decimalPlaces) + "Hz"; }
+  else               { return +hertz.toFixed(decimalPlaces) + "Hz"; }
 }
 // Given an interval, returns its factorization as a string
 function fmtFactorization(intv) {
@@ -178,6 +180,20 @@ function fmtExpression(intv, prefEDO) {
   }
   catch (err) {}
   return fmtFactorization(intv);
+}
+// Given a string and a ratio, places the string and a question mark in the
+//  appropriate places (based on the given ratio) in an isoharmonic chord
+//  starting at 1
+function fmtIso(str, n, d) {
+  const [min,max] = [Math.min(0, n, d), Math.max(n, d)];
+  let items = [];
+  for (let i = min; i <= max; i++) {
+    if      (i == 0) { items.push("1") }
+    else if (i == n) { items.push("?"); }
+    else if (i == d) { items.push(str); }
+    else             { items.push("-"); }
+  }
+  return items.join(" : ");
 }
 // Wrap a given string in an <a> tag formatted with the `expr` class
 function fmtExtExprLink(str, linkstr) {
@@ -215,7 +231,20 @@ function getResults() {
     res.hertz = res.intv.mul(res.ref.hertz).valueOf();
     typeStr = "Interval";
     const centsLink = fmtInlineLink("Size in cents", "https://en.wikipedia.org/wiki/Cent_(music)");
-    rows.push([centsLink, fmtExtExprLink(fmtCents(res.cents, 5))]);
+    // find the smallest k >= 5 such that the interval's cents value truncated
+    //  to k decimal places is interpreted as the same as the original interval
+    let [k, found_k] = [5, false];
+    for (; !found_k && k < 15; k++) {
+      const i = microtonal_utils.Interval(2 ** (+res.cents.toFixed(k) / 1200));
+      if (res.intv.hasFactors() || i.hasFactors()) {
+        found_k |= res.intv.equals(i);
+      }
+      else {
+        const [res_val, i_val] = [res.intv.valueOf(), i.valueOf()];
+        found_k |= Math.abs(res_val - i_val) / Math.max(res_val, i_val) < 1e-15;
+      }
+    }
+    rows.push([centsLink, fmtExtExprLink(fmtCents(res.cents, k))]);
     if (res.ratio) {
       const ratioLink = fmtInlineLink("Ratio", "https://en.wikipedia.org/wiki/Just_intonation");
       rows.push([ratioLink, fmtExtExprLink(toRatioStr(res.ratio))]);
@@ -228,26 +257,38 @@ function getResults() {
       }
       catch (err) {}
     }
-    const [fact_off, fact_on] = fmtFactorization(res.intv);
-    if (fact_off.length > 0) {
-      if (fact_off !== fact_on) {
-        rows.push(["Prime factorization", { hoverSwap_off: fmtExtExprLink(fact_off, fact_on)
-                                          , hoverSwap_on : fmtExtExprLink(fact_on) }]);
-      }
-      else {
-        rows.push(["Prime factorization", fmtExtExprLink(fact_on)]);
-      }
-      let [monzo, monzoLink] = [res.intv.toMonzo(), undefined];
-      if (monzo.length <= 18*7) {
-        if (res.intv.isFrac()) {
-          monzoLink = fmtInlineLink("Monzo", "https://en.xen.wiki/w/Monzo");
+    if (res.intv.hasFactors()) {
+      const [fact_off, fact_on] = fmtFactorization(res.intv);
+      if (fact_off.length > 0) {
+        if (fact_off !== fact_on) {
+          rows.push(["Prime factorization", { hoverSwap_off: fmtExtExprLink(fact_off, fact_on)
+                                            , hoverSwap_on : fmtExtExprLink(fact_on) }]);
         }
         else {
-          monzo = monzo.map(x => x.toFraction());
-          monzoLink = fmtInlineLink("Fractional monzo", "https://en.xen.wiki/w/Fractional_monzo");
+          rows.push(["Prime factorization", fmtExtExprLink(fact_on)]);
         }
-        rows.push([monzoLink, fmtExtExprLink("|" + monzo.join(", ") + "⟩")]);
+        let [monzo, monzoLink] = [res.intv.toMonzo(), undefined];
+        if (monzo.length <= 18*7) {
+          if (res.intv.isFrac()) {
+            monzoLink = fmtInlineLink("Monzo", "https://en.xen.wiki/w/Monzo");
+          }
+          else {
+            monzo = monzo.map(x => x.toFraction());
+            monzoLink = fmtInlineLink("Fractional monzo", "https://en.xen.wiki/w/Fractional_monzo");
+          }
+          rows.push([monzoLink, fmtExtExprLink("|" + monzo.join(", ") + "⟩")]);
+        }
       }
+    }
+    if (res.iso) {
+      const isoLink = fmtInlineLink("Isoharmonic", "https://en.xen.wiki/w/Isoharmonic_chords") + "/" +
+                      fmtInlineLink("linear", "https://en.xen.wiki/w/Linear_chord") + " expression";
+      const [expr_off, expr_on] = fmtExpression(res.iso[0]);
+      const [n,d] = res.iso[0].compare(1) < 0 ? [res.iso[1].n, res.iso[1].s * res.iso[1].d]
+                                              : [res.iso[1].s * res.iso[1].n, res.iso[1].d];
+      const [iso_off, iso_on] = [fmtIso(expr_off, n, d), fmtIso(expr_on, n, d)];
+      rows.push([isoLink, { hoverSwap_off: fmtExtExprLink(iso_off, iso_on)
+                          , hoverSwap_on : fmtExtExprLink(iso_on) }]);
     }
     if (res.ratio) {
       const benedettiLink = fmtInlineLink("Benedetti height", "https://en.xen.wiki/w/Benedetti_height");
@@ -256,7 +297,7 @@ function getResults() {
       if (res.height.tenney < 50) {
         rows.push([benedettiLink, res.height.benedetti + " (no-2s: " + no2Benedetti + ")"]);
       }
-      rows.push([tenneyLink, +res.height.tenney.toFixed(5) + " (no-2s: " + Math.log2(no2Benedetti).toFixed(5) + ")"]);
+      rows.push([tenneyLink, +res.height.tenney.toFixed(5) + " (no-2s: " + +Math.log2(no2Benedetti).toFixed(5) + ")"]);
     }
     if (res.edoSteps) {
       const edoLink = fmtInlineLink("EDO", "https://en.wikipedia.org/wiki/Equal_temperament");
@@ -473,7 +514,10 @@ function updateResults() {
 // table
 function addXenWikiLink() {
   let xenPageName = "";
-  if (res.ratio) {
+  if (res.intv.equals(microtonal_utils.Interval.phi)) {
+    xenPageName = "Acoustic_phi";
+  }
+  else if (res.ratio) {
     xenPageName = toRatioStr(res.ratio);
   }
   else if (res.edoSteps) {
