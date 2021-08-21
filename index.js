@@ -514,7 +514,7 @@ function updateResults() {
 // table
 function addXenWikiLink() {
   let xenPageName = "";
-  if (res.intv.equals(microtonal_utils.Interval.phi)) {
+  if (res.intv && res.intv.equals(microtonal_utils.Interval.phi)) {
     xenPageName = "Acoustic_phi";
   }
   else if (res.ratio) {
