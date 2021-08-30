@@ -78,6 +78,8 @@ function reformatURL(str) {
 
 // Add 1 to the count for each of the given strings
 function logStrs(ids) {
+  // don't log anything if we're not connected via yacavone.net
+  if (window.location.href.indexOf("https://www.yacavone.net") != 0) { return; }
   setTimeout(function () {
     try {
       const xhr = new XMLHttpRequest();
@@ -93,10 +95,9 @@ function logStrs(ids) {
 
 // Add 1 to the count for strings related to the current result
 function logResultTypes(res, xs) {
-  // if we have no res or we're on a local file, return
-  if (res.type == undefined || window.location.href.indexOf("http") != 0) { return; }
-  let toLog = xs ? xs : [];
+  if (res.type == undefined) { return; }
   const typec = res.type == "interval" ? "i" : "n";
+  let toLog = xs ? xs : [];
   // log the query type
   if (res.symbolType != undefined && res.symbolType !== "") {
     const abbr_symbolType =
