@@ -515,13 +515,13 @@ function updateResults() {
         if (ref != refHTML) {
           $('#didYouMeanDiv').addClass("hoverSwap");
           $('#didYouMean').html($('<span>').addClass("hoverSwap_off")
-                                           .html(fmtExtExprLink(refHTML, ref).addClass("alt")));
+                                           .html(fmtExtExprLink(refHTML, ref).addClass("alt2")));
           $('#didYouMean').append($('<span>').addClass("hoverSwap_on")
-                                             .html(fmtExtExprLink(ref).addClass("alt")));
+                                             .html(fmtExtExprLink(ref).addClass("alt2")));
         }
         else {
           $('#didYouMeanDiv').removeClass("hoverSwap");
-          $('#didYouMean').html(fmtExtExprLink(ref).addClass("alt"));
+          $('#didYouMean').html(fmtExtExprLink(ref).addClass("alt2"));
         }
       }
     }

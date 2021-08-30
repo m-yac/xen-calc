@@ -367,6 +367,19 @@ a.alt:visited:focus {
   font-weight: bold;
 }
 
+a.alt2,
+a.alt2:visited {
+  color: #0645AD;
+  font-weight: bold;
+}
+a.alt2:hover,
+a.alt2:focus,
+a.alt2:visited:hover,
+a.alt2:visited:focus {
+  color: #F3470F;
+  font-weight: bold;
+}
+
 a.grey,
 a.grey:visited {
   color: #555;
