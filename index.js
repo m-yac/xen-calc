@@ -201,7 +201,7 @@ function fmtExtExprLink(str, linkstr) {
     linkstr = str
   }
   const queryStr = reformatURL(encodeURIComponent(linkstr));
-  let link = $('<a>').attr("href", "?q=" + queryStr)
+  let link = $('<a>').attr("href", "./?q=" + queryStr)
                      .attr("style", "vertical-align: top;")
                      .html(str);
   return link;
@@ -313,21 +313,21 @@ function getResults() {
   }
   let did_merged_FJS_color = false;
   // Special case for "colorless" notes - the FJS and color notations are the same!
-  if (res.type == "note" && res.symb && res.symb["FJS"] && res.symb["color-abbrev"]
-                                     && res.symb["FJS"] == res.symb["color-abbrev"]) {
+  if (res.type == "note" && res.symb && res.symb.FJS && res.symb.color
+                                     && res.symb.FJS == res.symb.color) {
     const linkStr = fmtInlineLink("FJS", "https://en.xen.wiki/w/Functional_Just_System")
                     + "/" +
                     fmtInlineLink("color", "https://en.xen.wiki/w/Color_notation")
                     + " name";
-    rows.push([linkStr + "", fmtExtExprLink(res.symb["FJS"])]);
+    rows.push([linkStr + "", fmtExtExprLink(res.symb.FJS)]);
     did_merged_FJS_color = true;
   }
   // Add any symbols
   if (res.symb) {
-    if (res.symb["FJS"] && !did_merged_FJS_color &&
+    if (res.symb.FJS && !did_merged_FJS_color &&
         // for now we only have integer accidentals, since I'm not sure how
         //  useful showing non-integer accidentals actually is
-        !(res.symb["FJS"].includes("root") || res.symb["FJS"].includes("sqrt"))) {
+        !(res.symb.FJS.includes("root") || res.symb.FJS.includes("sqrt"))) {
       const fjsLink = fmtInlineLink("FJS name", "https://en.xen.wiki/w/Functional_Just_System");
       const {otos, utos, pyi} = microtonal_utils.fjsAccidentals(intv);
       if (otos.length != 0 || utos.length != 0) {
@@ -336,21 +336,21 @@ function getResults() {
         const withSupsSubs = (res.type == "interval" ? microtonal_utils.pySymb(pyi)
                                                      : microtonal_utils.pyNote(pyi))
                              + '<span class="supsub">' + otoStr + utoStr + '</span>';
-        rows.push([fjsLink, { hoverSwap_off: fmtExtExprLink(withSupsSubs, res.symb["FJS"])
-                            , hoverSwap_on : fmtExtExprLink(res.symb["FJS"]) }]);
+        rows.push([fjsLink, { hoverSwap_off: fmtExtExprLink(withSupsSubs, res.symb.FJS)
+                            , hoverSwap_on : fmtExtExprLink(res.symb.FJS) }]);
       }
       else {
-        rows.push([fjsLink, fmtExtExprLink(res.symb["FJS"])]);
+        rows.push([fjsLink, fmtExtExprLink(res.symb.FJS)]);
       }
     }
-    if (res.symb["NFJS"] &&
+    if (res.symb.NFJS &&
         // for now we only have integer accidentals, since I'm not sure how
         //  useful showing non-integer accidentals actually is
-        !(res.symb["NFJS"].includes("root") || res.symb["NFJS"].includes("sqrt"))) {
+        !(res.symb.NFJS.includes("root") || res.symb.NFJS.includes("sqrt"))) {
       const nfjsLink = fmtInlineLink("Neutral FJS name", "https://en.xen.wiki/w/User:M-yac/Neutral_Intervals_and_the_FJS");
-      let linkStr = res.symb["NFJS"];
-      if (res.symb["NFJS"] !== microtonal_utils.parseCvt(res.symb["NFJS"]).symb["NFJS"]) {
-        linkStr = "NFJS(" + res.symb["NFJS"] + ")";
+      let linkStr = res.symb.NFJS;
+      if (res.symb.NFJS !== microtonal_utils.parseCvt(res.symb.NFJS).symb.NFJS) {
+        linkStr = "NFJS(" + res.symb.NFJS + ")";
       }
       const {otos, utos, pyi} = microtonal_utils.fjsAccidentals(intv, microtonal_utils.nfjsSpec);
       if (otos.length != 0 || utos.length != 0) {
@@ -360,15 +360,15 @@ function getResults() {
                                                      : microtonal_utils.pyNote(pyi))
                              + '<span class="supsub">' + otoStr + utoStr + '</span>';
         rows.push([nfjsLink, { hoverSwap_off: fmtExtExprLink(withSupsSubs, linkStr)
-                             , hoverSwap_on : fmtExtExprLink(res.symb["NFJS"], linkStr) }]);
+                             , hoverSwap_on : fmtExtExprLink(res.symb.NFJS, linkStr) }]);
       }
       else {
-        rows.push([nfjsLink, fmtExtExprLink(res.symb["NFJS"], linkStr)]);
+        rows.push([nfjsLink, fmtExtExprLink(res.symb.NFJS, linkStr)]);
       }
     }
-    if (res.symb["ups-and-downs"]) {
+    if (res.symb.ups_and_downs) {
       const updnsLink = fmtInlineLink("Ups-and-downs notation", "https://en.xen.wiki/w/Ups_and_Downs_Notation");
-      const symbs = res.symb["ups-and-downs"].map(symb => fmtExtExprLink(symb).prop('outerHTML'));
+      const symbs = res.symb.ups_and_downs.map(symb => fmtExtExprLink(symb).prop('outerHTML'));
       rows.push([updnsLink, symbs.join(", ")]);
     }
   }
@@ -380,19 +380,12 @@ function getResults() {
     rows.push([link, res.english.join("<br>")]);
   }
   // Add any color name
-  if (res.symb && res.symb["color-abbrev"] && !did_merged_FJS_color) {
+  if (res.symb && res.symb.color && !did_merged_FJS_color) {
     const colorLink = fmtInlineLink("Color notation", "https://en.xen.wiki/w/Color_notation");
     let str = "";
     const symbFn = res.type == "interval" ? microtonal_utils.colorSymb
                                           : microtonal_utils.colorNote;
-    if (res.symb["color"]) {
-      if (res.type == "interval" && res.cents < 0) {
-        const name = symbFn(intv.recip(), {verbosity: 1});
-        const dispName = symbFn(intv.recip(), {verbosity: 1, useWordNegative: true})
-                           .replace(" 1sn", " unison")
-                           .replace(" 8ve", " octave");
-        str += "descending " + fmtExtExprLink(dispName, name).prop('outerHTML') + ",<br>";
-      }
+    if (res.symb.color_verbose) {
       const name = symbFn(intv, {verbosity: 1});
       const dispName = symbFn(intv, {verbosity: 1, useWordNegative: true})
                          .replace(" 1sn", " unison")
@@ -407,7 +400,7 @@ function getResults() {
       rows.push([colorLink, { hoverSwap_off: str_off, hoverSwap_on: str_on }]);
     }
     else {
-      str += fmtExtExprLink(res.symb["color-abbrev"]).prop("outerHTML");
+      str += fmtExtExprLink(res.symb.color).prop("outerHTML");
       rows.push([colorLink, str])
     }
   }
@@ -442,7 +435,8 @@ function getResults() {
 
 // Updates the entire results section based on the current expression
 function updateResults() {
-  if ($('#expr').val().trim() === "") {
+  const exprVal = $('#expr').val().trim();
+  if (exprVal === "") {
     $('#errors').addClass("hidden");
     $('#results').addClass("hidden");
     return;
@@ -451,6 +445,39 @@ function updateResults() {
     $('#errors').addClass("hidden");
     $('#results').removeClass("hidden");
     const [typeStr, rows, scaleWorkshopData] = getResults();
+    $('#didYouMeanDiv').addClass("hidden");
+    if (res.symbolType === "color") {
+      const s = exprVal.replace("descending", "desc.");
+      const ref = res.type == "interval" ? microtonal_utils.colorSymb(res.intv, {useExps: 1})
+                                         : microtonal_utils.colorNote(res.intvToRef.mul(res.ref.intvToA4), {useExps: 1});
+      if (s != ref) {
+        $('#didYouMeanDiv').removeClass("hidden");
+        const refHTML = res.type == "interval" ? microtonal_utils.colorSymb(res.intv, {useHTMLExps: 1})
+                                               : microtonal_utils.colorNote(res.intvToRef.mul(res.ref.intvToA4), {useHTMLExps: 1});
+        if (ref != refHTML) {
+          $('#didYouMeanDiv').addClass("hoverSwap");
+          $('#didYouMean').html($('<span>').addClass("hoverSwap_off")
+                                           .html(fmtExtExprLink(refHTML, ref).addClass("alt")));
+          $('#didYouMean').append($('<span>').addClass("hoverSwap_on")
+                                             .html(fmtExtExprLink(ref).addClass("alt")));
+        }
+        else {
+          $('#didYouMeanDiv').removeClass("hoverSwap");
+          $('#didYouMean').html(fmtExtExprLink(ref).addClass("alt"));
+        }
+      }
+    }
+    else if (res.symbolType === "color (verbose)") {
+      const s = exprVal.replace("descending", "desc.")
+                       .replace("unison", "1sn")
+                       .replace("octave", "8ve");
+      const ref = res.type == "interval" ? microtonal_utils.colorSymb(res.intv, {verbosity: 1})
+                                         : microtonal_utils.colorNote(res.intvToRef.mul(res.ref.intvToA4), {verbosity: 1});
+      if (s != ref) {
+        $('#didYouMeanDiv').removeClass("hidden");
+        $('#didYouMean').html(fmtExtExprLink(ref).addClass("alt"));
+      }
+    }
     $('#resHeader').html(typeStr + " results");
     $('#resTable').empty();
     for (const [n,v] of rows) {
