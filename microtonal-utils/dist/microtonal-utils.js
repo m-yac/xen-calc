@@ -1500,7 +1500,7 @@ function enNames(a,b, opts) {
   // special cases for FJS formal commas
   for (const p in primeNames) {
     const comma = fjsComma(p);
-    const inv_str = intv.compare(1) < 0 ? " (inverted)" : "";
+    const inv_str = intv.compare(1) < 0 ? " (descending)" : "";
     if (intv.equals(comma) || intv.equals(comma.recip())) {
       nms.push((p == 5 ? "syntonic" : primeNames[p][0]) + " comma" + inv_str);
     }
@@ -1508,7 +1508,7 @@ function enNames(a,b, opts) {
   // special case for multiple octaves
   if (intv.inPrimeLimit(2) && intv.expOf(2).d == 1 && intv.expOf(2).n > 1
       /* ^ is a non-zero integer power of 2 */) {
-    const invStr = intv.expOf(2) < 0 ? " (inverted)" : "";
+    const invStr = intv.expOf(2) < 0 ? " (descending)" : "";
     nms.push(ntw.toWords(intv.expOf(2).n) + " octaves" + invStr);
   }
 
@@ -1593,6 +1593,13 @@ function enNames(a,b, opts) {
         else if (uds >=  2) { uds_str = uds + "-up "; }
         else if (uds <= -2) { uds_str = uds + "-down "; }
         let pyi_symb = pySymb(pyi, {verbosity: verbosity});
+        let neut_str = undefined;
+        if (pyi.minPowFrac() == 2) {
+          if (uds == 0) { neut_str = uds_str + pyi_symb; }
+          pyi_symb = pyi_symb.replace("neutral", "mid")
+                             .replace("semi-augmented", "mid")
+                             .replace("semi-diminished", "mid");
+        }
         if ((uds == 1 || uds == -1) && !abbreviate) {
           pyi_symb = pyi_symb.replace("perfect ", "-");
         }
@@ -1600,6 +1607,7 @@ function enNames(a,b, opts) {
           pyi_symb = pyi_symb.replace("perfect", "");
         }
         intv_strs.push(uds_str + pyi_symb);
+        if (neut_str != undefined) { intv_strs.push(neut_str); }
       }
       nms.push(edo_str + intv_strs.join(" / "));
       if (n == edo / 2) {
@@ -1610,7 +1618,7 @@ function enNames(a,b, opts) {
 
   // special case for the inverse of the Pythagorean comma
   if (intv.equals(pyInterval(2,-1.5))) {
-    nms.push("Pythagorean comma (inverted)");
+    nms.push("Pythagorean comma (descending)");
   }
   // special case for harmonics > 1
   if (intv.isFrac()) {
@@ -1619,7 +1627,7 @@ function enNames(a,b, opts) {
       nms.push(ntw.toOrdinal(n) + " harmonic");
     }
     if (n == 1 && d > 1) {
-      nms.push(ntw.toOrdinal(d) + " harmonic (inverted)");
+      nms.push(ntw.toOrdinal(d) + " harmonic (descending)");
     }
   }
 
@@ -5043,7 +5051,7 @@ function pySymb(a,b, opts) {
   const {verbosity} = opts || {};
   const d = pyDegree(a,b);
   const d_str = case2(verbosity, "", " ") + pyDegreeString(d, verbosity);
-  const inv_str = verbosity && d < 0 ? " (inverted)" : "";
+  const inv_str = verbosity && d < 0 ? " (descending)" : "";
   return pyQuality(a,b, opts) + d_str + inv_str;
 }
 

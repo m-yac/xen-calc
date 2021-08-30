@@ -527,7 +527,7 @@ function updateResults() {
       }
     }
     else if (res.symbolType === "color (verbose)") {
-      const s = exprVal.replace("descending", "desc.")
+      const s = exprVal.replace("desc.", "descending")
                        .replace("unison", "1sn")
                        .replace("octave", "8ve");
       const ref = res.type == "interval" ? microtonal_utils.colorSymb(res.intv, {verbosity: 1})
