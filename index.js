@@ -435,7 +435,8 @@ function getResults() {
 
 // Updates the entire results section based on the current expression
 function updateResults() {
-  if ($('#expr').val().trim() === "") {
+  const exprVal = $('#expr').val().trim();
+  if (exprVal === "") {
     $('#errors').addClass("hidden");
     $('#results').addClass("hidden");
     return;
@@ -444,6 +445,39 @@ function updateResults() {
     $('#errors').addClass("hidden");
     $('#results').removeClass("hidden");
     const [typeStr, rows, scaleWorkshopData] = getResults();
+    $('#didYouMeanDiv').addClass("hidden");
+    if (res.symbolType === "color") {
+      const s = exprVal.replace("descending", "desc.");
+      const ref = res.type == "interval" ? microtonal_utils.colorSymb(res.intv, {useExps: 1})
+                                         : microtonal_utils.colorNote(res.intvToRef.mul(res.ref.intvToA4), {useExps: 1});
+      if (s != ref) {
+        $('#didYouMeanDiv').removeClass("hidden");
+        const refHTML = res.type == "interval" ? microtonal_utils.colorSymb(res.intv, {useHTMLExps: 1})
+                                               : microtonal_utils.colorNote(res.intvToRef.mul(res.ref.intvToA4), {useHTMLExps: 1});
+        if (ref != refHTML) {
+          $('#didYouMeanDiv').addClass("hoverSwap");
+          $('#didYouMean').html($('<span>').addClass("hoverSwap_off")
+                                           .html(fmtExtExprLink(refHTML, ref).addClass("alt")));
+          $('#didYouMean').append($('<span>').addClass("hoverSwap_on")
+                                             .html(fmtExtExprLink(ref).addClass("alt")));
+        }
+        else {
+          $('#didYouMeanDiv').removeClass("hoverSwap");
+          $('#didYouMean').html(fmtExtExprLink(ref).addClass("alt"));
+        }
+      }
+    }
+    else if (res.symbolType === "color (verbose)") {
+      const s = exprVal.replace("descending", "desc.")
+                       .replace("unison", "1sn")
+                       .replace("octave", "8ve");
+      const ref = res.type == "interval" ? microtonal_utils.colorSymb(res.intv, {verbosity: 1})
+                                         : microtonal_utils.colorNote(res.intvToRef.mul(res.ref.intvToA4), {verbosity: 1});
+      if (s != ref) {
+        $('#didYouMeanDiv').removeClass("hidden");
+        $('#didYouMean').html(fmtExtExprLink(ref).addClass("alt"));
+      }
+    }
     $('#resHeader').html(typeStr + " results");
     $('#resTable').empty();
     for (const [n,v] of rows) {

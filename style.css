@@ -130,6 +130,11 @@ h4 {
   margin-bottom: 10px;
 }
 
+.didYouMean {
+  text-align: center;
+  margin-top: 10px;
+}
+
 .resTable {
   border-spacing: 6px 5px;
   width: 100%;
