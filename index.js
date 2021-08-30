@@ -76,6 +76,62 @@ function reformatURL(str) {
   return str;
 }
 
+// Add 1 to the count for each of the given strings
+function logStrs(ids) {
+  setTimeout(function () {
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "https://hc7onb7dbi.execute-api.us-east-2.amazonaws.com/logPageUse_yacavone_dot_net", true);
+      xhr.setRequestHeader('Content-Type', 'text/plain');
+      xhr.send(JSON.stringify({ page: "xen-calc", ids: ids }));
+      console.log("[AWS] Added 1 to counters: \"" + ids.join("\", \"") + "\"");
+    } catch (err) {
+      console.error(err);
+    }
+  });
+}
+
+// Add 1 to the count for strings related to the current result
+function logResultTypes(res, xs) {
+  let toLog = xs ? xs : [];
+  const typec = res.type == "interval" ? "i" : "n";
+  // log the query type
+  if (res.symbolType !== "") {
+    const abbr_symbolType =
+      res.symbolType == "color" ? "clr" :
+      res.symbolType == "color (verbose)" ? "clr vb" :
+      res.symbolType == "Pythagorean" ? "py" :
+      res.symbolType == "neutral Pythagorean" ? "neut py" :
+      res.symbolType == "semi-neutral Pythagorean" ? "semi-neut py" : res.symbolType;
+    toLog.push("q " + typec + " " + abbr_symbolType);
+  }
+  else {
+    const abbr_queryType =
+      res.queryType == "multiplicative" ? "mult" :
+      res.queryType == "additive" ? "addv" :
+      res.queryType == "symbol" ? "symb" : res.queryType;
+    toLog.push("q " + typec + " " + abbr_queryType);
+  }
+  // log the result type
+  if (res.ratio) {
+    toLog.push("r ratio");
+  }
+  else if (res.intv && res.intv.pow(2).isFrac()) {
+    toLog.push("r sqrt");
+  }
+  else if (res.edoSteps) {
+    toLog.push("r EDO step");
+  }
+  else if (res.iso) {
+    toLog.push("r iso");
+  }
+  // log the overall type (interval or note)
+  toLog.push("t " + res.type);
+  // log to the overall total
+  toLog.push("total");
+  logStrs(toLog);
+}
+
 // ================================================================
 // State variables
 // ================================================================
@@ -867,6 +923,16 @@ $(document).ready(function() {
   setStateFromURL();
   initState();
 
+  // log if we're coming from a new load
+  if (performance.navigation.type == 0) {
+    let xs = ["new load"];
+    if (document.referrer) {
+      xs.push("z " + (new URL(document.referrer)).hostname);
+    }
+    if ($('#expr').val()) { logResultTypes(res, xs); }
+    else { logStrs(xs); }
+  }
+
   // reset button
   $('#reset').click(function () {
     setStateFromParams(new URLSearchParams());
@@ -907,5 +973,6 @@ $(document).ready(function() {
     let params = {q: $('#expr').val()};
     params["moreRat"] = ""; params["moreEDO"] = "";
     updateURLWithParams(params);
+    logResultTypes(res);
   });
 });
