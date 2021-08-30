@@ -93,10 +93,12 @@ function logStrs(ids) {
 
 // Add 1 to the count for strings related to the current result
 function logResultTypes(res, xs) {
+  // if we have no res or we're on a local file, return
+  if (res.type == undefined || window.location.href.indexOf("http") != 0) { return; }
   let toLog = xs ? xs : [];
   const typec = res.type == "interval" ? "i" : "n";
   // log the query type
-  if (res.symbolType !== "") {
+  if (res.symbolType != undefined && res.symbolType !== "") {
     const abbr_symbolType =
       res.symbolType == "color" ? "clr" :
       res.symbolType == "color (verbose)" ? "clr vb" :
