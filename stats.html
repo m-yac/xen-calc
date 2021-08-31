@@ -1,0 +1,143 @@
+<!DOCTYPE html><html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stats for xen-calc</title>
+<!-- Generated from realfavicongenerator.net: -->
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="256x256" href="favicon-256x256.png">
+<link rel="icon" type="image/png" sizes="128x128" href="favicon-128x128.png">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon-64x64.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+<link rel="manifest" href="site.webmanifest">
+<link rel="mask-icon" href="safari-pinned-tab.svg" color="#5bbad5">
+<meta name="msapplication-TileColor" content="#da532c">
+<meta name="theme-color" content="#ffffff">
+<link rel="stylesheet" href="style.css" />
+<!-- Includes: -->
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript" src="jquery.min.js"></script>
+<script type="text/javascript" src="stats.js"></script>
+<script type="text/javascript">
+
+  // Returns yesterday's date in the AoE time zone in YYYY-MM-DD format
+  function getAOEISODate(daysOffset) {
+    const offset = -12 - 24 * (daysOffset || 0); // -12 for AoE, -24 for yesterday
+    const unix = new Date().getTime() + offset * 3600 * 1000;
+    return new Date(unix).toISOString().split("T")[0];
+  }
+
+  function percentParens(a, b) {
+    if (!isFinite(total) || total <= 0) { return ""; };
+    return " (" + (+(100*a/b).toFixed(1)) + "%)";
+  }
+
+  function onLoad(res) {
+    const [total, newLoads] = [res["total"] || 0, res["new load"] || 0];
+    const [intervals, notes] = [res["t interval"] || 0, res["t note"] || 0];
+    let [qs, rs, rs_tot] = [[], [], 0];
+    for (const s in res) {
+      if (s[1] == " ") {
+        if (s[0] == "q") {
+          let unabbr_s = s.slice(4);
+          for (const [s1,s2] of logQueryStrMap) {
+            if (unabbr_s == s2) { unabbr_s = s1; break; }
+          }
+          if (unabbr_s == "color (verbose)") {
+            unabbr_s = "color " + (s[2] == "i" ? "interval" : "note") + " (verbose)";
+          }
+          else if (unabbr_s == "function call") {
+            unabbr_s = (s[2] == "i" ? "interval" : "note") + " " + unabbr_s;
+          }
+          else if (!queryTypeUnambigType.includes(unabbr_s)) {
+            unabbr_s = unabbr_s + " " + (s[2] == "i" ? "interval" : "note");
+          }
+          qs.push([unabbr_s, res[s] || 0]);
+        }
+        if (s[0] == "r") {
+          let unabbr_s = s.slice(2);
+          for (const [s1,s2] of logResStrMap) {
+            if (unabbr_s == s2) { unabbr_s = s1; break; }
+          }
+          rs.push([unabbr_s, res[s] || 0]);
+          rs_tot += res[s] || 0;
+        }
+      }
+    }
+    qs.sort((a,b) => b[1] - a[1]);
+    rs.sort((a,b) => b[1] - a[1]);
+    if (rs_tot < total) { rs.push(["other", total - rs_tot]); }
+    $('#total').text(total);
+    $('#newLoads').text(newLoads);
+    $('#intervals').text(intervals + percentParens(intervals, total));
+    $('#notes').text(notes + percentParens(notes, total));
+    const qdat = google.visualization.arrayToDataTable([["Query type", "#"]].concat(qs));
+    const rdat = google.visualization.arrayToDataTable([["Result type", "#"]].concat(rs));
+    const qpie = new google.visualization.PieChart(document.getElementById('qpie'));
+    const rpie = new google.visualization.PieChart(document.getElementById('rpie'));
+    qpie.draw(qdat, {title: "Queries by type", chartArea: {height: '85%'}});
+    rpie.draw(rdat, {title: "Queries by result type", chartArea: {height: '85%'}});
+  }
+
+  $(document).ready(function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    let daysOffset = parseInt(urlParams.has("d") ? urlParams.get("d") : 1);
+    if (!isFinite(daysOffset) || daysOffset < 0) { daysOffset = 1; }
+
+    if (daysOffset == 0) { $('#dateText').text("today"); }
+    else if (daysOffset == 1) { $('#dateText').text("yesterday"); }
+    else { $('#dateText').text(daysOffset + " days ago"); }
+    $('#date').text(getAOEISODate(daysOffset));
+
+    google.charts.load('current', {'packages':['corechart']});
+    google.charts.setOnLoadCallback(function () {
+      logQuery(getAOEISODate(daysOffset), undefined, onLoad);
+    });
+  });
+</script>
+</head>
+<body><div class="body-wrap">
+
+<h1><a href=".">xen-calc</a></h1>
+
+<div class="content" style="margin-top: 30px">
+
+<h2>Stats</h2>
+
+<p>
+  This page shows all the stats collected by xen-calc
+  <span id="dateText">yesterday</span>, with the
+  exception of "referrer" values. See the
+  <a class="alt" href="./about.html#privacy">privacy section of the about page</a>
+  for more detail.
+</p>
+
+<h4 style="text-align: center; margin-bottom: 20px">
+  <span id="date">...</span> <a class="alt" href="https://en.wikipedia.org/wiki/Anywhere_on_Earth">AoE</a>
+</h4>
+
+<p style="text-align: center; margin-bottom: 35px">
+  <span id="total">...</span> total queries made,
+  <span id="newLoads">...</span> new page loads
+</p>
+
+<div id="qpie" style="width: 100%; height: 350px"></div>
+
+<p style="text-align: center; margin-bottom: 35px">
+  <span id="intervals">...</span> interval queries,
+  <span id="notes">...</span> note queries
+</p>
+
+<div id="rpie" style="width: 100%; height: 350px"></div>
+
+<br>
+
+<p style="text-align: center">
+  <a href="." class=grey>Back to xen-calc</a> ·
+  <a href="./about.html" class=grey>About xen-calc</a> ·
+  <a href="https://www.yacavone.net" class=grey>My website</a>
+</p>
+
+</div>
+
+</div></body>
+</html>
