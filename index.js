@@ -177,9 +177,13 @@ function fmtExpression(intv, prefEDO) {
       const nthRootStr = intv.toNthRootString();
       return [nthRootStr, nthRootStr];
     }
+  } catch (err) {}
+  if (intv.hasFactors()) {
+    return fmtFactorization(intv);
   }
-  catch (err) {}
-  return fmtFactorization(intv);
+  const cents = intv.toCents();
+  const k = findCentsDecPlaces(intv, cents);
+  return [fmtCents(cents, k), fmtCents(cents, k)];
 }
 // Given a string and a ratio, places the string and a question mark in the
 //  appropriate places (based on the given ratio) in an isoharmonic chord
@@ -214,6 +218,24 @@ function fmtInlineLink(str, url, sameTab) {
                  .prop('outerHTML'); }
 }
 
+// find the smallest k >= 5 such that the interval's cents value truncated
+//  to k decimal places is interpreted as the same as the original interval
+function findCentsDecPlaces(intv, cents) {
+  if (cents == undefined) { cents = intv.toCents(); }
+  let [k, found_k] = [5, false];
+  for (; !found_k && k < 15; k++) {
+    const i = microtonal_utils.Interval(2 ** (+cents.toFixed(k) / 1200));
+    if (intv.hasFactors() || i.hasFactors()) {
+      found_k |= intv.equals(i);
+    }
+    else {
+      const [res_val, i_val] = [intv.valueOf(), i.valueOf()];
+      found_k |= Math.abs(res_val - i_val) / Math.max(res_val, i_val) < 1e-15;
+    }
+  }
+  return k;
+}
+
 // ================================================================
 // Filling in the results section
 // ================================================================
@@ -231,19 +253,7 @@ function getResults() {
     res.hertz = res.intv.mul(res.ref.hertz).valueOf();
     typeStr = "Interval";
     const centsLink = fmtInlineLink("Size in cents", "https://en.wikipedia.org/wiki/Cent_(music)");
-    // find the smallest k >= 5 such that the interval's cents value truncated
-    //  to k decimal places is interpreted as the same as the original interval
-    let [k, found_k] = [5, false];
-    for (; !found_k && k < 15; k++) {
-      const i = microtonal_utils.Interval(2 ** (+res.cents.toFixed(k) / 1200));
-      if (res.intv.hasFactors() || i.hasFactors()) {
-        found_k |= res.intv.equals(i);
-      }
-      else {
-        const [res_val, i_val] = [res.intv.valueOf(), i.valueOf()];
-        found_k |= Math.abs(res_val - i_val) / Math.max(res_val, i_val) < 1e-15;
-      }
-    }
+    const k = findCentsDecPlaces(res.intv, res.cents);
     rows.push([centsLink, fmtExtExprLink(fmtCents(res.cents, k))]);
     if (res.ratio) {
       const ratioLink = fmtInlineLink("Ratio", "https://en.wikipedia.org/wiki/Just_intonation");
