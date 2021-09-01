@@ -98,7 +98,8 @@ function logQuery(date, ids, callback) {
       });
       xhr.open("POST", "https://hc7onb7dbi.execute-api.us-east-2.amazonaws.com/queryPageUse_yacavone_dot_net", true);
       xhr.setRequestHeader('Content-Type', 'text/plain');
-      let params = { page: "xen-calc", date: date };
+      let params = { page: "xen-calc" };
+      if (date != undefined) { params.date = date };
       if (ids != undefined) { params.ids = ids; }
       xhr.send(JSON.stringify(params));
     }

@@ -59,6 +59,10 @@ body {
   display: none;
 }
 
+.invisible {
+  visibility: hidden;
+}
+
 .content {
   font-size: 93%;
   text-align: left;
