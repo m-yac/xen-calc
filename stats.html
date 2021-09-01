@@ -78,19 +78,79 @@
     rpie.draw(rdat, {title: "Queries by result type", chartArea: {height: '85%'}});
   }
 
-  $(document).ready(function() {
+  function update(date) {
+    const minUnix = new Date("2021-08-29").getTime();
+    const maxUnix = new Date(getAOEISODate(1)).getTime();
+    if (date) {
+      $('#date').text(date);
+      $('#numDays').empty();
+      $('#seeAll').text("see all days").attr("href", "?d=all");
+    }
+    else {
+      $('#date').text("2021-08-29 to " + getAOEISODate(1));
+      const numDays = 1 + (maxUnix - minUnix) / (24 * 3600 * 1000);
+      $('#numDays').text(numDays + " days total");
+      $('#seeAll').text("see specific day").attr("href", "?d=" + getAOEISODate(1));
+    }
+    if (date && new Date(date).getTime() < maxUnix) {
+      $('#nextDate').removeClass("invisible");
+    }
+    else {
+      $('#nextDate').addClass("invisible");
+    }
+    if (date && new Date(date).getTime() > minUnix) {
+      $('#prevDate').removeClass("invisible");
+    }
+    else {
+      $('#prevDate').addClass("invisible");
+    }
+    logQuery(date, undefined, onLoad);
+  }
+
+  function updateURL(date) {
+    const url = new URL(window.location);
+    url.searchParams.set("d", date ? date : "all");
+    history.pushState({}, date, url);
+  }
+
+  window.onpopstate = setStateFromURL;
+
+  function setStateFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
-    let daysOffset = parseInt(urlParams.has("d") ? urlParams.get("d") : 1);
-    if (!isFinite(daysOffset) || daysOffset < 0) { daysOffset = 1; }
+    const dParam = urlParams.has("d") ? urlParams.get("d") : "all";
+    let date = undefined;
+    if (dParam !== "all") {
+      date = getAOEISODate(1);
+      const dInts = dParam.split("-").map(x => parseInt(x));
+      if (dInts.length == 1 && isFinite(dInts[0]) && dInts[0] >= 0) {
+        date = getAOEISODate(dInts[0]);
+      }
+      else if (dInts.length == 3 && dInts.every(x => isFinite(x))) {
+        date = `${("0000" + dInts[0]).substr(-4)}-`;
+        date += `${("00" + dInts[1]).substr(-2)}-`
+        date += `${("00" + dInts[2]).substr(-2)}`;
+      }
+    }
+    update(date);
+  }
 
-    if (daysOffset == 0) { $('#dateText').text("today"); }
-    else if (daysOffset == 1) { $('#dateText').text("yesterday"); }
-    else { $('#dateText').text(daysOffset + " days ago"); }
-    $('#date').text(getAOEISODate(daysOffset));
-
+  $(document).ready(function() {
     google.charts.load('current', {'packages':['corechart']});
-    google.charts.setOnLoadCallback(function () {
-      logQuery(getAOEISODate(daysOffset), undefined, onLoad);
+    google.charts.setOnLoadCallback(() => setStateFromURL());
+
+    $('#prevDate').click(function () {
+      const maxUnix = new Date(getAOEISODate(1)).getTime();
+      const unix = Math.min(maxUnix, new Date($('#date').text()).getTime() - 24 * 3600 * 1000);
+      const date = new Date(unix).toISOString().split("T")[0];
+      update(date);
+      updateURL(date);
+    });
+    $('#nextDate').click(function () {
+      const minUnix = new Date("2021-08-29").getTime();
+      const unix = Math.max(minUnix, new Date($('#date').text()).getTime() + 24 * 3600 * 1000);
+      const date = new Date(unix).toISOString().split("T")[0];
+      update(date);
+      updateURL(date);
     });
   });
 </script>
@@ -104,16 +164,22 @@
 <h2>Stats</h2>
 
 <p>
-  This page shows all the stats collected by xen-calc
-  <span id="dateText">yesterday</span>, with the
-  exception of "referrer" values. See the
+  This page shows all the stats collected by xen-calc before today
+  <a class="alt" href="https://en.wikipedia.org/wiki/Anywhere_on_Earth">anywhere on earth</a>,
+  with the exception of "referrer" values. See the
   <a class="alt" href="./about.html#privacy">privacy section of the about page</a>
   for more detail.
 </p>
 
-<h4 style="text-align: center; margin-bottom: 20px">
+<h4 style="text-align: center">
+  <a id="prevDate" style="margin-right:15px" href="javascript:void(0)">&#60</a>
   <span id="date">...</span> <a class="alt" href="https://en.wikipedia.org/wiki/Anywhere_on_Earth">AoE</a>
+  <a id="nextDate" style="margin-left:15px" href="javascript:void(0)">&#62</a>
 </h4>
+
+<p id="numDaysP" style="text-align: center">
+  <span id="numDays"></span> (<a id="seeAll" class="alt"></a>)
+</p>
 
 <p style="text-align: center; margin-bottom: 35px">
   <span id="total">...</span> total queries made,
