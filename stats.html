@@ -92,17 +92,21 @@
       $('#numDays').text(numDays + " days total");
       $('#seeAll').text("see specific day").attr("href", "?d=" + getAOEISODate(1));
     }
-    if (date && new Date(date).getTime() < maxUnix) {
-      $('#nextDate').removeClass("invisible");
+    $('#nextDate').removeClass("hidden");
+    $('#nextDate').removeClass("invisible");
+    $('#prevDate').removeClass("hidden");
+    $('#prevDate').removeClass("invisible");
+    if (!date) {
+      $('#nextDate').addClass("hidden");
+      $('#prevDate').addClass("hidden");
     }
     else {
-      $('#nextDate').addClass("invisible");
-    }
-    if (date && new Date(date).getTime() > minUnix) {
-      $('#prevDate').removeClass("invisible");
-    }
-    else {
-      $('#prevDate').addClass("invisible");
+      if (new Date(date).getTime() >= maxUnix) {
+        $('#nextDate').addClass("invisible");
+      }
+      if (new Date(date).getTime() <= minUnix) {
+        $('#prevDate').addClass("invisible");
+      }
     }
     logQuery(date, undefined, onLoad);
   }
