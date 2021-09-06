@@ -590,17 +590,23 @@ function updateResults() {
     }
   }
   catch (err) {
+    const showAddMulTip = err.kind == "Parse error" &&
+                          "*/^+-xc".indexOf(err.srcStr[err.offset]) > -1;
     if (err.kind == undefined) {
       newErr = new Error(err.name + (err.message ? "\n" + err.message : ""));
       newErr.stack = err.stack;
       err = newErr;
       console.error(err);
+      logStrs(["e u " + err.name]);
+    }
+    else {
+      logStrs(["e l " + (showAddMulTip ? "add/mul " : "") + err.kind]);
     }
     $('#errors').removeClass("hidden");
     $('#results').addClass("hidden");
     const errStr = err.toString().replace("\n","<br>").replace("\\\\","\\");
     $('#errors').html($('<pre>').addClass("parseError").html(errStr));
-    if (err.kind == "Parse error" && "*/^+-xc".indexOf(err.srcStr[err.offset]) > -1) {
+    if (showAddMulTip) {
       let nb = $('<p>').attr("style", "font-size: 95%; text-align: left;");
       nb.append("Perhaps you're trying to mix multiplicative and additive "
                 + "expressions? See ");
