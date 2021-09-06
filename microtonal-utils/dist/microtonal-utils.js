@@ -708,14 +708,15 @@ function groupingToString(gs, opts) {
 // Finds all possible groupings for a prime prefix using precomputed GCD values
 // (see allGroupings for an example)
 function allGroupings_withGCDs(xs, gcds) {
-  let ret = [ xs.map(([p,e]) => e.n > 2 ? new Group(e.n, [new End(p,e.div(e.n))])
-                                        : new End(p,e)) ];
+  let ret = [ xs.map(([p,e]) => e.n <= 2 && (p <= 19 || e.n == 1)
+                                  ? new End(p,e)
+                                  : new Group(e.n, [new End(p,e.div(e.n))])) ];
   if (xs.length == 1) {
     return ret;
   }
   const d = gcds[0][xs.length-1];
   let fn = (xs => xs);
-  if (d > 1 && xs[0][1].n/d <= 2) {
+  if (d > 1 && xs[0][1].n/d <= 2 && (xs[0][0] <= 19 || xs[0][1].n/d == 1)) {
     fn = (xs => [new Group(d, xs)]);
     xs = xs.map(([p,e]) => [p, e.div(d)]);
     gcds = gcds.map(ds => ds.map(x => x/d));
@@ -987,9 +988,8 @@ function colorSymb(a,b, opts) {
   }
 
   const spacer_str = verbosity > 0 ? " " : "";
-  const neg_str = verbosity > 0 && d < 0 ? (useWordNegative ? "negative " : "-") : "";
-  const d_str = pyDegreeString(d, verbosity);
-  return colorPrefix(i, optsToPass) + spacer_str + neg_str + d_str;
+  const d_str = pyDegreeString(d, {verbosity: verbosity, useWordNegative: useWordNegative});
+  return colorPrefix(i, optsToPass) + spacer_str + d_str;
 }
 
 /**
@@ -1339,7 +1339,17 @@ function updnsSymbCache(edo) {
   if (upsdnsSymbCache_var[edo]) {
     return upsdnsSymbCache_var[edo];
   }
-  const fifth = edoApprox(edo,3,2);
+  if (edo <= 0) { return [] }
+  // We treat 1, 2, 3, 4, 6, and 8-EDO as subsets of 24-EDO
+  if ([1,2,3,4,6,8].includes(edo)) {
+    const [cache, factor] = [updnsSymbCache(24), 24/edo];
+    const steps = [...Array(edo).keys()].map(i => cache[i*factor]);
+    upsdnsSymbCache_var[edo] = steps;
+    return steps;
+  }
+  let fifth = edoApprox(edo,3,2);
+  // We use the second-best fifth for 13-EDO and 18-EDO
+  if (edo == 13 || edo == 18) { fifth--; }
   let [lo, hi] = [-6, 6]; // d5 m2 m6 m3 m7 P4 | P1 | P5 M2 M6 M3 M7 A4
   // Special case for perfect EDOs
   if (fifth/edo == 4/7) {
@@ -1363,25 +1373,106 @@ function updnsSymbCache(edo) {
   return steps;
 }
 
+function fmtUpdnsSymb(uds, pyi, opts) {
+  let {verbosity, maxTupleWord} = opts || {};
+  if (verbosity == undefined) { verbosity = 0; }
+  if (maxTupleWord == undefined) { maxTupleWord = 2; }
+  const uds_abs = Math.abs(uds);
+  let [uds_str, py_str] = ["", py.pySymb(pyi, {verbosity: verbosity})];
+  if (verbosity == 0) {
+    uds_str = (uds > 0 ? '^' : 'v').repeat(uds_abs);
+    if (uds_abs > 0) { py_str = py_str.replace("P", ""); }
+    py_str = py_str.replace("n", "~").replace("sA", "~").replace("sd", "~");
+  }
+  else {
+    const uds_suffix = uds > 0 ? "up" : "down";
+    if (uds_abs == 0) {
+      uds_str = "";
+    }
+    else if (uds_abs == 1) {
+      uds_str = uds_suffix;
+    }
+    else if (uds_abs <= Math.min(maxTupleWord, 12)) {
+      uds_str = ["double", "triple", "quadruple", "quintuple", "sextuple",
+                 "septuple", "octuple", "nonuple", "decuple", "undecuple",
+                 "duodecuple"][uds_abs-2] + "-" + uds_suffix + " ";
+    }
+    else {
+      uds_str = uds_abs + "-" + uds_suffix + " ";
+    }
+    if (uds_abs == 1) { py_str = py_str.replace("perfect ", " "); }
+    if (uds_abs >= 2) { py_str = py_str.replace("perfect ", ""); }
+    py_str = py_str.replace("neutral", "mid");
+    if (verbosity == 1) {
+      py_str = py_str.replace("semi-aug", "mid")
+                     .replace("semi-dim", "mid");
+    }
+    else {
+      py_str = py_str.replace("semi-augmented", "mid")
+                     .replace("semi-diminished", "mid");
+    }
+  }
+  return uds_str + py_str;
+}
+
 /**
   * Returns the ups-and-downs notation symbol for the given steps in the given
   * EDO
   *
   * @param {integer} edo
   * @param {integer} n
+  * @param {Object=} opts
+  * @param {integer=} opts.verbosity verbosity can be the default 0
+  *                                  (e.g. "^^M3"), 1 (e.g. "3-up major 3rd"),
+  *                                  or 2 (e.g. "triple-up major third")
+  * @param {integer=} opts.maxTupleWord default is 2, maximum is 12
+  * @param {boolean=} opts.useWordNegative defaults to false
+  * @param {boolean=} opts.useWordDesc defaults to false
   * @returns {string}
   */
-function updnsSymb(edo,n) {
+function updnsSymb(edo,n, opts) {
+  let {verbosity, maxTupleWord, useWordDesc} = opts || {};
+  if (verbosity == undefined) { verbosity = 0; }
+  if (maxTupleWord == undefined) { maxTupleWord = 2; }
+
+  if (useWordDesc && n < 0) {
+    pre_str = verbosity == 0 ? "desc. " : "descending ";
+    return updnsSymb(edo, -n, opts).map(s => pre_str + s);
+  }
+
   const nr = mod(n,edo);
   const vs = Interval(2).pow(n - nr, edo);
   const cache = updnsSymbCache(edo)[nr];
-  let ret = [];
-  for (let i = 0; i < cache.length; i++) {
-    const updns = (cache[i][0] > 0 ? '^' : 'v').repeat(Math.abs(cache[i][0]));
-    const str = updns + py.pySymb(cache[i][1].mul(vs));
-    ret.push(str.replace("n","~").replace("sA","~").replace("sd","~"));
+  return cache.map(([uds, pyi_red]) => fmtUpdnsSymb(uds, pyi_red.mul(vs), opts));
+}
+
+/**
+  * Given the number of ups-and-downs and a Pythagorean interval, returns the
+  * corresponding number of steps in ups-and-downs notation
+  *
+  * @param {integer} edo
+  * @param {integer} uds
+  * @param {Interval} pyi
+  * @returns {integer}
+  */
+function updnsFromSymb(edo, uds, pyi) {
+  // We treat 1, 2, 3, 4, 6, and 8-EDO as subsets of 24-EDO
+  if ([1,2,3,4,6,8].includes(edo)) {
+    const [n, factor] = [updnsFromSymb(24, uds, pyi), 24/edo];
+    if (n % factor != 0) {
+      throw new Error(edo + "-EDO has no " + fmtUpdnsSymb(uds, pyi) + " interval");
+    }
+    return n / factor;
   }
-  return ret;
+  let fifth = edoApprox(edo,3,2);
+  // We use the second-best fifth for 13-EDO and 18-EDO
+  if (edo == 13 || edo == 18) { fifth--; }
+  const g = Fraction(py.pyGenerator(pyi) * fifth, 4);
+  const p = py.pyOctaves(pyi);
+  if (g.d != 1) {
+    throw new Error(edo + "-EDO has no " + fmtUpdnsSymb(uds, pyi) + " interval");
+  }
+  return uds + g.s*g.n + p * edo;
 }
 
 let upsdnsNoteCache_var = {};
@@ -1390,7 +1481,17 @@ function updnsNoteCache(edo) {
   if (upsdnsNoteCache_var[edo]) {
     return upsdnsNoteCache_var[edo];
   }
-  const fifth = edoApprox(edo,3,2);
+  if (edo <= 0) { return [] }
+  // We treat 1, 2, 3, 4, 6, and 8-EDO as subsets of 24-EDO
+  if ([1,2,3,4,6,8].includes(edo)) {
+    const [cache, factor] = [updnsNoteCache(24), 24/edo];
+    const steps = [...Array(edo).keys()].map(i => cache[i*factor]);
+    upsdnsSymbCache_var[edo] = steps;
+    return steps;
+  }
+  let fifth = edoApprox(edo,3,2);
+  // We use the second-best fifth for 13-EDO and 18-EDO
+  if (edo == 13 || edo == 18) { fifth--; }
   let [lo, hi] = [-9, 7]; // Gb Db Ab Eb Bb F C G D | A | E B F# C# G# D# A#
   // Special case for perfect EDOs
   if (fifth/edo == 4/7) {
@@ -1420,9 +1521,9 @@ function updnsNote(edo, n, useASCII) {
   const vs = Interval(2).pow(n - nr, edo);
   const cache = updnsNoteCache(edo)[nr];
   let ret = [];
-  for (let i = 0; i < cache.length; i++) {
-    const updns = (cache[i][0] > 0 ? '^' : 'v').repeat(Math.abs(cache[i][0]));
-    const str = updns + py.pyNote(cache[i][1].mul(vs), useASCII);
+  for (const [uds, pyi_red] of cache) {
+    const updns = (uds > 0 ? '^' : 'v').repeat(Math.abs(uds));
+    const str = updns + py.pyNote(pyi_red.mul(vs), useASCII);
     ret.push(str);
   }
   return ret;
@@ -1435,7 +1536,9 @@ module['exports'].edoPyComma = edoPyComma;
 module['exports'].edoHasNeutrals = edoHasNeutrals;
 module['exports'].edoHasSemiNeutrals = edoHasSemiNeutrals;
 module['exports'].updnsSymbCache = updnsSymbCache;
+module['exports'].fmtUpdnsSymb = fmtUpdnsSymb;
 module['exports'].updnsSymb = updnsSymb;
+module['exports'].updnsFromSymb = updnsFromSymb;
 module['exports'].updnsNoteCache = updnsNoteCache;
 module['exports'].updnsNote = updnsNote;
 
@@ -1480,6 +1583,7 @@ function enNames(a,b, opts) {
   const abbreviate = (opts || {}).abbreviate ? 1 : 0;
   const verbosity  = abbreviate ? 1 : 2;
   const prefEDO    = (opts || {}).prefEDO;
+  const pySymbOpts = {verbosity: verbosity, useWordDesc: 1, useDescSuffix: 1};
 
   let nms = [];
 
@@ -1488,7 +1592,7 @@ function enNames(a,b, opts) {
     const k = Math.floor(intv.valueOf_log());
     if (intv.div(Interval(2).pow(k)).equals(Interval.phi)) {
       const pyi = pyInterval(6,0).mul(Interval(2).pow(k));
-      nms.push("phi " + pySymb(pyi, {verbosity: verbosity}));
+      nms.push("phi " + pySymb(pyi, pySymbOpts));
     }
     return nms;
   }
@@ -1515,7 +1619,7 @@ function enNames(a,b, opts) {
   // Neutral FJS intervals
   const fjs = fjsAccidentals(a,b, nfjsSpec);
   if (fjs) {
-    let pyi_symb = pySymb(fjs.pyi, {verbosity: verbosity});
+    let pyi_symb = pySymb(fjs.pyi, pySymbOpts);
     const resFact = intv.factors().filter(([p,_]) => p > 3);
     // FJS intervals with no accidentials and a factor of 3 are Pythagorean
     if (resFact.length == 0) {
@@ -1585,31 +1689,13 @@ function enNames(a,b, opts) {
       const n_mod = ((n % edo) + edo) % edo;
       for (const [uds, pyi_red] of updnsSymbCache(edo)[n_mod]) {
         const pyi = pyi_red.mul(Interval(2).pow((n-n_mod)/edo));
-        let uds_str = "";
-        if      (uds ==  1) { uds_str = "up"; }
-        else if (uds == -1) { uds_str = "down"; }
-        else if (uds ==  2 && !abbreviate) { uds_str = "double-up "; }
-        else if (uds == -2 && !abbreviate) { uds_str = "double-down "; }
-        else if (uds >=  2) { uds_str = uds + "-up "; }
-        else if (uds <= -2) { uds_str = uds + "-down "; }
-        let pyi_symb = pySymb(pyi, {verbosity: verbosity});
-        let neut_str = undefined;
-        if (pyi.minPowFrac() == 2) {
-          if (uds == 0) { neut_str = uds_str + pyi_symb; }
-          pyi_symb = pyi_symb.replace("neutral", "mid")
-                             .replace("semi-augmented", "mid")
-                             .replace("semi-diminished", "mid");
+        if (uds == 0) {
+          intv_strs.push(pySymb(pyi, pySymbOpts));
         }
-        if ((uds == 1 || uds == -1) && !abbreviate) {
-          pyi_symb = pyi_symb.replace("perfect ", "-");
-        }
-        else if (uds != 0) {
-          pyi_symb = pyi_symb.replace("perfect", "");
-        }
-        intv_strs.push(uds_str + pyi_symb);
-        if (neut_str != undefined) { intv_strs.push(neut_str); }
       }
-      nms.push(edo_str + intv_strs.join(" / "));
+      if (intv_strs.length > 0) {
+        nms.push(edo_str + intv_strs.join(" / "));        
+      }
       if (n == edo / 2) {
         nms.push(edo_str + "tritone");
       }
@@ -1990,9 +2076,10 @@ Object.assign(module['exports'], require('./color.js'));
 Object.assign(module['exports'], require('./sets.js'));
 Object.assign(module['exports'], require('./approx.js'));
 Object.assign(module['exports'], require('./english.js'));
+Object.assign(module['exports'], require('./parser/eval.js'));
 Object.assign(module['exports'], require('./parser.js'));
 
-},{"./approx.js":1,"./color.js":2,"./edo.js":3,"./english.js":4,"./fjs.js":5,"./interval.js":7,"./parser.js":8,"./pythagorean.js":11,"./sets.js":12,"fraction.js":16}],7:[function(require,module,exports){
+},{"./approx.js":1,"./color.js":2,"./edo.js":3,"./english.js":4,"./fjs.js":5,"./interval.js":7,"./parser.js":8,"./parser/eval.js":9,"./pythagorean.js":11,"./sets.js":12,"fraction.js":16}],7:[function(require,module,exports){
 /**
  * The interval datatype, based on `Fraction` from `fraction.js` on npm
  * @copyright 2021 Matthew Yacavone (matthew [at] yacavone [dot] net)
@@ -3287,7 +3374,7 @@ function parseUpdnsNote(edo, str) {
   * @returns {Interval}
   */
 function parseColorSymb(str) {
-  return evalExpr(parseFromRule(str, "colorIntv")[0]).val;
+  return evalExpr(parseFromRule(str, "anyClrIntv")[0]).val;
 }
 
 /**
@@ -3298,7 +3385,7 @@ function parseColorSymb(str) {
   * @returns {Interval}
   */
 function parseColorNote(str) {
-  return evalExpr(parseFromRule(str, "colorNote")[0]).val;
+  return evalExpr(parseFromRule(str, "anyClrNote")[0]).val;
 }
 
 /**
@@ -3325,9 +3412,21 @@ function parse(str, opts) {
 
   try {
     for (let i = 0; i < results.length; i++) {
-      const res = evalExpr(results[i].expr, results[i].refNote, opts);
-      results[i].val = res.val;
-      results[i].prefEDO = res.prefEDO;
+      try {
+        const res = evalExpr(results[i].expr, results[i].refNote, opts);
+        results[i].val = res.val;
+        results[i].prefEDO = res.prefEDO;
+      }
+      catch (err) {
+        results[i].err = err;
+      }
+    }
+    const resultsNoErrors = results.filter(d => d.err == undefined);
+    if (resultsNoErrors.length == 0) {
+      throw results[0].err;
+    }
+    else {
+      results = resultsNoErrors;
     }
   }
   catch (err) {
@@ -3465,7 +3564,11 @@ function parseCvt(str, opts) {
       } catch (_) { }
     }
     ret.symb = {};
-    if (intv.hasFactors()) {
+    if (isPythagorean(intv)) {
+      ret.symb.py = pySymb(intv);
+      ret.symb.py_verbose = pySymb(intv, {verbosity: 1});
+    }
+    else if (intv.hasFactors()) {
       let fjs = fjsSymb(intv);
       let nfjs = fjsSymb(intv, nfjsSpec);
       if (fjs) {
@@ -3477,7 +3580,12 @@ function parseCvt(str, opts) {
     }
     if (prefEDO) {
       let e2 = intv.expOf(2).mul(prefEDO);
-      ret.symb.ups_and_downs = updnsSymb(prefEDO,e2.s*e2.n).map(s => s + "\\" + prefEDO);
+      ret.symb.ups_and_downs =
+        updnsSymb(prefEDO,e2.s*e2.n, {useWordDesc: 1})
+          .map(s => s + "\\" + prefEDO);
+      ret.symb.ups_and_downs_verbose =
+        updnsSymb(prefEDO,e2.s*e2.n, {verbosity:1, useWordDesc:1})
+          .map(s => s + " \\ " + prefEDO);
     }
     if (ret.ratio) {
       try {
@@ -3487,19 +3595,18 @@ function parseCvt(str, opts) {
         ret.symb.color_verbose = colorSymb(intv, {verbosity: 1});
       } catch (_) {}
     }
-    if (!ret.symb.NFJS && isPythagorean(intv)) {
-      ret.symb.other = pySymb(intv);
-    }
     if (intv.equals(Interval(2).sqrt())) {
       ret.symb.other = "TT";
     }
     if (intv.equals(Interval.phi)) {
       ret.symb.other = "phi";
     }
-    const nms = enNames(intv, {prefEDO: prefEDO});
-    if (nms.length > 0) {
-      ret.english = nms;
-    }
+    try {
+      const nms = enNames(intv, {prefEDO: prefEDO});
+      if (nms.length > 0) {
+        ret.english = nms;
+      }
+    } catch (_) {}
   }
   if (type == "note") {
     ret.hertz = refNote.hertz.mul(intv).valueOf();
@@ -3518,7 +3625,10 @@ function parseCvt(str, opts) {
               , intvToA4: refNote.intvToA4 };
     ret.symb = {};
 
-    if (intv.hasFactors()) {
+    if (isPythagorean(intv)) {
+      ret.symb.py = pyNote(intv);
+    }
+    else if (intv.hasFactors()) {
       let fjs = fjsNote(intvToA4);
       if (fjs) {
         ret.symb.FJS = fjs;
@@ -3565,9 +3675,9 @@ module['exports'].parseCvt = parseCvt;
 const pf = require('primes-and-factors');
 const Fraction = require('fraction.js');
 const Interval = require('../interval.js');
-const {pyInterval, isPerfectDeg} = require('../pythagorean.js');
+const {pyInterval, pyRedDeg, isPerfectDeg} = require('../pythagorean.js');
 const {fjsFactor, fjsSpec, nfjsSpec} = require('../fjs.js');
-const {edoApprox, edoPy, edoHasNeutrals, edoHasSemiNeutrals} = require('../edo.js');
+const {edoApprox, edoHasNeutrals, edoHasSemiNeutrals, updnsFromSymb} = require('../edo.js');
 const {colorFromSymb, colorFromNote} = require('../color.js');
 
 /**
@@ -3846,10 +3956,43 @@ function evalExpr(e, r, opts, state) {
         throw new OtherError(state.edo + "-EDO does not have a tritone", loc);
       }
     }
-    else if (e[0] == "!edoPy") { // `state.edo` should be set from "!inEDO"
-      const arg0 = evalExpr(e[1], r, opts, state).val;
-      const loc = e[2];
-      try { return { val: edoPy(state.edo, arg0) }; }
+    else if (e[0] == "!updnsSymb") { // `state.edo` should be set from "!inEDO"
+      const [uds, pyi, loc] = [e[1], evalExpr(e[2], r, opts, state).val, e[3]];
+      try { return { val: updnsFromSymb(state.edo, uds, pyi) }; }
+      catch (err) {
+        throw new OtherError(err.message, loc);
+      }
+    }
+    else if (e[0] == "!updnsPerfSymb") { // `state.edo` should be set from "!inEDO"
+      const [uds, deg, loc] = [e[1], evalExpr(e[2], r, opts, state).val, e[3]];
+      if (![1,4,5].includes(pyRedDeg(deg))) {
+        throw new OtherError((uds > 0 ? "^" : "v").repeat(uds)
+                               + deg + "is not a valid interval ("
+                               + deg + " is not a perfect scale degree)", loc);
+      }
+      try { return { val: updnsFromSymb(state.edo, uds, pyInterval(deg, 0)) }; }
+      catch (err) {
+        throw new OtherError(err.message, loc);
+      }
+    }
+    else if (e[0] == "!updnsNeutSymb") { // `state.edo` should be set from "!inEDO"
+      const [uds, deg, loc] = [e[1], evalExpr(e[2], r, opts, state).val, e[3]];
+      if (pyRedDeg(deg) == 1) {
+        throw new OtherError((uds > 0 ? "^" : "v").repeat(uds) + "~" +
+                               + deg + "is not a valid interval ("
+                               + deg + " is not a perfect scale degree)", loc);
+      }
+      const pyi = pyRedDeg(deg) == 4 ? pyInterval(deg, Math.sign(deg), 2) :
+                  pyRedDeg(deg) == 5 ? pyInterval(deg, -Math.sign(deg), 2) :
+                                       pyInterval(deg, 0);
+      try { return { val: updnsFromSymb(state.edo, uds, pyi) }; }
+      catch (err) {
+        throw new OtherError(err.message, loc);
+      }
+    }
+    else if (e[0] == "!updnsNote") { // `state.edo` should be set from "!inEDO"
+      const [uds, pyi, loc] = [e[1], evalExpr(e[2], r, opts, state).val, e[3]];
+      try { return { val: updnsFromSymb(state.edo, uds, pyi) }; }
       catch (err) {
         throw new OtherError(err.message, loc);
       }
@@ -4081,7 +4224,7 @@ var grammar = {
     {"name": "intvMExpr2$string$1", "symbols": [{"literal":"s"}, {"literal":"q"}, {"literal":"r"}, {"literal":"t"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$1", "_", {"literal":"("}, "_", "intvMExpr0", "_", {"literal":")"}], "postprocess": d => ["sqrt", d[4]]},
     {"name": "intvMExpr2$string$2", "symbols": [{"literal":"r"}, {"literal":"o"}, {"literal":"o"}, {"literal":"t"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$2", "posInt", "_", {"literal":"("}, "_", "intvMExpr0", "_", {"literal":")"}], "postprocess": d => ["root", d[5], d[1]]},
+    {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$2", "posInt", "_", {"literal":"("}, "_", "intvMExpr0", "_", {"literal":")"}], "postprocess": d => ["root", d[5], parseInt(d[1])]},
     {"name": "intvMExpr2$string$3", "symbols": [{"literal":"m"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "intvMExpr2", "symbols": ["intvMExpr2$string$3", "_", {"literal":"("}, "_", "intvMExpr0", "_", {"literal":","}, "_", "intvMExpr0", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!med", d[4], d[8], loc]},
     {"name": "intvMExpr2", "symbols": ["nmed", "_", {"literal":"("}, "_", "intvMExpr0", "_", {"literal":","}, "_", "intvMExpr0", "_", {"literal":")"}], "postprocess": (d,loc,_) => ["!nobleMed", d[4], d[8], d[0], loc]},
@@ -4255,7 +4398,8 @@ var grammar = {
     {"name": "intvSExpr", "symbols": [{"literal":"("}, "_", "intvSExpr", "_", {"literal":")"}], "postprocess": d => d[2]},
     {"name": "intvSExpr0", "symbols": ["intvSExpr"], "postprocess": d => d[0][0]},
     {"name": "intvEDOSymb", "symbols": ["int", "_", {"literal":"\\"}, "_", "posInt"], "postprocess": d => [["!inEDO", parseInt(d[0]), parseInt(d[4])], "EDO step"]},
-    {"name": "intvEDOSymb", "symbols": ["upsDnsIntv", "_", {"literal":"\\"}, "_", "posInt"], "postprocess": d => [["!inEDO", d[0], parseInt(d[4])], "ups-and-downs"]},
+    {"name": "intvEDOSymb", "symbols": ["upsDnsIntvAbD", "_", {"literal":"\\"}, "_", "posInt"], "postprocess": d => [["!inEDO", d[0], parseInt(d[4])], "ups-and-downs"]},
+    {"name": "intvEDOSymb", "symbols": ["upsDnsIntvVbD", "_", {"literal":"\\"}, "_", "posInt"], "postprocess": d => [["!inEDO", d[0], parseInt(d[4])], "ups-and-downs (verbose)"]},
     {"name": "intvEDOSymb$string$1", "symbols": [{"literal":"T"}, {"literal":"T"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "intvEDOSymb", "symbols": ["intvEDOSymb$string$1", "_", {"literal":"\\"}, "_", "posInt"], "postprocess": d => [["!inEDO", ["!edoTT"], parseInt(d[4])], "EDO TT"]},
     {"name": "noteSExpr$string$1", "symbols": [{"literal":"a"}, {"literal":"p"}, {"literal":"p"}, {"literal":"r"}, {"literal":"o"}, {"literal":"x"}], "postprocess": function joiner(d) {return d.join('');}},
@@ -4264,9 +4408,12 @@ var grammar = {
     {"name": "noteSExpr", "symbols": ["upsDnsNote", "_", {"literal":"\\"}, "_", "posInt"], "postprocess": d => [["!inEDO", d[0], parseInt(d[4])], "ups-and-downs"]},
     {"name": "noteSExpr", "symbols": ["decExpr3", "hertz"], "postprocess": (d,loc,_) => [["!hertz", d[0], ["!refHertz"], loc], "hertz"]},
     {"name": "noteSExpr", "symbols": [{"literal":"("}, "_", "noteSExpr", "_", {"literal":")"}], "postprocess": d => d[2]},
-    {"name": "intvSymbol", "symbols": ["pyIntv"], "postprocess": d => [d[0], "Pythagorean"]},
-    {"name": "intvSymbol", "symbols": ["npyIntv"], "postprocess": d => [d[0], "neutral Pythagorean"]},
-    {"name": "intvSymbol", "symbols": ["snpyIntv"], "postprocess": d => [d[0], "semi-neutral Pythagorean"]},
+    {"name": "intvSymbol", "symbols": ["pyIntvD"], "postprocess": d => [d[0], "Pythagorean"]},
+    {"name": "intvSymbol", "symbols": ["npyIntvD"], "postprocess": d => [d[0], "neutral Pythagorean"]},
+    {"name": "intvSymbol", "symbols": ["snpyIntvD"], "postprocess": d => [d[0], "semi-neutral Pythagorean"]},
+    {"name": "intvSymbol", "symbols": ["pyIntvVbD"], "postprocess": d => [d[0], "Pythagorean (verbose)"]},
+    {"name": "intvSymbol", "symbols": ["npyIntvVbD"], "postprocess": d => [d[0], "neutral Pythagorean (verbose)"]},
+    {"name": "intvSymbol", "symbols": ["snpyIntvVbD"], "postprocess": d => [d[0], "semi-neutral Pythagorean (verbose)"]},
     {"name": "intvSymbol", "symbols": ["strictFJSLikeIntv"], "postprocess": d => [d[0], "FJS-like"]},
     {"name": "intvSymbol$string$1", "symbols": [{"literal":"F"}, {"literal":"J"}, {"literal":"S"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "intvSymbol", "symbols": ["intvSymbol$string$1", "_", {"literal":"("}, "_", "fjsIntv", "_", {"literal":")"}], "postprocess": d => [d[4], "NFJS"]},
@@ -4300,37 +4447,108 @@ var grammar = {
     {"name": "monzoEltsCommas", "symbols": ["frcExpr2", "_", {"literal":","}, "_", "monzoEltsCommas"], "postprocess": d => [d[0]].concat(d[4])},
     {"name": "monzoEltsSpaces", "symbols": ["frcExpr2", "__", "frcExpr2"], "postprocess": d => [d[0], d[2]]},
     {"name": "monzoEltsSpaces", "symbols": ["frcExpr2", "__", "monzoEltsSpaces"], "postprocess": d => [d[0]].concat(d[2])},
-    {"name": "pyIntv", "symbols": [{"literal":"P"}, "pyDeg"], "postprocess": (d,loc,_) => ["!perfPyIntv", d[1], loc]},
-    {"name": "pyIntv", "symbols": [{"literal":"M"}, "pyDeg"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], Fraction(1,2), "M", loc]},
-    {"name": "pyIntv", "symbols": [{"literal":"m"}, "pyDeg"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], Fraction(-1,2), "m", loc]},
+    {"name": "anyPyIntv", "symbols": ["pyIntvD"], "postprocess": id},
+    {"name": "anyPyIntv", "symbols": ["npyIntvD"], "postprocess": id},
+    {"name": "anyPyIntv", "symbols": ["snpyIntvD"], "postprocess": id},
+    {"name": "anyPyIntv", "symbols": ["pyIntvVbD"], "postprocess": id},
+    {"name": "anyPyIntv", "symbols": ["npyIntvVbD"], "postprocess": id},
+    {"name": "anyPyIntv", "symbols": ["snpyIntvVbD"], "postprocess": id},
+    {"name": "pyIntvD", "symbols": ["pyIntv"], "postprocess": id},
+    {"name": "pyIntvD", "symbols": ["desc", "pyIntv"], "postprocess": d => ["recip", d[1]]},
+    {"name": "npyIntvD", "symbols": ["npyIntv"], "postprocess": id},
+    {"name": "npyIntvD", "symbols": ["desc", "npyIntv"], "postprocess": d => ["recip", d[1]]},
+    {"name": "snpyIntvD", "symbols": ["snpyIntv"], "postprocess": id},
+    {"name": "snpyIntvD", "symbols": ["desc", "snpyIntv"], "postprocess": d => ["recip", d[1]]},
+    {"name": "pyIntv", "symbols": [{"literal":"P"}, "degV0"], "postprocess": (d,loc,_) => ["!perfPyIntv", d[1], loc]},
+    {"name": "pyIntv", "symbols": [{"literal":"M"}, "degV0"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], Fraction(1,2), "M", loc]},
+    {"name": "pyIntv", "symbols": [{"literal":"m"}, "degV0"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], Fraction(-1,2), "m", loc]},
     {"name": "pyIntv$ebnf$1", "symbols": [{"literal":"A"}]},
     {"name": "pyIntv$ebnf$1", "symbols": ["pyIntv$ebnf$1", {"literal":"A"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "pyIntv", "symbols": ["pyIntv$ebnf$1", "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[1], d[0].length, 1, loc]},
+    {"name": "pyIntv", "symbols": ["pyIntv$ebnf$1", "degV0"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[1], d[0].length, 1, loc]},
     {"name": "pyIntv$ebnf$2", "symbols": [{"literal":"d"}]},
     {"name": "pyIntv$ebnf$2", "symbols": ["pyIntv$ebnf$2", {"literal":"d"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "pyIntv", "symbols": ["pyIntv$ebnf$2", "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[1], -d[0].length, 1, loc]},
-    {"name": "pyIntv", "symbols": ["posInt", {"literal":"A"}, "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], d[0], 1, loc]},
-    {"name": "pyIntv", "symbols": ["posInt", {"literal":"d"}, "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], -d[0], 1, loc]},
+    {"name": "pyIntv", "symbols": ["pyIntv$ebnf$2", "degV0"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[1], -d[0].length, 1, loc]},
+    {"name": "pyIntv", "symbols": ["posInt", {"literal":"A"}, "degV0"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], parseInt(d[0]), 1, loc]},
+    {"name": "pyIntv", "symbols": ["posInt", {"literal":"d"}, "degV0"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], -parseInt(d[0]), 1, loc]},
     {"name": "npyIntv$subexpression$1", "symbols": [/[nN]/], "postprocess": function(d) {return d.join(""); }},
-    {"name": "npyIntv", "symbols": ["npyIntv$subexpression$1", "pyDeg"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], 0, "n", loc]},
+    {"name": "npyIntv", "symbols": ["npyIntv$subexpression$1", "degV0"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], 0, "n", loc]},
     {"name": "npyIntv$string$1", "symbols": [{"literal":"s"}, {"literal":"A"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "npyIntv", "symbols": ["npyIntv$string$1", "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[1], 1, 2, loc]},
+    {"name": "npyIntv", "symbols": ["npyIntv$string$1", "degV0"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[1], 1, 2, loc]},
     {"name": "npyIntv$string$2", "symbols": [{"literal":"s"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "npyIntv", "symbols": ["npyIntv$string$2", "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[1], -1, 2, loc]},
+    {"name": "npyIntv", "symbols": ["npyIntv$string$2", "degV0"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[1], -1, 2, loc]},
     {"name": "npyIntv$string$3", "symbols": [{"literal":"/"}, {"literal":"2"}, {"literal":"-"}, {"literal":"A"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "npyIntv", "symbols": ["posInt", "npyIntv$string$3", "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], d[0], 2, loc]},
+    {"name": "npyIntv", "symbols": ["posInt", "npyIntv$string$3", "degV0"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], parseInt(d[0]), 2, loc]},
     {"name": "npyIntv$string$4", "symbols": [{"literal":"/"}, {"literal":"2"}, {"literal":"-"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "npyIntv", "symbols": ["posInt", "npyIntv$string$4", "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], -d[0], 2, loc]},
+    {"name": "npyIntv", "symbols": ["posInt", "npyIntv$string$4", "degV0"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], -parseInt(d[0]), 2, loc]},
     {"name": "snpyIntv$string$1", "symbols": [{"literal":"s"}, {"literal":"M"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "snpyIntv", "symbols": ["snpyIntv$string$1", "pyDeg"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], Fraction(1,4), "sM", loc]},
+    {"name": "snpyIntv", "symbols": ["snpyIntv$string$1", "degV0"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], Fraction(1,4), "sM", loc]},
     {"name": "snpyIntv$string$2", "symbols": [{"literal":"s"}, {"literal":"m"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "snpyIntv", "symbols": ["snpyIntv$string$2", "pyDeg"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], Fraction(-1,4), "sm", loc]},
+    {"name": "snpyIntv", "symbols": ["snpyIntv$string$2", "degV0"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], Fraction(-1,4), "sm", loc]},
     {"name": "snpyIntv$string$3", "symbols": [{"literal":"/"}, {"literal":"4"}, {"literal":"-"}, {"literal":"A"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "snpyIntv", "symbols": ["posInt", "snpyIntv$string$3", "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], d[0], 4, loc]},
+    {"name": "snpyIntv", "symbols": ["posInt", "snpyIntv$string$3", "degV0"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], parseInt(d[0]), 4, loc]},
     {"name": "snpyIntv$string$4", "symbols": [{"literal":"/"}, {"literal":"4"}, {"literal":"-"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "snpyIntv", "symbols": ["posInt", "snpyIntv$string$4", "pyDeg"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], -d[0], 4, loc]},
-    {"name": "pyDeg", "symbols": ["posInt"], "postprocess": d => parseInt(d[0])},
-    {"name": "pyDeg", "symbols": [{"literal":"-"}, "posInt"], "postprocess": d => - parseInt(d[1])},
+    {"name": "snpyIntv", "symbols": ["posInt", "snpyIntv$string$4", "degV0"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], -parseInt(d[0]), 4, loc]},
+    {"name": "pyIntvVbD", "symbols": ["pyIntvVb"], "postprocess": id},
+    {"name": "pyIntvVbD", "symbols": ["desc", "pyIntvVb"], "postprocess": d => ["recip", d[1]]},
+    {"name": "npyIntvVbD", "symbols": ["npyIntvVb"], "postprocess": id},
+    {"name": "npyIntvVbD", "symbols": ["desc", "npyIntvVb"], "postprocess": d => ["recip", d[1]]},
+    {"name": "snpyIntvVbD", "symbols": ["snpyIntvVb"], "postprocess": id},
+    {"name": "snpyIntvVbD", "symbols": ["desc", "snpyIntvVb"], "postprocess": d => ["recip", d[1]]},
+    {"name": "pyIntvVb", "symbols": ["pyPrf", "degV1"], "postprocess": (d,loc,_) => ["!perfPyIntv", d[1], loc]},
+    {"name": "pyIntvVb", "symbols": ["pyMaj", "degV1"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], Fraction(1,2), "M", loc]},
+    {"name": "pyIntvVb", "symbols": ["pyMin", "degV1"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], Fraction(-1,2), "m", loc]},
+    {"name": "pyIntvVb", "symbols": ["pyAug", "degV1"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[1], 1, 1, loc]},
+    {"name": "pyIntvVb", "symbols": ["pyDim", "degV1"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[1], -1, 1, loc]},
+    {"name": "pyIntvVb", "symbols": ["posInt", {"literal":"-"}, "pyAug", "degV1"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[3], parseInt(d[0]), 1, loc]},
+    {"name": "pyIntvVb", "symbols": ["posInt", {"literal":"-"}, "pyDim", "degV1"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[3], -parseInt(d[0]), 1, loc]},
+    {"name": "npyIntvVb", "symbols": ["pyNeut", "degV1"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[1], 0, "n", loc]},
+    {"name": "npyIntvVb", "symbols": ["pySemi", "pyAug", "degV1"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], 1, 2, loc]},
+    {"name": "npyIntvVb", "symbols": ["pySemi", "pyDim", "degV1"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], -1, 2, loc]},
+    {"name": "npyIntvVb$string$1", "symbols": [{"literal":"/"}, {"literal":"2"}, {"literal":"-"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "npyIntvVb", "symbols": ["posInt", "npyIntvVb$string$1", "pyAug", "degV1"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[3], parseInt(d[0]), 2, loc]},
+    {"name": "npyIntvVb$string$2", "symbols": [{"literal":"/"}, {"literal":"2"}, {"literal":"-"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "npyIntvVb", "symbols": ["posInt", "npyIntvVb$string$2", "pyDim", "degV1"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[3], -parseInt(d[0]), 2, loc]},
+    {"name": "snpyIntvVb", "symbols": ["pySemi", "pyMaj", "degV1"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[2], Fraction(1,4), "sM", loc]},
+    {"name": "snpyIntvVb", "symbols": ["pySemi", "pyMin", "degV1"], "postprocess": (d,loc,_) => ["!nonPerfPyIntv", d[2], Fraction(-1,4), "sm", loc]},
+    {"name": "snpyIntvVb$string$1", "symbols": [{"literal":"/"}, {"literal":"4"}, {"literal":"-"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "snpyIntvVb", "symbols": ["posInt", "snpyIntvVb$string$1", "pyAug", "degV1"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], parseInt(d[0]), 4, loc]},
+    {"name": "snpyIntvVb$string$2", "symbols": [{"literal":"/"}, {"literal":"4"}, {"literal":"-"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "snpyIntvVb", "symbols": ["posInt", "snpyIntvVb$string$2", "pyDim", "degV1"], "postprocess": (d,loc,_) => ["!augOrDimPyIntv", d[2], -parseInt(d[0]), 4, loc]},
+    {"name": "pyPrf$subexpression$1", "symbols": [/[pP]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "pyPrf$string$1", "symbols": [{"literal":"e"}, {"literal":"r"}, {"literal":"f"}, {"literal":"e"}, {"literal":"c"}, {"literal":"t"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "pyPrf", "symbols": ["pyPrf$subexpression$1", "pyPrf$string$1"]},
+    {"name": "pyMaj$subexpression$1", "symbols": [/[mM]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "pyMaj$string$1", "symbols": [{"literal":"a"}, {"literal":"j"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "pyMaj$ebnf$1$string$1", "symbols": [{"literal":"o"}, {"literal":"r"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "pyMaj$ebnf$1", "symbols": ["pyMaj$ebnf$1$string$1"], "postprocess": id},
+    {"name": "pyMaj$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "pyMaj", "symbols": ["pyMaj$subexpression$1", "pyMaj$string$1", "pyMaj$ebnf$1"]},
+    {"name": "pyMin$subexpression$1", "symbols": [/[mM]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "pyMin$string$1", "symbols": [{"literal":"i"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "pyMin$ebnf$1$string$1", "symbols": [{"literal":"o"}, {"literal":"r"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "pyMin$ebnf$1", "symbols": ["pyMin$ebnf$1$string$1"], "postprocess": id},
+    {"name": "pyMin$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "pyMin", "symbols": ["pyMin$subexpression$1", "pyMin$string$1", "pyMin$ebnf$1"]},
+    {"name": "pyAug$subexpression$1", "symbols": [/[aA]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "pyAug$string$1", "symbols": [{"literal":"u"}, {"literal":"g"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "pyAug$ebnf$1$string$1", "symbols": [{"literal":"m"}, {"literal":"e"}, {"literal":"n"}, {"literal":"t"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "pyAug$ebnf$1", "symbols": ["pyAug$ebnf$1$string$1"], "postprocess": id},
+    {"name": "pyAug$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "pyAug", "symbols": ["pyAug$subexpression$1", "pyAug$string$1", "pyAug$ebnf$1"]},
+    {"name": "pyDim$subexpression$1", "symbols": [/[dD]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "pyDim$string$1", "symbols": [{"literal":"i"}, {"literal":"m"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "pyDim$ebnf$1$string$1", "symbols": [{"literal":"i"}, {"literal":"n"}, {"literal":"i"}, {"literal":"s"}, {"literal":"h"}, {"literal":"e"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "pyDim$ebnf$1", "symbols": ["pyDim$ebnf$1$string$1"], "postprocess": id},
+    {"name": "pyDim$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "pyDim", "symbols": ["pyDim$subexpression$1", "pyDim$string$1", "pyDim$ebnf$1"]},
+    {"name": "pyNeut$subexpression$1", "symbols": [/[nN]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "pyNeut$string$1", "symbols": [{"literal":"e"}, {"literal":"u"}, {"literal":"t"}, {"literal":"r"}, {"literal":"a"}, {"literal":"l"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "pyNeut", "symbols": ["pyNeut$subexpression$1", "pyNeut$string$1"]},
+    {"name": "pySemi$subexpression$1", "symbols": [/[sS]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "pySemi$string$1", "symbols": [{"literal":"e"}, {"literal":"m"}, {"literal":"i"}, {"literal":"-"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "pySemi", "symbols": ["pySemi$subexpression$1", "pySemi$string$1"]},
+    {"name": "anyPyNote", "symbols": ["pyNote"], "postprocess": id},
+    {"name": "anyPyNote", "symbols": ["npyNote"], "postprocess": id},
     {"name": "pyNote", "symbols": [{"literal":"A"}], "postprocess": _ => ["recip", ["!refIntvToA4"]]},
     {"name": "pyNote$macrocall$2", "symbols": [/[B-G]/]},
     {"name": "pyNote$macrocall$3", "symbols": ["pyNoteNoAccs"]},
@@ -4527,19 +4745,27 @@ var grammar = {
     {"name": "fjsAccExpr$string$1", "symbols": [{"literal":"s"}, {"literal":"q"}, {"literal":"r"}, {"literal":"t"}, {"literal":"("}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "fjsAccExpr", "symbols": ["fjsAccExpr$string$1", "fjsAccExpr", {"literal":")"}], "postprocess": d => d[1].sqrt()},
     {"name": "fjsAccExpr$string$2", "symbols": [{"literal":"r"}, {"literal":"o"}, {"literal":"o"}, {"literal":"t"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "fjsAccExpr", "symbols": ["fjsAccExpr$string$2", "posInt", {"literal":"("}, "fjsAccExpr", {"literal":")"}], "postprocess": d => d[3].root(d[1])},
+    {"name": "fjsAccExpr", "symbols": ["fjsAccExpr$string$2", "posInt", {"literal":"("}, "fjsAccExpr", {"literal":")"}], "postprocess": d => d[3].root(parseInt(d[1]))},
     {"name": "fjsAccExpr", "symbols": [{"literal":"("}, "fjsAccExpr", {"literal":"^"}, "frcExpr3", {"literal":")"}], "postprocess": d => d[1].pow(d[3])},
-    {"name": "upsDnsIntv", "symbols": ["upsDns", "pyIntv"], "postprocess": (d,loc,_) => ["+", d[0], ["!edoPy", d[1], loc]]},
-    {"name": "upsDnsIntv", "symbols": ["upsDns", "npyIntv"], "postprocess": (d,loc,_) => ["+", d[0], ["!edoPy", d[1], loc]]},
-    {"name": "upsDnsIntv", "symbols": ["upsDns", "snpyIntv"], "postprocess": (d,loc,_) => ["+", d[0], ["!edoPy", d[1], loc]]},
-    {"name": "upsDnsIntv", "symbols": ["upsDns", "posInt"], "postprocess":  (d,loc,reject) => (pyRedDeg(d[1]) == 4 || pyRedDeg(d[1]) == 5) && d[0] != 0
-        ? ["+", d[0], ["!edoPy", parseInt(d[1]), loc]] : reject },
-    {"name": "upsDnsIntv", "symbols": ["upsDns", {"literal":"~"}, "posInt"], "postprocess":  (d,loc,reject) => pyRedDeg(d[2]) == 1 ? reject :
-        pyRedDeg(d[2]) == 4 ? ["+", d[0], ["!edoPy", pyInterval(d[2],1,2), loc]] :
-        pyRedDeg(d[2]) == 5 ? ["+", d[0], ["!edoPy", pyInterval(d[2],-1,2), loc]] :
-                              ["+", d[0], ["!edoPy", pyInterval(d[2],0), loc]] },
-    {"name": "upsDnsNote", "symbols": ["upsDns", "pyNote"], "postprocess": (d,loc,_) => ["+", d[0], ["!edoPy", d[1], loc]]},
-    {"name": "upsDnsNote", "symbols": ["upsDns", "npyNote"], "postprocess": (d,loc,_) => ["+", d[0], ["!edoPy", d[1], loc]]},
+    {"name": "upsDnsIntv", "symbols": ["upsDnsIntvAbD"], "postprocess": id},
+    {"name": "upsDnsIntv", "symbols": ["upsDnsIntvVbD"], "postprocess": id},
+    {"name": "upsDnsIntvAbD", "symbols": ["upsDnsIntvAb"], "postprocess": id},
+    {"name": "upsDnsIntvAbD", "symbols": ["desc", "upsDnsIntvAb"], "postprocess": d => ["-", 0, d[1]]},
+    {"name": "upsDnsIntvAb", "symbols": ["upsDns", "pyIntv"], "postprocess": (d,loc,_) => ["!updnsSymb", d[0], d[1], loc]},
+    {"name": "upsDnsIntvAb", "symbols": ["upsDns", "npyIntv"], "postprocess": (d,loc,_) => ["!updnsSymb", d[0], d[1], loc]},
+    {"name": "upsDnsIntvAb", "symbols": ["upsDns", "snpyIntv"], "postprocess": (d,loc,_) => ["!updnsSymb", d[0], d[1], loc]},
+    {"name": "upsDnsIntvAb", "symbols": ["upsDnsNz", "degV0"], "postprocess": (d,loc,_) => ["!updnsPerfSymb", d[0], d[1], loc]},
+    {"name": "upsDnsIntvAb", "symbols": ["upsDns", {"literal":"~"}, "degV0"], "postprocess": (d,loc,) => ["!updnsNeutSymb", d[0], d[2], loc]},
+    {"name": "upsDnsIntvVbD", "symbols": ["upsDnsIntvVb"], "postprocess": id},
+    {"name": "upsDnsIntvVbD", "symbols": ["desc", "upsDnsIntvVb"], "postprocess": d => ["-", 0, d[1]]},
+    {"name": "upsDnsIntvVb", "symbols": ["upsDnsVb", "upDnsVbSep", "pyIntvVb"], "postprocess": (d,loc,_) => ["!updnsSymb", d[0], d[2], loc]},
+    {"name": "upsDnsIntvVb", "symbols": ["upsDnsVb", "upDnsVbSep", "npyIntvVb"], "postprocess": (d,loc,_) => ["!updnsSymb", d[0], d[2], loc]},
+    {"name": "upsDnsIntvVb", "symbols": ["upsDnsVb", "upDnsVbSep", "snpyIntvVb"], "postprocess": (d,loc,_) => ["!updnsSymb", d[0], d[2], loc]},
+    {"name": "upsDnsIntvVb", "symbols": ["upsDnsVb", "degV1"], "postprocess": (d,loc,_) => ["!updnsPerfSymb", d[0], d[1], loc]},
+    {"name": "upsDnsIntvVb$string$1", "symbols": [{"literal":"m"}, {"literal":"i"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "upsDnsIntvVb", "symbols": ["upsDnsVb", "upDnsVbSep", "upsDnsIntvVb$string$1", "degV1"], "postprocess": (d,loc,) => ["!updnsNeutSymb", d[0], d[3], loc]},
+    {"name": "upsDnsNote", "symbols": ["upsDns", "pyNote"], "postprocess": (d,loc,_) => ["!updnsNote", d[0], d[1], loc]},
+    {"name": "upsDnsNote", "symbols": ["upsDns", "npyNote"], "postprocess": (d,loc,_) => ["!updnsNote", d[0], d[1], loc]},
     {"name": "upsDns", "symbols": [], "postprocess": d => 0},
     {"name": "upsDns$ebnf$1", "symbols": [{"literal":"^"}]},
     {"name": "upsDns$ebnf$1", "symbols": ["upsDns$ebnf$1", {"literal":"^"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
@@ -4547,8 +4773,33 @@ var grammar = {
     {"name": "upsDns$ebnf$2", "symbols": [{"literal":"v"}]},
     {"name": "upsDns$ebnf$2", "symbols": ["upsDns$ebnf$2", {"literal":"v"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "upsDns", "symbols": ["upsDns$ebnf$2"], "postprocess": d => -d[0].length},
-    {"name": "aclrIntv", "symbols": ["aclrCos", "aclrM", "aclrP", "aclrDeg"], "postprocess": (d,loc,_) => ["!clrIntv", d[0], d[1], d[2], d[3], loc]},
-    {"name": "aclrIntv", "symbols": ["clrDesc", "aclrCos", "aclrM", "aclrP", "aclrDeg"], "postprocess": (d,loc,_) => ["recip", ["!clrIntv", d[1], d[2], d[3], d[4], loc]]},
+    {"name": "upsDnsNz$ebnf$1", "symbols": [{"literal":"^"}]},
+    {"name": "upsDnsNz$ebnf$1", "symbols": ["upsDnsNz$ebnf$1", {"literal":"^"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "upsDnsNz", "symbols": ["upsDnsNz$ebnf$1"], "postprocess": d => d[0].length},
+    {"name": "upsDnsNz$ebnf$2", "symbols": [{"literal":"v"}]},
+    {"name": "upsDnsNz$ebnf$2", "symbols": ["upsDnsNz$ebnf$2", {"literal":"v"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "upsDnsNz", "symbols": ["upsDnsNz$ebnf$2"], "postprocess": d => -d[0].length},
+    {"name": "upsDnsVb", "symbols": [], "postprocess": d => 0},
+    {"name": "upsDnsVb$string$1", "symbols": [{"literal":"u"}, {"literal":"p"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "upsDnsVb", "symbols": ["upsDnsVb$string$1"], "postprocess": d => 1},
+    {"name": "upsDnsVb$string$2", "symbols": [{"literal":"d"}, {"literal":"o"}, {"literal":"w"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "upsDnsVb", "symbols": ["upsDnsVb$string$2"], "postprocess": d => -1},
+    {"name": "upsDnsVb$string$3", "symbols": [{"literal":"d"}, {"literal":"o"}, {"literal":"u"}, {"literal":"b"}, {"literal":"l"}, {"literal":"e"}, {"literal":"-"}, {"literal":"u"}, {"literal":"p"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "upsDnsVb", "symbols": ["upsDnsVb$string$3"], "postprocess": d => 2},
+    {"name": "upsDnsVb$string$4", "symbols": [{"literal":"d"}, {"literal":"o"}, {"literal":"u"}, {"literal":"b"}, {"literal":"l"}, {"literal":"e"}, {"literal":"-"}, {"literal":"d"}, {"literal":"o"}, {"literal":"w"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "upsDnsVb", "symbols": ["upsDnsVb$string$4"], "postprocess": d => -2},
+    {"name": "upsDnsVb$string$5", "symbols": [{"literal":"-"}, {"literal":"u"}, {"literal":"p"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "upsDnsVb", "symbols": ["posInt", "upsDnsVb$string$5"], "postprocess": d => parseInt(d[0])},
+    {"name": "upsDnsVb$string$6", "symbols": [{"literal":"-"}, {"literal":"d"}, {"literal":"o"}, {"literal":"w"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "upsDnsVb", "symbols": ["posInt", "upsDnsVb$string$6"], "postprocess": d => -parseInt(d[0])},
+    {"name": "upDnsVbSep", "symbols": ["_"]},
+    {"name": "upDnsVbSep", "symbols": ["_", {"literal":"-"}, "_"]},
+    {"name": "anyClrIntv", "symbols": ["aclrIntv"], "postprocess": id},
+    {"name": "anyClrIntv", "symbols": ["clrIntv"], "postprocess": id},
+    {"name": "anyClrNote", "symbols": ["aclrNote"], "postprocess": id},
+    {"name": "anyClrNote", "symbols": ["clrNote"], "postprocess": id},
+    {"name": "aclrIntv", "symbols": ["aclrCos", "aclrM", "aclrP", "degV0"], "postprocess": (d,loc,_) => ["!clrIntv", d[0], d[1], d[2], d[3], loc]},
+    {"name": "aclrIntv", "symbols": ["desc", "aclrCos", "aclrM", "aclrP", "degV0"], "postprocess": (d,loc,_) => ["recip", ["!clrIntv", d[1], d[2], d[3], d[4], loc]]},
     {"name": "aclrNote", "symbols": ["aclrP", "pyNote"], "postprocess": (d,loc,_) => ["!clrNote", d[0], d[1], loc]},
     {"name": "aclrCos", "symbols": [], "postprocess": d => 0},
     {"name": "aclrCos$ebnf$1", "symbols": [{"literal":"c"}]},
@@ -4591,47 +4842,49 @@ var grammar = {
     {"name": "aclrPP$ebnf$2", "symbols": [{"literal":"u"}]},
     {"name": "aclrPP$ebnf$2", "symbols": ["aclrPP$ebnf$2", {"literal":"u"}], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "aclrPP", "symbols": ["posInt", "aclrPP$ebnf$2"], "postprocess": (d,loc,_) => ["!aclrPP", parseInt(d[0]), -d[1].length, loc]},
-    {"name": "aclrDeg", "symbols": ["posInt"], "postprocess": d => parseInt(d[0])},
-    {"name": "aclrDeg", "symbols": [{"literal":"-"}, "posInt"], "postprocess": d => - parseInt(d[1])},
-    {"name": "clrIntv", "symbols": ["clrCos", "clrM", "clrP", "clrDeg"], "postprocess": (d,loc,_) => ["!clrIntv", d[0], d[1], d[2], d[3], loc]},
-    {"name": "clrIntv", "symbols": ["clrDesc", "clrCos", "clrM", "clrP", "clrDeg"], "postprocess": (d,loc,_) => ["recip", ["!clrIntv", d[1], d[2], d[3], d[4], loc]]},
+    {"name": "clrIntv", "symbols": ["clrCos", "clrM", "clrP", "degV1"], "postprocess": (d,loc,_) => ["!clrIntv", d[0], d[1], d[2], d[3], loc]},
+    {"name": "clrIntv", "symbols": ["desc", "clrCos", "clrM", "clrP", "degV1"], "postprocess": (d,loc,_) => ["recip", ["!clrIntv", d[1], d[2], d[3], d[4], loc]]},
     {"name": "clrNote", "symbols": ["clrP", "_", "pyNote"], "postprocess": (d,loc,_) => ["!clrNote", d[0], d[2], loc]},
     {"name": "clrCos", "symbols": [], "postprocess": d => 0},
-    {"name": "clrCos$string$1", "symbols": [{"literal":"c"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrCos$subexpression$1", "symbols": [/[cC]/], "postprocess": function(d) {return d.join(""); }},
     {"name": "clrCos$ebnf$1", "symbols": [{"literal":"-"}], "postprocess": id},
     {"name": "clrCos$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "clrCos", "symbols": ["clrCos$string$1", "clrCos$ebnf$1", "clrCos"], "postprocess": d => ["+", d[2], 1]},
-    {"name": "clrCos$string$2", "symbols": [{"literal":"c"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrCos", "symbols": ["clrCos$subexpression$1", {"literal":"o"}, "clrCos$ebnf$1", "clrCos"], "postprocess": d => ["+", d[3], 1]},
+    {"name": "clrCos$subexpression$2", "symbols": [/[cC]/], "postprocess": function(d) {return d.join(""); }},
     {"name": "clrCos$ebnf$2", "symbols": [{"literal":"-"}], "postprocess": id},
     {"name": "clrCos$ebnf$2", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "clrCos", "symbols": ["clrMPs", "clrCos$string$2", "clrCos$ebnf$2", "clrCos"], "postprocess": d => ["+", d[3], d[0]]},
+    {"name": "clrCos", "symbols": ["clrMPs", "clrCos$subexpression$2", {"literal":"o"}, "clrCos$ebnf$2", "clrCos"], "postprocess": d => ["+", d[4], d[0]]},
     {"name": "clrM", "symbols": [], "postprocess": d => 0},
-    {"name": "clrM$string$1", "symbols": [{"literal":"l"}, {"literal":"a"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrM$subexpression$1", "symbols": [/[lL]/], "postprocess": function(d) {return d.join(""); }},
     {"name": "clrM$ebnf$1", "symbols": [{"literal":"-"}], "postprocess": id},
     {"name": "clrM$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "clrM", "symbols": ["clrM$string$1", "clrM$ebnf$1", "clrM"], "postprocess": d => ["+", d[2], 1]},
-    {"name": "clrM$string$2", "symbols": [{"literal":"l"}, {"literal":"a"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrM", "symbols": ["clrM$subexpression$1", {"literal":"a"}, "clrM$ebnf$1", "clrM"], "postprocess": d => ["+", d[3], 1]},
+    {"name": "clrM$subexpression$2", "symbols": [/[lL]/], "postprocess": function(d) {return d.join(""); }},
     {"name": "clrM$ebnf$2", "symbols": [{"literal":"-"}], "postprocess": id},
     {"name": "clrM$ebnf$2", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "clrM", "symbols": ["clrMPs", "clrM$string$2", "clrM$ebnf$2", "clrM"], "postprocess": d => ["+", d[3], d[0]]},
-    {"name": "clrM$string$3", "symbols": [{"literal":"s"}, {"literal":"a"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrM", "symbols": ["clrMPs", "clrM$subexpression$2", {"literal":"a"}, "clrM$ebnf$2", "clrM"], "postprocess": d => ["+", d[4], d[0]]},
+    {"name": "clrM$subexpression$3", "symbols": [/[sS]/], "postprocess": function(d) {return d.join(""); }},
     {"name": "clrM$ebnf$3", "symbols": [{"literal":"-"}], "postprocess": id},
     {"name": "clrM$ebnf$3", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "clrM", "symbols": ["clrM$string$3", "clrM$ebnf$3", "clrM"], "postprocess": d => ["-", d[2], 1]},
-    {"name": "clrM$string$4", "symbols": [{"literal":"s"}, {"literal":"a"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrM", "symbols": ["clrM$subexpression$3", {"literal":"a"}, "clrM$ebnf$3", "clrM"], "postprocess": d => ["-", d[3], 1]},
+    {"name": "clrM$subexpression$4", "symbols": [/[sS]/], "postprocess": function(d) {return d.join(""); }},
     {"name": "clrM$ebnf$4", "symbols": [{"literal":"-"}], "postprocess": id},
     {"name": "clrM$ebnf$4", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "clrM", "symbols": ["clrMPs", "clrM$string$4", "clrM$ebnf$4", "clrM"], "postprocess": d => ["-", d[3], d[0]]},
-    {"name": "clrP$string$1", "symbols": [{"literal":"w"}, {"literal":"a"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrP", "symbols": ["clrP$string$1"], "postprocess": d => []},
-    {"name": "clrP$string$2", "symbols": [{"literal":"i"}, {"literal":"l"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrP", "symbols": ["clrP$string$2"], "postprocess": d => [Interval(11)]},
-    {"name": "clrP$string$3", "symbols": [{"literal":"i"}, {"literal":"s"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrP", "symbols": ["clrP$string$3"], "postprocess": d => [Interval(17)]},
-    {"name": "clrP$string$4", "symbols": [{"literal":"i"}, {"literal":"n"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrP", "symbols": ["clrP$string$4"], "postprocess": d => [Interval(19)]},
-    {"name": "clrP$string$5", "symbols": [{"literal":"i"}, {"literal":"n"}, {"literal":"u"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrP", "symbols": ["clrP$string$5"], "postprocess": d => [Interval(1,19)]},
+    {"name": "clrM", "symbols": ["clrMPs", "clrM$subexpression$4", {"literal":"a"}, "clrM$ebnf$4", "clrM"], "postprocess": d => ["-", d[4], d[0]]},
+    {"name": "clrP$subexpression$1", "symbols": [/[wW]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrP", "symbols": ["clrP$subexpression$1", {"literal":"a"}], "postprocess": d => []},
+    {"name": "clrP$subexpression$2", "symbols": [/[iI]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrP$string$1", "symbols": [{"literal":"l"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrP", "symbols": ["clrP$subexpression$2", "clrP$string$1"], "postprocess": d => [Interval(11)]},
+    {"name": "clrP$subexpression$3", "symbols": [/[iI]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrP$string$2", "symbols": [{"literal":"s"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrP", "symbols": ["clrP$subexpression$3", "clrP$string$2"], "postprocess": d => [Interval(17)]},
+    {"name": "clrP$subexpression$4", "symbols": [/[iI]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrP$string$3", "symbols": [{"literal":"n"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrP", "symbols": ["clrP$subexpression$4", "clrP$string$3"], "postprocess": d => [Interval(19)]},
+    {"name": "clrP$subexpression$5", "symbols": [/[iI]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrP$string$4", "symbols": [{"literal":"n"}, {"literal":"u"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrP", "symbols": ["clrP$subexpression$5", "clrP$string$4"], "postprocess": d => [Interval(1,19)]},
     {"name": "clrP", "symbols": ["clrPPs"], "postprocess": id},
     {"name": "clrPPs$ebnf$1", "symbols": ["clrPPsMid1"], "postprocess": id},
     {"name": "clrPPs$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
@@ -4650,75 +4903,86 @@ var grammar = {
     {"name": "clrPPsMid3$ebnf$1", "symbols": [{"literal":"a"}], "postprocess": id},
     {"name": "clrPPsMid3$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "clrPPsMid3", "symbols": ["clrMPs", "clrPPsMid1", {"literal":"-"}, "clrPPsMid3$ebnf$1"], "postprocess": d => d[1].map(i => ["pow", i, d[0]])},
-    {"name": "clrPP$string$1", "symbols": [{"literal":"y"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrPP", "symbols": ["clrPP$string$1"], "postprocess": d => Interval(5)},
-    {"name": "clrPP$string$2", "symbols": [{"literal":"g"}, {"literal":"u"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrPP", "symbols": ["clrPP$string$2"], "postprocess": d => Interval(1,5)},
-    {"name": "clrPP$string$3", "symbols": [{"literal":"z"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrPP", "symbols": ["clrPP$string$3"], "postprocess": d => Interval(7)},
-    {"name": "clrPP$string$4", "symbols": [{"literal":"r"}, {"literal":"u"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrPP", "symbols": ["clrPP$string$4"], "postprocess": d => Interval(1,7)},
-    {"name": "clrPP$string$5", "symbols": [{"literal":"l"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrPP", "symbols": ["clrPP$string$5"], "postprocess": d => Interval(11)},
-    {"name": "clrPP$string$6", "symbols": [{"literal":"l"}, {"literal":"u"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrPP", "symbols": ["clrPP$string$6"], "postprocess": d => Interval(1,11)},
+    {"name": "clrPP$subexpression$1", "symbols": [/[yY]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrPP", "symbols": ["clrPP$subexpression$1", {"literal":"o"}], "postprocess": d => Interval(5)},
+    {"name": "clrPP$subexpression$2", "symbols": [/[gG]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrPP", "symbols": ["clrPP$subexpression$2", {"literal":"u"}], "postprocess": d => Interval(1,5)},
+    {"name": "clrPP$subexpression$3", "symbols": [/[zZ]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrPP", "symbols": ["clrPP$subexpression$3", {"literal":"o"}], "postprocess": d => Interval(7)},
+    {"name": "clrPP$subexpression$4", "symbols": [/[rR]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrPP", "symbols": ["clrPP$subexpression$4", {"literal":"u"}], "postprocess": d => Interval(1,7)},
+    {"name": "clrPP$subexpression$5", "symbols": [/[lL]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrPP", "symbols": ["clrPP$subexpression$5", {"literal":"o"}], "postprocess": d => Interval(11)},
+    {"name": "clrPP$subexpression$6", "symbols": [/[lL]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrPP", "symbols": ["clrPP$subexpression$6", {"literal":"u"}], "postprocess": d => Interval(1,11)},
     {"name": "clrPP", "symbols": ["clrGenPP", {"literal":"o"}], "postprocess": d => d[0]},
     {"name": "clrPP", "symbols": ["clrGenPP", {"literal":"u"}], "postprocess": d => ["recip", d[0]]},
-    {"name": "clrDeg$string$1", "symbols": [{"literal":"n"}, {"literal":"e"}, {"literal":"g"}, {"literal":"a"}, {"literal":"t"}, {"literal":"i"}, {"literal":"v"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrDeg", "symbols": ["__", "clrDeg$string$1", "__", "clrPosDeg"], "postprocess": d => ["*", -1, d[3]]},
-    {"name": "clrDeg", "symbols": ["_", {"literal":"-"}, "_", "clrOrdinalDeg"], "postprocess": d => ["*", -1, d[3]]},
-    {"name": "clrDeg", "symbols": ["__", "clrWordDeg"], "postprocess": d => d[1]},
-    {"name": "clrDeg", "symbols": ["_", "clrOrdinalDeg"], "postprocess": d => d[1]},
-    {"name": "clrDeg", "symbols": ["_", "posInt"], "postprocess": d => parseInt(d[1])},
-    {"name": "clrDeg", "symbols": ["_", {"literal":"-"}, "_", "posInt"], "postprocess": d => - parseInt(d[3])},
-    {"name": "clrPosDeg", "symbols": ["clrWordDeg"], "postprocess": id},
-    {"name": "clrPosDeg", "symbols": ["clrOrdinalDeg"], "postprocess": id},
-    {"name": "clrWordDeg$string$1", "symbols": [{"literal":"u"}, {"literal":"n"}, {"literal":"i"}, {"literal":"s"}, {"literal":"o"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrWordDeg", "symbols": ["clrWordDeg$string$1"], "postprocess": d => 1},
-    {"name": "clrWordDeg$string$2", "symbols": [{"literal":"o"}, {"literal":"c"}, {"literal":"t"}, {"literal":"a"}, {"literal":"v"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrWordDeg", "symbols": ["clrWordDeg$string$2"], "postprocess": d => 8},
-    {"name": "clrOrdinalDeg$string$1", "symbols": [{"literal":"1"}, {"literal":"s"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrOrdinalDeg", "symbols": ["clrOrdinalDeg$string$1"], "postprocess": d => 1},
-    {"name": "clrOrdinalDeg$string$2", "symbols": [{"literal":"8"}, {"literal":"v"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrOrdinalDeg", "symbols": ["clrOrdinalDeg$string$2"], "postprocess": d => 8},
-    {"name": "clrOrdinalDeg", "symbols": ["ordinal"], "postprocess": d => parseInt(d[0])},
     {"name": "clrMPs$ebnf$1", "symbols": ["clrMP"]},
     {"name": "clrMPs$ebnf$1", "symbols": ["clrMPs$ebnf$1", "clrMP"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "clrMPs", "symbols": ["clrMPs$ebnf$1"], "postprocess": (d,loc,_) => ["!clrMPs", d[0], loc]},
-    {"name": "clrMP$string$1", "symbols": [{"literal":"b"}, {"literal":"i"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrMP", "symbols": ["clrMP$string$1"], "postprocess": d => 2},
-    {"name": "clrMP$string$2", "symbols": [{"literal":"t"}, {"literal":"r"}, {"literal":"i"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrMP", "symbols": ["clrMP$string$2"], "postprocess": d => 3},
-    {"name": "clrMP$string$3", "symbols": [{"literal":"q"}, {"literal":"u"}, {"literal":"a"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrMP", "symbols": ["clrMP$string$3"], "postprocess": d => 4},
-    {"name": "clrMP$string$4", "symbols": [{"literal":"q"}, {"literal":"u"}, {"literal":"i"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrMP", "symbols": ["clrMP$string$4"], "postprocess": d => 5},
-    {"name": "clrMP$string$5", "symbols": [{"literal":"s"}, {"literal":"e"}, {"literal":"p"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrMP", "symbols": ["clrMP$string$5"], "postprocess": d => 7},
-    {"name": "clrMP$string$6", "symbols": [{"literal":"l"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrMP", "symbols": ["clrMP$string$6"], "postprocess": d => 11},
+    {"name": "clrMP$subexpression$1", "symbols": [/[bB]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrMP", "symbols": ["clrMP$subexpression$1", {"literal":"i"}], "postprocess": d => 2},
+    {"name": "clrMP$subexpression$2", "symbols": [/[tT]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrMP$string$1", "symbols": [{"literal":"r"}, {"literal":"i"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrMP", "symbols": ["clrMP$subexpression$2", "clrMP$string$1"], "postprocess": d => 3},
+    {"name": "clrMP$subexpression$3", "symbols": [/[qQ]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrMP$string$2", "symbols": [{"literal":"u"}, {"literal":"a"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrMP", "symbols": ["clrMP$subexpression$3", "clrMP$string$2"], "postprocess": d => 4},
+    {"name": "clrMP$subexpression$4", "symbols": [/[qQ]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrMP$string$3", "symbols": [{"literal":"u"}, {"literal":"i"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrMP", "symbols": ["clrMP$subexpression$4", "clrMP$string$3"], "postprocess": d => 5},
+    {"name": "clrMP$subexpression$5", "symbols": [/[sS]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrMP$string$4", "symbols": [{"literal":"e"}, {"literal":"p"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrMP", "symbols": ["clrMP$subexpression$5", "clrMP$string$4"], "postprocess": d => 7},
+    {"name": "clrMP$subexpression$6", "symbols": [/[lL]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrMP", "symbols": ["clrMP$subexpression$6", {"literal":"e"}], "postprocess": d => 11},
     {"name": "clrMP", "symbols": ["clrGenPP", {"literal":"e"}], "postprocess": d => ["valueOf", d[0]]},
     {"name": "clrGenPP", "symbols": ["clrTens", "clrOnes"], "postprocess": (d,loc,_) => ["!clrGenPP", d[0] + d[1], loc]},
     {"name": "clrTens", "symbols": [], "postprocess": d => 10},
-    {"name": "clrTens$string$1", "symbols": [{"literal":"t"}, {"literal":"w"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrTens", "symbols": ["clrTens$string$1"], "postprocess": d => 20},
-    {"name": "clrTens$string$2", "symbols": [{"literal":"t"}, {"literal":"h"}, {"literal":"i"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrTens", "symbols": ["clrTens$string$2"], "postprocess": d => 30},
-    {"name": "clrTens$string$3", "symbols": [{"literal":"f"}, {"literal":"o"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrTens", "symbols": ["clrTens$string$3"], "postprocess": d => 40},
-    {"name": "clrTens$string$4", "symbols": [{"literal":"f"}, {"literal":"i"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrTens", "symbols": ["clrTens$string$4"], "postprocess": d => 50},
-    {"name": "clrTens$string$5", "symbols": [{"literal":"s"}, {"literal":"i"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrTens", "symbols": ["clrTens$string$5"], "postprocess": d => 60},
-    {"name": "clrOnes", "symbols": [{"literal":"w"}], "postprocess": d => 1},
-    {"name": "clrOnes$string$1", "symbols": [{"literal":"t"}, {"literal":"h"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrOnes", "symbols": ["clrOnes$string$1"], "postprocess": d => 3},
-    {"name": "clrOnes", "symbols": [{"literal":"s"}], "postprocess": d => 7},
-    {"name": "clrOnes", "symbols": [{"literal":"n"}], "postprocess": d => 9},
-    {"name": "clrDesc$string$1", "symbols": [{"literal":"d"}, {"literal":"e"}, {"literal":"s"}, {"literal":"c"}, {"literal":"."}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrDesc", "symbols": ["clrDesc$string$1", "__"]},
-    {"name": "clrDesc$string$2", "symbols": [{"literal":"d"}, {"literal":"e"}, {"literal":"s"}, {"literal":"c"}, {"literal":"e"}, {"literal":"n"}, {"literal":"d"}, {"literal":"i"}, {"literal":"n"}, {"literal":"g"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "clrDesc", "symbols": ["clrDesc$string$2", "__"]},
+    {"name": "clrTens$subexpression$1", "symbols": [/[tT]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrTens$string$1", "symbols": [{"literal":"w"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrTens", "symbols": ["clrTens$subexpression$1", "clrTens$string$1"], "postprocess": d => 20},
+    {"name": "clrTens$subexpression$2", "symbols": [/[tT]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrTens$string$2", "symbols": [{"literal":"h"}, {"literal":"i"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "clrTens", "symbols": ["clrTens$subexpression$2", "clrTens$string$2"], "postprocess": d => 30},
+    {"name": "clrTens$subexpression$3", "symbols": [/[fF]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrTens", "symbols": ["clrTens$subexpression$3", {"literal":"o"}], "postprocess": d => 40},
+    {"name": "clrTens$subexpression$4", "symbols": [/[fF]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrTens", "symbols": ["clrTens$subexpression$4", {"literal":"i"}], "postprocess": d => 50},
+    {"name": "clrTens$subexpression$5", "symbols": [/[sS]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrTens", "symbols": ["clrTens$subexpression$5", {"literal":"i"}], "postprocess": d => 60},
+    {"name": "clrOnes$subexpression$1", "symbols": [/[wW]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrOnes", "symbols": ["clrOnes$subexpression$1"], "postprocess": d => 1},
+    {"name": "clrOnes$subexpression$2", "symbols": [/[tT]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrOnes", "symbols": ["clrOnes$subexpression$2", {"literal":"h"}], "postprocess": d => 3},
+    {"name": "clrOnes$subexpression$3", "symbols": [/[sS]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrOnes", "symbols": ["clrOnes$subexpression$3"], "postprocess": d => 7},
+    {"name": "clrOnes$subexpression$4", "symbols": [/[nN]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "clrOnes", "symbols": ["clrOnes$subexpression$4"], "postprocess": d => 9},
+    {"name": "degV0", "symbols": ["posInt"], "postprocess": d => parseInt(d[0])},
+    {"name": "degV0", "symbols": [{"literal":"-"}, "posInt"], "postprocess": d => - parseInt(d[1])},
+    {"name": "degV1$string$1", "symbols": [{"literal":"n"}, {"literal":"e"}, {"literal":"g"}, {"literal":"a"}, {"literal":"t"}, {"literal":"i"}, {"literal":"v"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "degV1", "symbols": ["__", "degV1$string$1", "__", "degV1Pos"], "postprocess": d => -d[3]},
+    {"name": "degV1", "symbols": ["_", {"literal":"-"}, "_", "degOrdinal"], "postprocess": d => -d[3]},
+    {"name": "degV1", "symbols": ["__", "degWord"], "postprocess": d => d[1]},
+    {"name": "degV1", "symbols": ["_", "degOrdinal"], "postprocess": d => d[1]},
+    {"name": "degV1", "symbols": ["_", "posInt"], "postprocess": d => parseInt(d[1])},
+    {"name": "degV1", "symbols": ["_", {"literal":"-"}, "_", "posInt"], "postprocess": d => - parseInt(d[3])},
+    {"name": "degV1Pos", "symbols": ["degWord"], "postprocess": id},
+    {"name": "degV1Pos", "symbols": ["degOrdinal"], "postprocess": id},
+    {"name": "degWord$string$1", "symbols": [{"literal":"u"}, {"literal":"n"}, {"literal":"i"}, {"literal":"s"}, {"literal":"o"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "degWord", "symbols": ["degWord$string$1"], "postprocess": d => 1},
+    {"name": "degWord$string$2", "symbols": [{"literal":"o"}, {"literal":"c"}, {"literal":"t"}, {"literal":"a"}, {"literal":"v"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "degWord", "symbols": ["degWord$string$2"], "postprocess": d => 8},
+    {"name": "degOrdinal$string$1", "symbols": [{"literal":"1"}, {"literal":"s"}, {"literal":"n"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "degOrdinal", "symbols": ["degOrdinal$string$1"], "postprocess": d => 1},
+    {"name": "degOrdinal$string$2", "symbols": [{"literal":"8"}, {"literal":"v"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "degOrdinal", "symbols": ["degOrdinal$string$2"], "postprocess": d => 8},
+    {"name": "degOrdinal", "symbols": ["ordinal"], "postprocess": d => parseInt(d[0])},
+    {"name": "desc$string$1", "symbols": [{"literal":"d"}, {"literal":"e"}, {"literal":"s"}, {"literal":"c"}, {"literal":"."}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "desc", "symbols": ["desc$string$1", "__"]},
+    {"name": "desc$string$2", "symbols": [{"literal":"d"}, {"literal":"e"}, {"literal":"s"}, {"literal":"c"}, {"literal":"e"}, {"literal":"n"}, {"literal":"d"}, {"literal":"i"}, {"literal":"n"}, {"literal":"g"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "desc", "symbols": ["desc$string$2", "__"]},
     {"name": "frcExpr1", "symbols": ["frcExpr1", "_", {"literal":"+"}, "_", "frcExpr2"], "postprocess": d => d[0].add(d[4])},
     {"name": "frcExpr1", "symbols": ["frcExpr1", "_", {"literal":"-"}, "_", "frcExpr2"], "postprocess": d => d[0].sub(d[4])},
     {"name": "frcExpr1", "symbols": ["frcExpr2"], "postprocess": id},
@@ -5019,27 +5283,34 @@ function pyQuality(a,b, opts) {
   if (o < 0 && o.d != 1) { return o.neg().toFraction() + case3(verbosity, "-d", "-dim", "-diminished"); }
 }
 
-function pyDegreeString(d, verbosity) {
+function pyDegreeString(d, opts) {
+  const {verbosity, useWordNegative} = opts || {};
   if (verbosity == 0 || !verbosity) {
     return d;
   }
   if (verbosity == 1) {
-    if (Math.abs(d) == 1) { return "1sn"; }
-    if (Math.abs(d) == 1) { return "8ve"; }
-    return ntw.toOrdinal(Math.abs(d));
+    const neg_str = d < 0 ? useWordNegative ? "negative " : "-" : "";
+    if (Math.abs(d) == 1) { return neg_str + "1sn"; }
+    if (Math.abs(d) == 8) { return neg_str + "8ve"; }
+    return neg_str + ntw.toOrdinal(Math.abs(d));
   }
-  if (Math.abs(d) == 1) { return "unison"; }
-  if (Math.abs(d) == 1) { return "octave"; }
-  return ntw.toWordsOrdinal(Math.abs(d));
+  const neg_str = d < 0 ? "negative " : "";
+  if (Math.abs(d) == 1) { return neg_str + "unison"; }
+  if (Math.abs(d) == 8) { return neg_str + "octave"; }
+  return neg_str + ntw.toWordsOrdinal(Math.abs(d));
 }
 
 /**
   * Returns the symbol of the given pythagorean interval
   *
   * @param {Interval} i
-  * @param {{verbosity: integer}=} opts verbosity can be the default 0
-  *                                     (e.g. "d2"), 1 (e.g. "dim 2nd"), or 2
-  *                                     (e.g. "diminished second")
+  * @param {Object} opts
+  * @param {integer=} opts.verbosity can be the default 0 (e.g. "d2"), 1
+  *                                  (e.g. "dim 2nd"), or 2
+  *                                  (e.g. "diminished second")
+  * @param {boolean=} opts.useWordNegative defaults to false
+  * @param {boolean=} opts.useWordDesc defaults to false
+  * @param {boolean=} opts.useDescSuffix defaults to false
   * @returns {string}
   */
 function pySymb(a,b, opts) {
@@ -5048,11 +5319,16 @@ function pySymb(a,b, opts) {
       opts = b;
       b = undefined;
   }
-  const {verbosity} = opts || {};
+  const {verbosity, useWordNegative, useWordDesc, useDescSuffix} = opts || {};
   const d = pyDegree(a,b);
-  const d_str = case2(verbosity, "", " ") + pyDegreeString(d, verbosity);
-  const inv_str = verbosity && d < 0 ? " (descending)" : "";
-  return pyQuality(a,b, opts) + d_str + inv_str;
+  const d_str = case2(verbosity, "", " ") +
+                pyDegreeString(verbosity && useWordDesc ? Math.abs(d) : d, opts);
+  let [desc_prefix, desc_suffix] = ["", ""];
+  if (useWordDesc && d < 0) {
+    if (verbosity && useDescSuffix) { desc_suffix = " (descending)"; }
+    else { desc_prefix = verbosity == 0 ? "desc. " : "descending " }
+  }
+  return desc_prefix + pyQuality(a,b, opts) + d_str + desc_suffix;
 }
 
 /**
