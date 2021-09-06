@@ -529,16 +529,16 @@ function updateResults() {
                                           : microtonal_utils.pyInterval(pRes[2], 0);
       const ref = (isDesc ? "desc. " : "") +
                   microtonal_utils.fmtUpdnsSymb(pRes[1], pyi);
-      if (s != ref) {
+      if (sD != ref) {
         $('#didYouMeanDiv').removeClass("hidden");
         $('#didYouMean').html(fmtExtExprLink(ref + "\\" + edo).addClass("alt2"));
       }
     }
     else if (res.symbolType == "ups-and-downs (verbose)" && res.type == "interval") {
-      const [sD,edo] = exprVal.replace("desc.", "descending")
-                              .replace("unison", "1sn")
-                              .replace("octave", "8ve")
-                              .split("\\").map(s => s.trim());
+      let [sD,edo] = exprVal.replace("desc.", "descending")
+                            .replace("unison", "1sn")
+                            .replace("octave", "8ve")
+                            .split("\\").map(s => s.trim());
       const sDs = sD.split("descending ");
       const [isDesc, s] = sDs.length == 1 ? [false, sDs[0]] : [true, sDs[1]];
       const pRes = microtonal_utils.parseFromRule(s, "upsDnsIntvVb")[0];
@@ -546,7 +546,9 @@ function updateResults() {
                                           : microtonal_utils.pyInterval(pRes[2], 0);
       const ref = (isDesc ? "descending " : "") +
                   microtonal_utils.fmtUpdnsSymb(pRes[1], pyi, {verbosity: 1});
-      if (s != ref) {
+      // we won't correct you if you say "neutral" instead of "mid" if there are no ups or downs
+      if (pRes[1] == 0) { sD = sD.replace("neutral", "mid"); }
+      if (sD != ref) {
         $('#didYouMeanDiv').removeClass("hidden");
         $('#didYouMean').html(fmtExtExprLink(ref + " \\ " + edo).addClass("alt2"));
       }
