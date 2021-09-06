@@ -322,18 +322,31 @@ function getResults() {
     rows.push(["Tuning meter read-out", res.tuningMeter]);
   }
   let did_merged_FJS_color = false;
-  // Special case for "colorless" notes - the FJS and color notations are the same!
-  if (res.type == "note" && res.symb && res.symb.FJS && res.symb.color
-                                     && res.symb.FJS == res.symb.color) {
-    const linkStr = fmtInlineLink("FJS", "https://en.xen.wiki/w/Functional_Just_System")
+  // Special case for "colorless" notes - the Pythagorean, FJS, and color notations are the same!
+  if (res.type == "note" && res.symb && res.symb.py && res.symb.color
+                                     && res.symb.py == res.symb.color) {
+    const linkStr = fmtInlineLink("Pythagorean", "https://en.wikipedia.org/wiki/Pythagorean_tuning")
+                    + "/" +
+                    fmtInlineLink("FJS", "https://en.xen.wiki/w/Functional_Just_System")
                     + "/" +
                     fmtInlineLink("color", "https://en.xen.wiki/w/Color_notation")
                     + " name";
-    rows.push([linkStr + "", fmtExtExprLink(res.symb.FJS)]);
+    rows.push([linkStr + "", fmtExtExprLink(res.symb.py)]);
     did_merged_FJS_color = true;
   }
   // Add any symbols
   if (res.symb) {
+    if (res.symb.py && !did_merged_FJS_color) {
+      const link = fmtInlineLink("Pythagorean", "https://en.wikipedia.org/wiki/Pythagorean_tuning")
+                   + "/" +
+                   fmtInlineLink("FJS", "https://en.xen.wiki/w/Functional_Just_System")
+                   + " name";
+      let str = fmtExtExprLink(res.symb.py).prop('outerHTML');
+      if (res.symb.py_verbose) {
+        str = fmtExtExprLink(res.symb.py_verbose).prop('outerHTML') + ", " + str;
+      }
+      rows.push([link, str]);
+    }
     if (res.symb.FJS && !did_merged_FJS_color &&
         // for now we only have integer accidentals, since I'm not sure how
         //  useful showing non-integer accidentals actually is
@@ -378,8 +391,17 @@ function getResults() {
     }
     if (res.symb.ups_and_downs) {
       const updnsLink = fmtInlineLink("Ups-and-downs notation", "https://en.xen.wiki/w/Ups_and_Downs_Notation");
-      const symbs = res.symb.ups_and_downs.map(symb => fmtExtExprLink(symb).prop('outerHTML'));
-      rows.push([updnsLink, symbs.join(", ")]);
+      let str = "";
+      for (let i = 0; i < res.symb.ups_and_downs.length; i++) {
+        str += fmtExtExprLink(res.symb.ups_and_downs[i]).prop('outerHTML');
+        if (res.symb.ups_and_downs_verbose && i < res.symb.ups_and_downs_verbose.length) {
+          str += " (" + fmtExtExprLink(res.symb.ups_and_downs_verbose[i]).prop('outerHTML') + ")";
+        }
+        if (i < res.symb.ups_and_downs.length - 1) {
+          str += "<br>";
+        }
+      }
+      rows.push([updnsLink, str]);
     }
   }
   if (res.english && res.english.length > 0){
@@ -477,15 +499,56 @@ function updateResults() {
         }
       }
     }
-    else if (res.symbolType === "color (verbose)") {
+    else if (res.symbolType === "color (verbose)" && res.type == "interval") {
       const s = exprVal.replace("desc.", "descending")
                        .replace("unison", "1sn")
                        .replace("octave", "8ve");
-      const ref = res.type == "interval" ? microtonal_utils.colorSymb(res.intv, {verbosity: 1})
-                                         : microtonal_utils.colorNote(res.intvToRef.mul(res.ref.intvToA4), {verbosity: 1});
+      const ref = microtonal_utils.colorSymb(res.intv, {verbosity: 1});
       if (s != ref) {
         $('#didYouMeanDiv').removeClass("hidden");
-        $('#didYouMean').html(fmtExtExprLink(ref).addClass("alt"));
+        $('#didYouMean').html(fmtExtExprLink(ref).addClass("alt2"));
+      }
+    }
+    else if (res.symbolType == "Pythagorean (verbose)" && res.type == "interval") {
+      const s = exprVal.replace("desc.", "descending")
+                       .replace("unison", "1sn")
+                       .replace("octave", "8ve");
+      const ref = microtonal_utils.pySymb(res.intv, {verbosity: 1});
+      if (s != ref) {
+        $('#didYouMeanDiv').removeClass("hidden");
+        $('#didYouMean').html(fmtExtExprLink(ref).addClass("alt2"));
+      }
+    }
+    else if (res.symbolType == "ups-and-downs" && res.type == "interval") {
+      const [sD,edo] = exprVal.replace("descending", "desc.")
+                              .split("\\").map(s => s.trim());
+      const sDs = sD.split("desc. ");
+      const [isDesc, s] = sDs.length == 1 ? [false, sDs[0]] : [true, sDs[1]];
+      const pRes = microtonal_utils.parseFromRule(s, "upsDnsIntvAb")[0];
+      const pyi = pRes[0] == "!updnsSymb" ? microtonal_utils.evalExpr(pRes[2], microtonal_utils.Interval(1)).val
+                                          : microtonal_utils.pyInterval(pRes[2], 0);
+      const ref = (isDesc ? "desc. " : "") +
+                  microtonal_utils.fmtUpdnsSymb(pRes[1], pyi);
+      if (s != ref) {
+        $('#didYouMeanDiv').removeClass("hidden");
+        $('#didYouMean').html(fmtExtExprLink(ref + "\\" + edo).addClass("alt2"));
+      }
+    }
+    else if (res.symbolType == "ups-and-downs (verbose)" && res.type == "interval") {
+      const [sD,edo] = exprVal.replace("desc.", "descending")
+                              .replace("unison", "1sn")
+                              .replace("octave", "8ve")
+                              .split("\\").map(s => s.trim());
+      const sDs = sD.split("descending ");
+      const [isDesc, s] = sDs.length == 1 ? [false, sDs[0]] : [true, sDs[1]];
+      const pRes = microtonal_utils.parseFromRule(s, "upsDnsIntvVb")[0];
+      const pyi = pRes[0] == "!updnsSymb" ? microtonal_utils.evalExpr(pRes[2], microtonal_utils.Interval(1)).val
+                                          : microtonal_utils.pyInterval(pRes[2], 0);
+      const ref = (isDesc ? "descending " : "") +
+                  microtonal_utils.fmtUpdnsSymb(pRes[1], pyi, {verbosity: 1});
+      if (s != ref) {
+        $('#didYouMeanDiv').removeClass("hidden");
+        $('#didYouMean').html(fmtExtExprLink(ref + " \\ " + edo).addClass("alt2"));
       }
     }
     $('#resHeader').html(typeStr + " results");
