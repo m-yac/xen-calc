@@ -277,16 +277,20 @@ function getResults() {
         else {
           rows.push(["Prime factorization", fmtExtExprLink(fact_on)]);
         }
-        let [monzo, monzoLink] = [res.intv.toMonzo(), undefined];
+        let monzo = res.intv.toMonzo();
         if (monzo.length <= 18*7) {
           if (res.intv.isFrac()) {
-            monzoLink = fmtInlineLink("Monzo", "https://en.xen.wiki/w/Monzo");
+            const monzoLink = fmtInlineLink("Monzo", "https://en.xen.wiki/w/Monzo");
+            const str = "|" + monzo.join(" ") + "⟩";
+            rows.push([monzoLink, fmtExtExprLink(str)]);
           }
           else {
             monzo = monzo.map(x => x.toFraction());
-            monzoLink = fmtInlineLink("Fractional monzo", "https://en.xen.wiki/w/Fractional_monzo");
+            const monzoLink = fmtInlineLink("Fractional monzo", "https://en.xen.wiki/w/Fractional_monzo");
+            const str = "|" + monzo.join('<span class="bigspace"></span>') + "⟩";
+            const linkStr = "|" + monzo.join(" ") + "⟩";
+            rows.push([monzoLink, fmtExtExprLink(str, linkStr)]);
           }
-          rows.push([monzoLink, fmtExtExprLink("|" + monzo.join(", ") + "⟩")]);
         }
       }
     }
@@ -559,7 +563,8 @@ function updateResults() {
       let row = $('<tr>');
       row.append($('<td>').addClass("resLeftColumn").html(n ? n + ":" : n));
       if (v && (v.hoverSwap_off || v.hoverSwap_on)) {
-        const cell = $('<td>').addClass("resRightColumn").addClass("hoverSwap");
+        row.addClass("hoverSwap");
+        const cell = $('<td>').addClass("resRightColumn");
         cell.append($('<span>').addClass('hoverSwap_off').html(v.hoverSwap_off || ""));
         cell.append($('<span>').addClass('hoverSwap_on').html(v.hoverSwap_on || ""));
         row.append(cell);

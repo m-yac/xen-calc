@@ -69,6 +69,11 @@ body {
   margin-top: 60px;
 }
 
+.bigspace {
+  padding-left: 3.5px;
+  padding-right: 3.5px
+}
+
 ul, ol {
   padding-left: 25px;
 }
