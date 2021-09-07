@@ -42,8 +42,9 @@
           for (const [s1,s2] of logQueryStrMap) {
             if (unabbr_s == s2) { unabbr_s = s1; break; }
           }
-          if (unabbr_s == "color (verbose)") {
-            unabbr_s = "color " + (s[2] == "i" ? "interval" : "note") + " (verbose)";
+          if (unabbr_s.substr(-10) == " (verbose)") {
+            unabbr_s = unabbr_s.slice(0, unabbr_s.length-10) +
+                       (s[2] == "i" ? " interval" : " note") + " (verbose)";
           }
           else if (unabbr_s == "function call") {
             unabbr_s = (s[2] == "i" ? "interval" : "note") + " " + unabbr_s;
@@ -74,8 +75,11 @@
     const rdat = google.visualization.arrayToDataTable([["Result type", "#"]].concat(rs));
     const qpie = new google.visualization.PieChart(document.getElementById('qpie'));
     const rpie = new google.visualization.PieChart(document.getElementById('rpie'));
-    qpie.draw(qdat, {title: "Queries by type", chartArea: {height: '85%'}});
-    rpie.draw(rdat, {title: "Queries by result type", chartArea: {height: '85%'}});
+    const opts = { chartArea: { left: 90, right: 50 },
+                   backgroundColor: { fill: 'transparent' },
+                   sliceVisibilityThreshold: 0 };
+    qpie.draw(qdat, Object.assign({}, opts, {title: "Queries by type"}));
+    rpie.draw(rdat, Object.assign({}, opts, {title: "Queries by result type"}));
   }
 
   function update(date) {
@@ -175,29 +179,29 @@
   for more detail.
 </p>
 
-<h4 style="text-align: center">
+<h4 style="text-align: center; margin-bottom: 5px">
   <a id="prevDate" style="margin-right:15px" href="javascript:void(0)">&#60</a>
   <span id="date">...</span> <a class="alt" href="https://en.wikipedia.org/wiki/Anywhere_on_Earth">AoE</a>
   <a id="nextDate" style="margin-left:15px" href="javascript:void(0)">&#62</a>
 </h4>
 
-<p id="numDaysP" style="text-align: center">
+<p id="numDaysP" style="text-align: center; margin-bottom: 5px">
   <span id="numDays"></span> (<a id="seeAll" class="alt"></a>)
 </p>
 
-<p style="text-align: center; margin-bottom: 35px">
+<p style="text-align: center; margin-bottom: -10px">
   <span id="total">...</span> total queries made,
   <span id="newLoads">...</span> new page loads
 </p>
 
-<div id="qpie" style="width: 100%; height: 350px"></div>
+<div id="qpie" style="width: 100%; height: 400px"></div>
 
-<p style="text-align: center; margin-bottom: 35px">
+<p style="text-align: center; margin-top: -10px; margin-bottom: -10px">
   <span id="intervals">...</span> interval queries,
   <span id="notes">...</span> note queries
 </p>
 
-<div id="rpie" style="width: 100%; height: 350px"></div>
+<div id="rpie" style="width: 100%; height: 400px"></div>
 
 <br>
 
