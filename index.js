@@ -952,7 +952,14 @@ $(document).ready(function() {
   if (performance.navigation.type == 0) {
     let xs = ["new load"];
     if (document.referrer) {
-      xs.push("z " + (new URL(document.referrer)).hostname);
+      const referrerURL = new URL(document.referrer);
+      if (referrerURL.hostname.includes("yacavone.net") &&
+          referrerURL.pathname.substr(0,9) === "/xen-calc") {
+        xs[0] += " (rel)";
+      }
+      else {
+        xs.push("z " + referrerURL.hostname);
+      }
     }
     if ($('#expr').val()) { logResultTypes(res, xs); }
     else { logStrs(xs); }
