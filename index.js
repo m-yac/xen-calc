@@ -529,10 +529,13 @@ function updateResults() {
       const sDs = sD.split("desc. ");
       const [isDesc, s] = sDs.length == 1 ? [false, sDs[0]] : [true, sDs[1]];
       const pRes = microtonal_utils.parseFromRule(s, "upsDnsIntvAb")[0];
-      const pyi = pRes[0] == "!updnsSymb" ? microtonal_utils.evalExpr(pRes[2], microtonal_utils.Interval(1)).val
-                                          : microtonal_utils.pyInterval(pRes[2], 0);
+      const pyi = pRes[0] == "!updnsSymb" && pRes[2][0] != "!perfPyIntv"
+                    ? microtonal_utils.evalExpr(pRes[2], microtonal_utils.Interval(1)).val
+                    : microtonal_utils.pyInterval(pRes[2][1] || pRes[2], 0);
+      const usePerfEDONotation = edo % 7 == 0 && ((pRes[0] == "!updnsSymb" && pRes[2][0] == "!perfPyIntv")
+                                                  || pRes[0] == "!updnsPerfSymb");
       const ref = (isDesc ? "desc. " : "") +
-                  microtonal_utils.fmtUpdnsSymb(pRes[1], pyi);
+                  microtonal_utils.fmtUpdnsSymb(pRes[1], pyi, {usePerfEDONotation: usePerfEDONotation});
       if (sD != ref) {
         $('#didYouMeanDiv').removeClass("hidden");
         $('#didYouMean').html(fmtExtExprLink(ref + "\\" + edo).addClass("alt2"));
@@ -546,13 +549,17 @@ function updateResults() {
       const sDs = sD.split("descending ");
       const [isDesc, s] = sDs.length == 1 ? [false, sDs[0]] : [true, sDs[1]];
       const pRes = microtonal_utils.parseFromRule(s, "upsDnsIntvVb")[0];
-      const pyi = pRes[0] == "!updnsSymb" ? microtonal_utils.evalExpr(pRes[2], microtonal_utils.Interval(1)).val
-                                          : microtonal_utils.pyInterval(pRes[2], 0);
+      const pyi = pRes[0] == "!updnsSymb" && pRes[2][0] != "!perfPyIntv"
+                    ? microtonal_utils.evalExpr(pRes[2], microtonal_utils.Interval(1)).val
+                    : microtonal_utils.pyInterval(pRes[2][1] || pRes[2], 0);
+      const usePerfEDONotation = edo % 7 == 0 && ((pRes[0] == "!updnsSymb" && pRes[2][0] == "!perfPyIntv")
+                                                  || pRes[0] == "!updnsPerfSymb");
       const ref = (isDesc ? "descending " : "") +
-                  microtonal_utils.fmtUpdnsSymb(pRes[1], pyi, {verbosity: 1});
+                  microtonal_utils.fmtUpdnsSymb(pRes[1], pyi, {verbosity: 1, usePerfEDONotation: usePerfEDONotation});
       // we won't correct you if you say "neutral" instead of "mid" if there are no ups or downs
       if (pRes[1] == 0) { sD = sD.replace("neutral", "mid"); }
-      if (sD != ref) {
+      // we won't correct you for omitting "perfect" in a perfect EDO
+      if (sD != ref && (edo % 7 != 0 || pRes[0] != "!updnsPerfSymb" || sD != ref.replace("perfect ", ""))) {
         $('#didYouMeanDiv').removeClass("hidden");
         $('#didYouMean').html(fmtExtExprLink(ref + " \\ " + edo).addClass("alt2"));
       }

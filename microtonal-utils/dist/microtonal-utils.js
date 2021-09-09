@@ -1273,32 +1273,53 @@ function fillGens(edo, g, lo, hi) {
   let steps = [];
   for (let i = 0; i < edo; i++) { steps.push(Array(0)); }
   if (lo <= 0 && 0 <= hi) {
-    steps[0].push(0)
+    steps[0].push([0,0]);
   }
   for (let k = 1; k <= Math.max(Math.abs(lo), Math.abs(hi)); k++) {
-    if (lo <=  k &&  k <= hi) { steps[mod( k*g,edo)].push( k); }
-    if (lo <= -k && -k <= hi) { steps[mod(-k*g,edo)].push(-k); }
+    if (lo <=  k &&  k <= hi) { steps[mod( k*g,edo)].push([0, k]); }
+    if (lo <= -k && -k <= hi) { steps[mod(-k*g,edo)].push([0,-k]); }
   }
   return steps;
 }
 
-// used in `updnsSymb` and `updnsNote`
+// The input to this function is an array of only the basic intervals,
+//  usually only those with no ups or downs, but in the case of odd-EDOs,
+//  up-mid and down-mid intervals as well. This function fills in the rest of
+//  the steps with intervals with ups and downs added appropriately
+// (Used in `updnsSymb` and `updnsNote`)
 function addUpdns(edo, steps) {
-  let new_steps = steps.map(_ => Array(0));
+  let new_steps = steps.map((_,i) => [...steps[i]]);
   let [last_below, last_above] = [0,edo];
   for (let i = 0; i < edo; i++) {
-    if (steps[i].length == 0) {
-      new_steps[i].push(...steps[last_below].map(k => [i - last_below, k]));
+    // if the current step is empty or an up-mid or down-mid interval, add
+    //  everything from last_below (with the appropriate number of ups)
+    if (steps[i].length == 0 || (steps[i].length == 1 && steps[i][0][0] != 0)) {
+      for (const [n,k] of steps[last_below]) {
+        const diff = i - last_below;
+        // only add if n is zero or the sign of n and diff match, this prevents
+        //  up-mid and down-mid intervals from turning into mid intervals
+        if (n * diff >= 0) {
+          new_steps[i].push([n + diff, k]);
+        }
+      }
     }
-    else {
-      new_steps[i].push(...steps[i].map(k => [0,k]));
+    if (steps[i].length != 0) {
       last_below = i;
     }
     const j = (edo-1)-i;
-    if (steps[j].length == 0) {
-      new_steps[j].push(...steps[mod(last_above,edo)].map(k => [j - last_above, k]));
+    // if the current step is empty or an up-mid or down-mid interval, add
+    //  everything from last_above (with the appropriate number of downs)
+    if (steps[j].length == 0 || (steps[j].length == 1 && steps[j][0][0] != 0)) {
+      for (const [n,k] of steps[mod(last_above,edo)]) {
+        const diff = j - last_above;
+        // only add if n is zero or the sign of n and diff match, this prevents
+        //  up-mid and down-mid intervals from turning into mid intervals
+        if (n * diff >= 0) {
+          new_steps[j].push([n + diff, k]);
+        }
+      }
     }
-    else {
+    if (steps[j].length != 0) {
       last_above = j;
     }
   }
@@ -1362,10 +1383,17 @@ function updnsSymbCache(edo) {
   let steps;
   if (fifth % 2 != 0) {
     steps = fillGens(edo, fifth, lo, hi);
+    for (const k of [1/2, -1/2, 3/2, -3/2, 5/2, -5/2]) {
+      const i = mod(Math.floor(k*fifth), edo);
+      if (steps[i].length == 0) { steps[i].push([-1,k]); }
+      const j = mod(Math.ceil(k*fifth), edo);
+      if (steps[j].length == 0) { steps[j].push([1,k]); }
+    }
   } else {
     steps = fillGens(edo, fifth/2, 2*lo, 2*hi);
     for (let i = 0; i < edo; i++) {
-      steps[i] = steps[i].filter(k => k % 2 == 0 || Math.abs(k) <= 6).map(k => k/2);
+      steps[i] = steps[i].filter(([n,k]) => k % 2 == 0 || Math.abs(k) <= 6)
+                         .map(([n,k]) => [n,k/2]);
     }
   }
   steps = cvtGensToPy(edo, addUpdns(edo, steps));
@@ -1374,13 +1402,14 @@ function updnsSymbCache(edo) {
 }
 
 function fmtUpdnsSymb(uds, pyi, opts) {
-  let {verbosity, maxTupleWord} = opts || {};
+  let {verbosity, maxTupleWord, usePerfEDONotation} = opts || {};
   if (verbosity == undefined) { verbosity = 0; }
   if (maxTupleWord == undefined) { maxTupleWord = 2; }
   const uds_abs = Math.abs(uds);
   let [uds_str, py_str] = ["", py.pySymb(pyi, {verbosity: verbosity})];
   if (verbosity == 0) {
     uds_str = (uds > 0 ? '^' : 'v').repeat(uds_abs);
+    if (usePerfEDONotation) { py_str = py_str.replace("n", "P"); }
     if (uds_abs > 0) { py_str = py_str.replace("P", ""); }
     py_str = py_str.replace("n", "~").replace("sA", "~").replace("sd", "~");
   }
@@ -1400,6 +1429,7 @@ function fmtUpdnsSymb(uds, pyi, opts) {
     else {
       uds_str = uds_abs + "-" + uds_suffix + " ";
     }
+    if (usePerfEDONotation) { py_str = py_str.replace("neutral", "perfect"); }
     if (uds_abs == 1) { py_str = py_str.replace("perfect ", " "); }
     if (uds_abs >= 2) { py_str = py_str.replace("perfect ", ""); }
     py_str = py_str.replace("neutral", "mid");
@@ -1428,12 +1458,14 @@ function fmtUpdnsSymb(uds, pyi, opts) {
   * @param {integer=} opts.maxTupleWord default is 2, maximum is 12
   * @param {boolean=} opts.useWordNegative defaults to false
   * @param {boolean=} opts.useWordDesc defaults to false
+  * @param {boolean=} opts.useNeutNotationForPerfEDOs defaults to false
   * @returns {string}
   */
 function updnsSymb(edo,n, opts) {
-  let {verbosity, maxTupleWord, useWordDesc} = opts || {};
+  let {verbosity, maxTupleWord, useWordDesc, useNeutNotationForPerfEDOs} = opts || {};
   if (verbosity == undefined) { verbosity = 0; }
   if (maxTupleWord == undefined) { maxTupleWord = 2; }
+  const usePerfEDONotation = edo % 7 == 0 && !useNeutNotationForPerfEDOs;
 
   if (useWordDesc && n < 0) {
     pre_str = verbosity == 0 ? "desc. " : "descending ";
@@ -1443,7 +1475,8 @@ function updnsSymb(edo,n, opts) {
   const nr = mod(n,edo);
   const vs = Interval(2).pow(n - nr, edo);
   const cache = updnsSymbCache(edo)[nr];
-  return cache.map(([uds, pyi_red]) => fmtUpdnsSymb(uds, pyi_red.mul(vs), opts));
+  const optsToPass = Object.assign({}, opts, {usePerfEDONotation: usePerfEDONotation});
+  return cache.map(([uds, pyi_red]) => fmtUpdnsSymb(uds, pyi_red.mul(vs), optsToPass));
 }
 
 /**
@@ -1469,6 +1502,16 @@ function updnsFromSymb(edo, uds, pyi) {
   if (edo == 13 || edo == 18) { fifth--; }
   const g = Fraction(py.pyGenerator(pyi) * fifth, 4);
   const p = py.pyOctaves(pyi);
+  if (g.d == 2 && fifth % 2 != 0) {
+    if (uds == 0) {
+      throw new Error(edo + "-EDO has no " + fmtUpdnsSymb(uds, pyi) +
+                      " interval (but it does have " + fmtUpdnsSymb(1, pyi) +
+                      " and " + fmtUpdnsSymb(-1,pyi) + " intervals)");
+    }
+    return (uds-Math.sign(uds)) +
+           (uds < 0 ? Math.floor(g.valueOf()) : Math.ceil(g.valueOf())) +
+           p * edo;
+  }
   if (g.d != 1) {
     throw new Error(edo + "-EDO has no " + fmtUpdnsSymb(uds, pyi) + " interval");
   }
@@ -3957,6 +4000,20 @@ function evalExpr(e, r, opts, state) {
       }
     }
     else if (e[0] == "!updnsSymb") { // `state.edo` should be set from "!inEDO"
+      if (e[2][0] == "!perfPyIntv" && ![1,4,5].includes(pyRedDeg(e[2][1]))) {
+        const [uds, deg, loc] = [e[1], e[2][1], e[3]];
+        if (state.edo % 7 != 0) {
+          throw new OtherError((uds > 0 ? "^" : "v").repeat(uds) + "P"
+                                 + deg + " is not a valid interval ("
+                                 + deg + " is not a perfect scale degree and "
+                                 + state.edo + " is not a \"perfect\" EDO"
+                                 + " in ups-and-downs notation)", loc);
+        }
+        try { return { val: updnsFromSymb(state.edo, uds, pyInterval(deg, 0)) }; }
+        catch (err) {
+          throw new OtherError(err.message, loc);
+        }
+      }
       const [uds, pyi, loc] = [e[1], evalExpr(e[2], r, opts, state).val, e[3]];
       try { return { val: updnsFromSymb(state.edo, uds, pyi) }; }
       catch (err) {
@@ -3965,10 +4022,12 @@ function evalExpr(e, r, opts, state) {
     }
     else if (e[0] == "!updnsPerfSymb") { // `state.edo` should be set from "!inEDO"
       const [uds, deg, loc] = [e[1], evalExpr(e[2], r, opts, state).val, e[3]];
-      if (![1,4,5].includes(pyRedDeg(deg))) {
+      if (![1,4,5].includes(pyRedDeg(deg)) && state.edo % 7 != 0) {
         throw new OtherError((uds > 0 ? "^" : "v").repeat(uds)
-                               + deg + "is not a valid interval ("
-                               + deg + " is not a perfect scale degree)", loc);
+                               + deg + " is not a valid interval ("
+                               + deg + " is not a perfect scale degree and "
+                               + state.edo + " is not a \"perfect\" EDO"
+                               + " in ups-and-downs notation)", loc);
       }
       try { return { val: updnsFromSymb(state.edo, uds, pyInterval(deg, 0)) }; }
       catch (err) {
@@ -3979,8 +4038,7 @@ function evalExpr(e, r, opts, state) {
       const [uds, deg, loc] = [e[1], evalExpr(e[2], r, opts, state).val, e[3]];
       if (pyRedDeg(deg) == 1) {
         throw new OtherError((uds > 0 ? "^" : "v").repeat(uds) + "~" +
-                               + deg + "is not a valid interval ("
-                               + deg + " is not a perfect scale degree)", loc);
+                               + deg + " is not a valid interval", loc);
       }
       const pyi = pyRedDeg(deg) == 4 ? pyInterval(deg, Math.sign(deg), 2) :
                   pyRedDeg(deg) == 5 ? pyInterval(deg, -Math.sign(deg), 2) :
@@ -4751,15 +4809,16 @@ var grammar = {
     {"name": "upsDnsIntvAb", "symbols": ["upsDns", "npyIntv"], "postprocess": (d,loc,_) => ["!updnsSymb", d[0], d[1], loc]},
     {"name": "upsDnsIntvAb", "symbols": ["upsDns", "snpyIntv"], "postprocess": (d,loc,_) => ["!updnsSymb", d[0], d[1], loc]},
     {"name": "upsDnsIntvAb", "symbols": ["upsDnsNz", "degV0"], "postprocess": (d,loc,_) => ["!updnsPerfSymb", d[0], d[1], loc]},
-    {"name": "upsDnsIntvAb", "symbols": ["upsDns", {"literal":"~"}, "degV0"], "postprocess": (d,loc,) => ["!updnsNeutSymb", d[0], d[2], loc]},
+    {"name": "upsDnsIntvAb", "symbols": ["upsDns", {"literal":"~"}, "degV0"], "postprocess": (d,loc,_) => ["!updnsNeutSymb", d[0], d[2], loc]},
     {"name": "upsDnsIntvVbD", "symbols": ["upsDnsIntvVb"], "postprocess": id},
     {"name": "upsDnsIntvVbD", "symbols": ["desc", "upsDnsIntvVb"], "postprocess": d => ["-", 0, d[1]]},
     {"name": "upsDnsIntvVb", "symbols": ["upsDnsVb", "upDnsVbSep", "pyIntvVb"], "postprocess": (d,loc,_) => ["!updnsSymb", d[0], d[2], loc]},
     {"name": "upsDnsIntvVb", "symbols": ["upsDnsVb", "upDnsVbSep", "npyIntvVb"], "postprocess": (d,loc,_) => ["!updnsSymb", d[0], d[2], loc]},
     {"name": "upsDnsIntvVb", "symbols": ["upsDnsVb", "upDnsVbSep", "snpyIntvVb"], "postprocess": (d,loc,_) => ["!updnsSymb", d[0], d[2], loc]},
     {"name": "upsDnsIntvVb", "symbols": ["upsDnsVbNz", "degV1"], "postprocess": (d,loc,_) => ["!updnsPerfSymb", d[0], d[1], loc]},
+    {"name": "upsDnsIntvVb", "symbols": ["degV1Uniq"], "postprocess": (d,loc,_) => ["!updnsPerfSymb", 0, d[0], loc]},
     {"name": "upsDnsIntvVb$string$1", "symbols": [{"literal":"m"}, {"literal":"i"}, {"literal":"d"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "upsDnsIntvVb", "symbols": ["upsDnsVb", "upDnsVbSep", "upsDnsIntvVb$string$1", "degV1"], "postprocess": (d,loc,) => ["!updnsNeutSymb", d[0], d[3], loc]},
+    {"name": "upsDnsIntvVb", "symbols": ["upsDnsVb", "upDnsVbSep", "upsDnsIntvVb$string$1", "degV1"], "postprocess": (d,loc,_) => ["!updnsNeutSymb", d[0], d[3], loc]},
     {"name": "upsDnsNote", "symbols": ["upsDns", "pyNote"], "postprocess": (d,loc,_) => ["!updnsNote", d[0], d[1], loc]},
     {"name": "upsDnsNote", "symbols": ["upsDns", "npyNote"], "postprocess": (d,loc,_) => ["!updnsNote", d[0], d[1], loc]},
     {"name": "upsDns", "symbols": [], "postprocess": d => 0},
@@ -4971,6 +5030,9 @@ var grammar = {
     {"name": "degOrdinal$string$2", "symbols": [{"literal":"8"}, {"literal":"v"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "degOrdinal", "symbols": ["degOrdinal$string$2"], "postprocess": d => 8},
     {"name": "degOrdinal", "symbols": ["ordinal"], "postprocess": d => parseInt(d[0])},
+    {"name": "degV1Uniq$string$1", "symbols": [{"literal":"n"}, {"literal":"e"}, {"literal":"g"}, {"literal":"a"}, {"literal":"t"}, {"literal":"i"}, {"literal":"v"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "degV1Uniq", "symbols": ["degV1Uniq$string$1", "__", "degV1Pos"], "postprocess": d => -d[2]},
+    {"name": "degV1Uniq", "symbols": ["degV1Pos"], "postprocess": id},
     {"name": "desc$string$1", "symbols": [{"literal":"d"}, {"literal":"e"}, {"literal":"s"}, {"literal":"c"}, {"literal":"."}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "desc", "symbols": ["desc$string$1", "__"]},
     {"name": "desc$string$2", "symbols": [{"literal":"d"}, {"literal":"e"}, {"literal":"s"}, {"literal":"c"}, {"literal":"e"}, {"literal":"n"}, {"literal":"d"}, {"literal":"i"}, {"literal":"n"}, {"literal":"g"}], "postprocess": function joiner(d) {return d.join('');}},
@@ -5267,8 +5329,8 @@ function pyQuality(a,b, opts) {
   if (o == 1   ) { return case3(verbosity, "A", "aug", "augmented"); }
   if (o == -0.5) { return case3(verbosity, "sd", "semi-dim", "semi-diminished"); }
   if (o == -1  ) { return case3(verbosity, "d", "dim", "diminished"); }
-  if (o ==  2 && verbosity == 2) { return "doubly augmented"; }
-  if (o == -2 && verbosity == 2) { return "doubly diminished"; }
+  if (o ==  2  ) { return case3(verbosity, "AA", "2-aug", "doubly augmented"); }
+  if (o == -2  ) { return case3(verbosity, "dd", "2-dim", "doubly diminished"); }
   if (o > 0 && o.d == 1) { return o.n + case3(verbosity, "A", "-aug", "-augmented"); }
   if (o > 0 && o.d != 1) { return o.toFraction() + case3(verbosity, "-A", "-aug", "-augmented"); }
   if (o < 0 && o.d == 1) { return o.n + case3(verbosity, "d", "-dim", "-diminished"); }
