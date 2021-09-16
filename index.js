@@ -474,14 +474,15 @@ function updateResults() {
   const exprVal = $('#expr').val().trim();
   if (exprVal === "") {
     $('#errors').addClass("hidden");
+    $('#didYouMeanDiv').addClass("hidden");
     $('#results').addClass("hidden");
     return;
   }
   try {
     $('#errors').addClass("hidden");
+    $('#didYouMeanDiv').addClass("hidden");
     $('#results').removeClass("hidden");
     const [typeStr, rows, scaleWorkshopData] = getResults();
-    $('#didYouMeanDiv').addClass("hidden");
     if (res.symbolType === "color") {
       const s = exprVal.replace("descending", "desc.");
       const ref = res.type == "interval" ? microtonal_utils.colorSymb(res.intv, {useExps: 1})
@@ -591,6 +592,7 @@ function updateResults() {
     if (res.type === "interval") {
       $('#intervalAudioButtons').removeClass("hidden");
       $('#noteAudioButtons').addClass("hidden");
+      $('#resAudio').removeClass("hidden");
       $('#resApproxs').removeClass("hidden");
       updateRatApproxs();
       updateEDOApproxs();
@@ -598,6 +600,7 @@ function updateResults() {
     else {
       $('#intervalAudioButtons').addClass("hidden");
       $('#noteAudioButtons').removeClass("hidden");
+      $('#resAudio').removeClass("hidden");
       $('#resApproxs').addClass("hidden");
     }
   }
@@ -615,6 +618,7 @@ function updateResults() {
       logStrs(["e l " + (showAddMulTip ? "add/mul " : "") + err.kind]);
     }
     $('#errors').removeClass("hidden");
+    $('#didYouMeanDiv').addClass("hidden");
     $('#results').addClass("hidden");
     const errStr = err.toString().replace("\n","<br>").replace("\\\\","\\");
     $('#errors').html($('<pre>').addClass("parseError").html(errStr));
@@ -859,7 +863,7 @@ function updateURLWithParams(paramsToUpdate, doReplace) {
 
 function updateURLTo(newURL, doReplace) {
   const newURLStr = reformatURL(newURL.toString());
-  const st = { html: $("#results").prop("outerHTML"), res: res };
+  const st = { html: $("#output").prop("outerHTML"), res: res };
   if (doReplace) {
     console.log(Date.now() + " [replaced] " + newURL.searchParams);
     console.log(res);
@@ -925,10 +929,10 @@ function setStateFromParams(urlParams, e) {
   updateDropdown($('#hiEDO')     , hiEDOOpts(loEDO), hiEDO);
   updateDropdown($('#sortEDO')   , sortEDOOpts(), sortEDO);
   updateTitle();
-  // either directly set the results section html if we have a valid state, or
+  // either directly set the output div html if we have a valid state, or
   // call updateResults to generate it
   if (e && e.state && e.state.html && e.state.html.trim() !== "") {
-    $('#results').replaceWith(e.state.html);
+    $('#output').replaceWith(e.state.html);
     res = e.state.res;
     addXenWikiLink();
   }
@@ -936,7 +940,7 @@ function setStateFromParams(urlParams, e) {
     updateResults();
   }
   // set (or refresh) the click/change events for all the interactables in the
-  // results section
+  // output div
   $('#playIntvMelodic') .click(() => playMelodic());
   $('#playNoteMelodic') .click(() => playMelodic());
   $('#playIntvHarmonic').click(() => playHarmonic());
