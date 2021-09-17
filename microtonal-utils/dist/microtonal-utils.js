@@ -9,7 +9,7 @@ const {fractionalPart, cachedLog2} = require('./utils.js');
 const pf = require('primes-and-factors');
 const Fraction = require('fraction.js');
 const Interval = require('./interval.js');
-const {edoApprox} = require('./edo.js');
+const {edoApprox, edoApproxConsistentWithErr} = require('./edo.js');
 const {ratioPermsByNo2sHeight, ratioPermsByHeight, ratiosWithDenom, ratiosInOddLimit} = require('./sets.js');
 
 // The epsilon to use when comparing approximate distances
@@ -326,6 +326,151 @@ function bestRationalApproxsByDiff(a,b, opts) {
 }
 
 /**
+  * Finds best rational approximations of each of the intervals in an octave of
+  * the given EDO.
+  *
+  * @param {integer} edo
+  * @param {Object} [opts]
+  * @param {integer} [opts.relCutoff] defaults to 2/3
+  * @param {integer} [opts.primeRelErrCutoff] defaults to 2/3
+  * @param {boolean} [opts.ensureSameDeg] defaults to false
+  * @param {integer} [opts.primeLimit]
+  * @param {integer} [opts.oddLimit]
+  * @param {integer} [opts.startIteration] defaults to 0
+  * @param {integer} [opts.numIterations] defaults to 1
+  * @param {integer} [opts.iterationSizeMultiplier] defaults to 4
+  * @param {boolean} [opts.useExactDiffs] defaults to false, controls the type
+  *                                       of each 'diff' property
+  * @param {boolean} [opts.debug] defaults to false
+  * @returns {Array.<Array.<{ratio: Fraction, diff: (number|Interval)}>>}
+  */
+function bestRationalApproxsOfEDOByStep(edo, opts) {
+  let {relCutoff, primeRelErrCutoff, ensureSameDeg, primeLimit, oddLimit, startIteration, numIterations, iterationSizeMultiplier, useExactDiffs, debug} = opts || {};
+  if (debug) { console.time("bestRationalApproxsOfEDOByStep"); }
+
+  if (relCutoff == undefined) { relCutoff = 2/3; }
+  if (primeRelErrCutoff == undefined) { primeRelErrCutoff = 2/3; }
+  const cutoff = relCutoff / (2 * edo);
+  const primeErrCutoff = primeRelErrCutoff / (2 * edo);
+
+  // a prime limit of 2 means we also have an odd limit of 1!
+  if (primeLimit && primeLimit <= 2) { oddLimit = 1; }
+
+  if (startIteration == undefined) { startIteration = 0; }
+  if (numIterations == undefined) { numIterations = 1; }
+  if (iterationSizeMultiplier == undefined) { iterationSizeMultiplier = 4; }
+  const iterationSize = iterationSizeMultiplier * edo;
+  const startOdd = 2 * startIteration * iterationSize + 1;
+  const endOdd = 2 * (startIteration + numIterations) * iterationSize + 1;
+
+  let ret = [];
+  for (let i = 0; i < edo; i++) {
+    ret.push([]);
+  }
+  for (const [i, perms] of ratioPermsByNo2sHeight(1, endOdd, {primeLimit: primeLimit})) {
+    for (const [j_no2s, j_no2s_logval] of perms) {
+
+      let {n, max_prime_err} = edoApproxConsistentWithErr(edo, j_no2s);
+      if (n != edoApprox(edo, j_no2s)) { continue; }
+      if (max_prime_err > primeErrCutoff) { continue; }
+
+      const e2 = - Math.floor(n / edo);
+      const j = j_no2s.mul(Interval(2).pow(e2));
+
+      if (oddLimit && !j.inOddLimit(oddLimit)) { continue; }
+      if (ensureSameDeg) {
+        const d = colorZDegree(j);
+        if (updnsSymbCache(edo)[n].every(([uds,pyi]) => pyZDegree(pyi) != d)) {
+          continue;
+        }
+      }
+
+      const j_logval = j_no2s_logval + e2;
+      n += edo * e2;
+      const approx_dist = Math.abs(j_logval - n / edo);
+
+      if (approx_dist < cutoff + epsilon) {
+        const diff = j.div(Interval(2).pow(n,edo));
+        const dist = diff.distance();
+        const to_add = { ratio: j.toFrac(), diff: diff, dist: dist, dist_bound: approx_dist + epsilon };
+        let added = false;
+        for (let i = 0; !added && i < ret[n].length; i++) {
+          if (approx_dist < ret[n][i].dist_bound
+              && ((dist.equals(ret[n][i].dist) && diff.compare(ret[n][i].diff) < 0)
+                  || dist.compare(ret[n][i].dist) < 0)) {
+            ret[n].splice(i, 0, to_add);
+            added = true;
+          }
+        }
+        if (!added) {
+          ret[n].push(to_add);
+        }
+      }
+    }
+  }
+  if (debug) { console.timeEnd("bestRationalApproxsOfEDOByStep"); }
+  return ret.map(xs => xs.map(x => ({ ratio: x.ratio, diff: useExactDiffs ? x.diff : x.diff.toCents() })));
+}
+
+/**
+  * Finds best rational approximations in the given odd limit in the given EDO,
+  * sorted by error
+  *
+  * @param {integer} edo
+  * @param {Object} opts
+  * @param {integer} [opts.primeRelErrCutoff] defaults to 2/3
+  * @param {integer} [opts.primeLimit]
+  * @param {integer} opts.oddLimit
+  * @param {boolean} [opts.useExactDiffs] defaults to false, controls the type
+  *                                       of each 'diff' property
+  * @param {boolean} [opts.debug] defaults to false
+  * @returns {Array.<{ratios:Array.<Fraction>, dist: (number|Interval)}>}
+  */
+function bestRationalApproxsOfEDOByDist(edo, opts) {
+  let {primeRelErrCutoff, primeLimit, oddLimit, useExactDiffs, debug} = opts;
+  if (!isFinite(oddLimit) || oddLimit <= 0) {
+    throw new Error("no valid odd limit given to bestRationalApproxsOfEDOByDist!");
+  }
+  if (debug) { console.time("bestRationalApproxsOfEDOByDist"); }
+
+  if (primeRelErrCutoff == undefined) { primeRelErrCutoff = 2/3; }
+  const primeErrCutoff = primeRelErrCutoff / (2 * edo);
+
+  const ropts = { lo: Interval(1), hi: Interval(2).sqrt(), primeLimit: primeLimit };
+
+  let ret = [];
+  for (const r of ratiosInOddLimit(oddLimit, ropts)) {
+    const j = Interval(r);
+    if (j.inPrimeLimit(2)) { continue; }
+    const m = edoApprox(edo, j);
+    const dist = j.div(Interval(2).pow(m,edo)).distance();
+    const approx_dist = dist.valueOf_log();
+    let to_add = { ratios: [r, r.inverse().mul(2)], dist: dist, dist_bound: approx_dist + epsilon };
+    const {n, max_prime_err} = edoApproxConsistentWithErr(edo, j);
+    if (n != m) { to_add.inconsistent = true; }
+    if (max_prime_err > primeErrCutoff) { to_add.overErr = true; }
+    let added = false;
+    for (let i = 0; !added && i < ret.length; i++) {
+      if (approx_dist < ret[i].dist_bound && dist.compare(ret[i].dist) < 0) {
+        ret.splice(i, 0, to_add);
+        added = true;
+      }
+    }
+    if (!added) {
+      ret.push(to_add);
+    }
+  }
+
+  if (debug) { console.timeEnd("bestRationalApproxsOfEDOByDist"); }
+  return ret.map(function (x) {
+    let x0 = { ratios: x.ratios, dist: useExactDiffs ? x.dist : x.dist.toCents() };
+    if (x.inconsistent) { x0.inconsistent = true; }
+    if (x.overErr) { x0.overErr = true; }
+    return x0;
+  });
+}
+
+/**
   * Finds best EDO step approximations of the given interval, sorted by EDO
   * size.
   *
@@ -445,6 +590,8 @@ module.exports.bestRationalApproxsByHeightIterationSize = bestRationalApproxsByH
 module.exports.bestRationalApproxsByHeight = bestRationalApproxsByHeight;
 module.exports.bestRationalApproxsByDenom  = bestRationalApproxsByDenom;
 module.exports.bestRationalApproxsByDiff   = bestRationalApproxsByDiff;
+module.exports.bestRationalApproxsOfEDOByStep = bestRationalApproxsOfEDOByStep;
+module.exports.bestRationalApproxsOfEDOByDist = bestRationalApproxsOfEDOByDist;
 module.exports.bestEDOApproxsByEDO  = bestEDOApproxsByEDO;
 module.exports.bestEDOApproxsByDiff = bestEDOApproxsByDiff;
 
@@ -1058,6 +1205,7 @@ function colorFromSymb(cos, m, iNo23, d, logCorrections) {
   * @param {integer=} opts.verbosity verbosity can be the default 0
   *                                  (e.g. "17ogC5"), 1 (e.g. "sogu C5"), or 2
   *                                  (the same as 1 for this function)
+  * @param {boolean=} opts.ignoreOctave defaults to false
   * @param {boolean=} opts.useASCII defaults to false
   * @param {boolean=} opts.useExps defaults to false
   * @param {boolean=} opts.useHTMLExps defaults to false
@@ -1081,7 +1229,7 @@ function colorNote(a,b, opts) {
   let [e2,iNo2] = i.factorOut(2);
   let [e3,iNo23] = iNo2.factorOut(3);
   if (iNo23.equals(1)) {
-    return pyNote(i, useASCII);
+    return pyNote(i, opts);
   }
   for (const [p,e] of iNo23.factors()) {
     const j = colorFromSymb(0, 0, Interval(p), 1).pow(e);
@@ -1091,7 +1239,7 @@ function colorNote(a,b, opts) {
   const pyi = Interval([e2,e3]);
   return colorPrefix(iNo23, optsToPass)
          + (verbosity > 0 ? " " : "")
-         + pyNote(pyi, useASCII);
+         + pyNote(pyi, opts);
 }
 
 /**
@@ -1167,6 +1315,7 @@ module['exports'].colorTemperament = colorTemperament;
 
 const {mod} = require('./utils.js');
 const {gcd, egcd} = require('mathutils');
+const pf = require('primes-and-factors');
 const Fraction = require('fraction.js');
 const Interval = require('./interval.js');
 const py = require('./pythagorean.js');
@@ -1180,6 +1329,79 @@ const py = require('./pythagorean.js');
   */
 function edoApprox(edo,a,b) {
   return Math.round(edo * Interval(a,b).valueOf_log());
+}
+
+
+let edoPrimeApprox_var = {};
+
+/**
+  * Returns the EDO step closest to the given prime interval, and its error
+  *
+  * @param {integer} edo
+  * @param {integer} p
+  * @returns {Pair.<integer,Interval>}
+  */
+function edoPrimeApprox(edo, p) {
+  if (edoPrimeApprox_var[[edo,p]]) {
+    return edoPrimeApprox_var[[edo,p]];
+  }
+  if (!pf.isPrime(p)) {
+    throw new Error("Input to edoPrimeApprox is not a prime");
+  }
+
+  const n = edoApprox(edo, p);
+  const diff = Interval(2).pow(n,edo).div(p);
+
+  if (!edoPrimeApprox_var[edo]) { edoPrimeApprox_var[edo] = {}; }
+  edoPrimeApprox_var[edo][p] = [n,diff];
+  return [n,diff];
+}
+
+/**
+  * Returns the EDO step which corresponds to the given interval using the EDO's
+  * prime mappings (`edoPrimeApprox`) as well as the log values of the total
+  * prime error and max prime error
+  *
+  * @param {integer} edo
+  * @param {Interval} i
+  * @returns {{n: integer, err: number, max_prime_err: number}}
+  */
+function edoApproxConsistentWithErr(edo,a,b) {
+  const i = Interval(a,b);
+  let ret = { n: 0, err: 0, max_prime_err: 0 };
+  for (const [p,e] of i.factors()) {
+    const [p_n, p_err] = edoPrimeApprox(edo, p);
+    ret.n += e.s * e.n * p_n;
+    const prime_err = e.n * Math.abs(p_err.valueOf_log());
+    ret.err += prime_err;
+    ret.max_prime_err = Math.max(prime_err, ret.max_prime_err);
+  }
+  return ret;
+}
+
+/**
+  * Returns the EDO step which corresponds to the given interval using the EDO's
+  * prime mappings (`edoPrimeApprox`)
+  *
+  * @param {integer} edo
+  * @param {Interval} i
+  * @returns {integer}
+  */
+function edoApproxConsistent(edo,a,b) {
+  return edoApproxConsistentWithErr(edo,a,b).n;
+}
+
+/**
+  * Returns true iff the given intervals is inconsistent in the given EDO, i.e.
+  * if `edoApprox` and `edoApproxConsistent` give different values
+  *
+  * @param {integer} edo
+  * @param {Interval} i
+  * @returns {integer}
+  */
+function edoIntvIsConsistent(edo,a,b) {
+  const i = Interval(a,b);
+  return edoApprox(edo,i) == edoApproxConsistent(edo,i);
 }
 
 /**
@@ -1550,29 +1772,39 @@ function updnsNoteCache(edo) {
 }
 
 /**
-  * Returns the ups-and-downs notation note name for the given steps to A4 in
-  * the given EDO. The returned string uses ASCII instead of uniode wherever
-  * possible iff the third argument is given and is true
+  * Returns the ups-and-downs notation note name for the given steps to A4 (or
+  * a reference, if given `opts.refIntvToA4`) in the given EDO. The returned
+  * string uses ASCII instead of uniode wherever possible iff the third argument
+  * is given and is true
   *
   * @param {integer} edo
   * @param {integer} n
-  * @param {Boolean} [useASCII=false]
+  * @param {Object} [opts]
+  * @param {Interval} [opts.refIntvToA4] defaults to 1
+  * @param {boolean} [opts.ignoreOctave] defaults to false
+  * @param {boolean} [opts.useASCII] defaults to false
   * @returns {string}
   */
-function updnsNote(edo, n, useASCII) {
+function updnsNote(edo, n, opts) {
+  let {refIntvToA4} = opts || {};
+  if (refIntvToA4 == undefined) { refIntvToA4 = Interval(1); }
   const nr = mod(n,edo);
   const vs = Interval(2).pow(n - nr, edo);
   const cache = updnsNoteCache(edo)[nr];
   let ret = [];
   for (const [uds, pyi_red] of cache) {
     const updns = (uds > 0 ? '^' : 'v').repeat(Math.abs(uds));
-    const str = updns + py.pyNote(pyi_red.mul(vs), useASCII);
+    const str = updns + py.pyNote(pyi_red.mul(vs).mul(refIntvToA4), opts);
     ret.push(str);
   }
   return ret;
 }
 
 module['exports'].edoApprox = edoApprox;
+module['exports'].edoPrimeApprox = edoPrimeApprox;
+module['exports'].edoApproxConsistentWithErr = edoApproxConsistentWithErr;
+module['exports'].edoApproxConsistent = edoApproxConsistent;
+module['exports'].edoIntvIsConsistent = edoIntvIsConsistent;
 module['exports'].edoPy = edoPy;
 module['exports'].edoPyInv = edoPyInv;
 module['exports'].edoPyComma = edoPyComma;
@@ -1585,7 +1817,7 @@ module['exports'].updnsFromSymb = updnsFromSymb;
 module['exports'].updnsNoteCache = updnsNoteCache;
 module['exports'].updnsNote = updnsNote;
 
-},{"./interval.js":7,"./pythagorean.js":11,"./utils.js":13,"fraction.js":16,"mathutils":17}],4:[function(require,module,exports){
+},{"./interval.js":7,"./pythagorean.js":11,"./utils.js":13,"fraction.js":16,"mathutils":17,"primes-and-factors":20}],4:[function(require,module,exports){
 /**
  * English names for intervals based on the Neutral FJS and ups-and-downs
  * notations (very much incomplete!)
@@ -2110,6 +2342,7 @@ module['exports'].fjsNote = fjsNote;
 
 },{"./interval.js":7,"./pythagorean.js":11,"fraction.js":16,"primes-and-factors":20}],6:[function(require,module,exports){
 // export everything from `lib/` as well as `Fraction` from fraction.js
+Object.assign(module['exports'], require('./utils.js'));
 module['exports']['Fraction'] = require('fraction.js');
 module['exports']['Interval'] = require('./interval.js');
 Object.assign(module['exports'], require('./pythagorean.js'));
@@ -2122,7 +2355,7 @@ Object.assign(module['exports'], require('./english.js'));
 Object.assign(module['exports'], require('./parser/eval.js'));
 Object.assign(module['exports'], require('./parser.js'));
 
-},{"./approx.js":1,"./color.js":2,"./edo.js":3,"./english.js":4,"./fjs.js":5,"./interval.js":7,"./parser.js":8,"./parser/eval.js":9,"./pythagorean.js":11,"./sets.js":12,"fraction.js":16}],7:[function(require,module,exports){
+},{"./approx.js":1,"./color.js":2,"./edo.js":3,"./english.js":4,"./fjs.js":5,"./interval.js":7,"./parser.js":8,"./parser/eval.js":9,"./pythagorean.js":11,"./sets.js":12,"./utils.js":13,"fraction.js":16}],7:[function(require,module,exports){
 /**
  * The interval datatype, based on `Fraction` from `fraction.js` on npm
  * @copyright 2021 Matthew Yacavone (matthew [at] yacavone [dot] net)
@@ -3433,11 +3666,13 @@ function parseColorNote(str) {
 
 /**
  * @typedef {Object} ParseResult
- * @property {string} type either "interval" or "note"
- * @property {string} queryType either "multiplicative", "additive", or "symbol"
+ * @property {string} type either "interval", "note", or "edo"
+ * @property {string} queryType either "multiplicative", "additive", or "symbol",
+ *                              if `type` is not "edo", or "name" otherwise
  * @property {string=} symbolType only defined if queryType is "symbol"
  * @property {Interval} intv the resulting interval (to the reference, if
- *                           type is "note")
+ *                           type is "note"), if `type` is not "edo"
+ * @property {integer} edo the value of the parsed EDO, if `type` is "edo"
  * @property {{hertz: Interval, intvToA4: Interval}} refNote the reference note
  * @property {integer=} prefEDO the preferred EDO, if any, of the interval
  */
@@ -3482,6 +3717,13 @@ function parse(str, opts) {
     else {
       throw err;
     }
+  }
+
+  if (results.length == 1 && results[0].type[0] == "EDO") {
+    return { type: results[0].type[0]
+           , queryType: results[0].type[1]
+           , edo: parseInt(results[0].val)
+           , refNote: results[0].refNote };
   }
 
   if (results.some(d => d.type[0] == "interval" && d.type[1] == "symbol")) {
@@ -3567,6 +3809,23 @@ function parse(str, opts) {
  */
 
 /**
+ * @typedef {Object} EDOParseCvtResult
+ * @property {string} type always "edo"
+ * @property {string} queryType always "name"
+ * @property {integer} edo the EDO parsed
+ * @property {ReferenceNote} ref the reference note
+ * @property {Array.<EDOStepParseCvtResult>} intvs the intervals of the EDO
+ */
+
+/**
+ * @typedef {Object} EDOStepParseCvtResult
+ * @property {integer} steps the number of EDO steps of the interval
+ * @property {number} cents the EDO step interval interval converted to cents
+ * @property {string} ups_and_downs the EDO step as an ups-and-downs symbol
+ * @property {string} ups_and_downs_verbose
+ */
+
+/**
  * @typedef {Object} ReferenceNote
  * @property {Interval} hertz
  * @property {Interval} intvToA4
@@ -3582,9 +3841,21 @@ function parse(str, opts) {
   * @returns {IntvParseCvtResult|NoteParseCvtResult}
   */
 function parseCvt(str, opts) {
-  let {type, queryType, symbolType, intv, refNote, prefEDO} = parse(str, opts);
+  let {type, queryType, symbolType, intv, edo, refNote, prefEDO} = parse(str, opts);
   let ret = { type: type, queryType: queryType };
   if (symbolType != undefined) { ret.symbolType = symbolType; }
+  if (type == "EDO") {
+    ret.edo = edo;
+    ret.ref = { hertz: refNote.hertz.valueOf()
+              , intvToA4: refNote.intvToA4 };
+    ret.intvs = [];
+    for (let i = 0; i < edo; i++) {
+      let entry = { steps: i, cents: 1200 * i / edo };
+      entry.ups_and_downs = updnsSymb(edo,i);
+      entry.ups_and_downs_verbose = updnsSymb(edo,i, {verbosity:1});
+      ret.intvs.push(entry);
+    }
+  }
   if (type == "interval") {
     ret.cents = intv.toCents();
     ret.intv = intv;
@@ -4260,6 +4531,12 @@ var grammar = {
     {"name": "top2", "symbols": ["noteSExpr"], "postprocess": d => ({type: ["note", "symbol"], expr: d[0][0], symbolType: d[0][1]})},
     {"name": "top2", "symbols": ["noteMExpr1"], "postprocess": d => ({type: ["note", "multiplicative"], expr: d[0]})},
     {"name": "top2", "symbols": ["noteAExpr1"], "postprocess": d => ({type: ["note", "additive"], expr: d[0]})},
+    {"name": "top2", "symbols": ["edoName"], "postprocess": d => ({type: ["EDO", "name"], expr: d[0]})},
+    {"name": "edoName$ebnf$1$subexpression$1", "symbols": [{"literal":"-"}, "_"]},
+    {"name": "edoName$ebnf$1", "symbols": ["edoName$ebnf$1$subexpression$1"], "postprocess": id},
+    {"name": "edoName$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "edoName$subexpression$1", "symbols": [/[eE]/, /[dD]/, /[oO]/], "postprocess": function(d) {return d.join(""); }},
+    {"name": "edoName", "symbols": ["posInt", "_", "edoName$ebnf$1", "edoName$subexpression$1"], "postprocess": d => parseInt(d[0])},
     {"name": "eqPyNote", "symbols": ["pyNote"], "postprocess":  (d,loc,_) => function(ref) {
           let d0 = evalExpr(d[0], defaultRefNote).val;
           if (!ref || !ref.equals(d0)) {
@@ -5420,10 +5697,13 @@ function octaveOfIntvToA4(a,b) {
   * second argument is given and is true
   *
   * @param {Interval} intvToA4
-  * @param {Boolean} [useASCII=false]
+  * @param {Object} [opts]
+  * @param {boolean} [opts.ignoreOctave] defaults to false
+  * @param {boolean} [opts.useASCII] defaults to false
   * @returns {string}
   */
-function pyNote(intvToA4, useASCII) {
+function pyNote(intvToA4, opts) {
+  const {ignoreOctave, useASCII} = opts || {};
   const intvToF4 = Interval(intvToA4).div(baseNoteIntvToA("F"));
   if (!isPythagorean(intvToF4) || (intvToF4['3'] && intvToF4['3'].d != 1)) {
     throw new Error("interval is not a non-neutral pythagorean interval");
@@ -5433,7 +5713,7 @@ function pyNote(intvToA4, useASCII) {
   let o = Math.floor(e3 / 7);
 
   let octave = octaveOfIntvToA4(intvToA4);
-  if (octave == 4) { octave = ""; }
+  if (ignoreOctave || octave == 4) { octave = ""; }
 
   let baseNote;
   if (zd == 0) { baseNote = "F"; }

@@ -50,7 +50,7 @@ const logResStrMap = [
 // Increment the count for strings related to the current result
 function logResultTypes(res, xs) {
   if (res.type == undefined) { return; }
-  const typec = res.type == "interval" ? "i" : "n";
+  const typec = res.type == "interval" ? "i" : res.type == "note" ? "n" : "e";
   let toLog = xs ? xs : [];
   // log the query type
   if (res.symbolType != undefined && res.symbolType !== "") {
@@ -68,7 +68,10 @@ function logResultTypes(res, xs) {
     toLog.push("q " + typec + " " + abbr_queryType);
   }
   // log the result type
-  if (res.type == "note") {
+  if (res.type == "EDO") {
+    toLog.push("r EDO");
+  }
+  else if (res.type == "note") {
     toLog.push("r note");
   }
   else if (res.ratio) {

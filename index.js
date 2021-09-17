@@ -119,6 +119,31 @@ const defaultMoreRat = 1;
 var moreEDO;
 const defaultMoreEDO = 1;
 
+const defaultEDOPrimeLimit = 17;
+const edoPrimeLimitOpts = primeLimitOpts.slice(0,-1);
+
+const defaultEDORelCutoff = "33.3%";
+const edoRelCutoffOpts = ["10%", "20%", "25%", "33.3%", "40%", "50%"];
+const edoRelCutoffVals = [1/10, 1/5, 1/4, 1/3, 2/5, 1/2];
+
+const defaultEDOBaseNote = "D";
+const edoBaseNoteOpts = ["C", "C♯", "D♭", "D", "D♯", "E♭", "E", "F", "F♯", "G♭", "G", "G♯", "A♭", "A", "A♯", "B♭", "B"];
+
+const defaultEDOOddLimit = 81;
+const edoOddLimitOpts = oddLimitOpts();
+
+const defaultEDOApproxsPrimeLimit = defaultPrimeLimit;
+const edoApproxsPrimeLimitOpts = primeLimitOpts;
+
+const defaultEDOApproxsOddLimit = 15;
+const edoApproxsOddLimitOpts = oddLimitOpts("difference");
+
+var moreEDOIntv;
+const defaultMoreEDOIntv = 1;
+
+var moreEDORat;
+const defaultMoreEDORat = 1;
+
 var res = {};
 
 const synth = new XenCalcSynth();
@@ -246,6 +271,10 @@ function findCentsDecPlaces(intv, cents) {
 // should be the contents of the results table
 function getResults() {
   res = microtonal_utils.parseCvt($('#expr').val());
+  // The EDO case
+  if (res.type == "EDO") {
+    return ["EDO", [], range(1,res.edo).map(i => i + "\\" + res.edo).join("%0A")];
+  }
   const intv = res.type == "interval" ? res.intv : res.intvToRef.mul(res.ref.intvToA4);
   let [typeStr, rows, scaleWorkshopData] = ["", [], ""];
   // Add interval-specific rows
@@ -440,6 +469,8 @@ function getResults() {
       rows.push([colorLink, str])
     }
   }
+  if (res.edoSteps) { rows.push(["xen-calc page for EDO", fmtExtExprLink(res.edoSteps[1] + "-EDO")]) }
+  if (res.edoStepsToRef) { rows.push(["xen-calc page for EDO", fmtExtExprLink(res.edoStepsToRef[1] + "-EDO")]) }
   // Add a note's interval reference
   if (res.type === "note" && !res.intvToRef.equals(1)) {
     rows.push([]);
@@ -474,14 +505,15 @@ function updateResults() {
   const exprVal = $('#expr').val().trim();
   if (exprVal === "") {
     $('#errors').addClass("hidden");
+    $('#didYouMeanDiv').addClass("hidden");
     $('#results').addClass("hidden");
     return;
   }
   try {
     $('#errors').addClass("hidden");
+    $('#didYouMeanDiv').addClass("hidden");
     $('#results').removeClass("hidden");
     const [typeStr, rows, scaleWorkshopData] = getResults();
-    $('#didYouMeanDiv').addClass("hidden");
     if (res.symbolType === "color") {
       const s = exprVal.replace("descending", "desc.");
       const ref = res.type == "interval" ? microtonal_utils.colorSymb(res.intv, {useExps: 1})
@@ -586,19 +618,33 @@ function updateResults() {
     let scaleWorkshopLink = "http://sevish.com/scaleworkshop/";
     scaleWorkshopLink += "?waveform=sine&ampenv=perc-medium";
     scaleWorkshopLink += "&data=" + scaleWorkshopData;
-    scaleWorkshopLink += "&freq=" + res.ref.hertz;
-    $('#scaleWorkshopLink').attr("href", scaleWorkshopLink);
-    if (res.type === "interval") {
+    if (res.type == "EDO") {
+      $('#resAudio').addClass("hidden");
+      $('#resApproxs').addClass("hidden");
+      $('#resEDO').removeClass("hidden");
+      const baseHertz = updateEDOResults();
+      scaleWorkshopLink += "&freq=" + baseHertz;
+      $('#edoScaleWorkshopLink').attr("href", scaleWorkshopLink);
+    }
+    else if (res.type === "interval") {
       $('#intervalAudioButtons').removeClass("hidden");
       $('#noteAudioButtons').addClass("hidden");
+      $('#resAudio').removeClass("hidden");
       $('#resApproxs').removeClass("hidden");
+      $('#resEDO').addClass("hidden");
       updateRatApproxs();
       updateEDOApproxs();
+      scaleWorkshopLink += "&freq=" + res.ref.hertz;
+      $('#scaleWorkshopLink').attr("href", scaleWorkshopLink);
     }
     else {
       $('#intervalAudioButtons').addClass("hidden");
       $('#noteAudioButtons').removeClass("hidden");
+      $('#resAudio').removeClass("hidden");
       $('#resApproxs').addClass("hidden");
+      $('#resEDO').addClass("hidden");
+      scaleWorkshopLink += "&freq=" + res.ref.hertz;
+      $('#scaleWorkshopLink').attr("href", scaleWorkshopLink);
     }
   }
   catch (err) {
@@ -615,6 +661,7 @@ function updateResults() {
       logStrs(["e l " + (showAddMulTip ? "add/mul " : "") + err.kind]);
     }
     $('#errors').removeClass("hidden");
+    $('#didYouMeanDiv').addClass("hidden");
     $('#results').addClass("hidden");
     const errStr = err.toString().replace("\n","<br>").replace("\\\\","\\");
     $('#errors').html($('<pre>').addClass("parseError").html(errStr));
@@ -634,7 +681,10 @@ function updateResults() {
 // table
 function addXenWikiLink() {
   let xenPageName = "";
-  if (res.intv && res.intv.equals(microtonal_utils.Interval.phi)) {
+  if (res.edo) {
+    xenPageName = res.edo + "edo";
+  }
+  else if (res.intv && res.intv.equals(microtonal_utils.Interval.phi)) {
     xenPageName = "Acoustic_phi";
   }
   else if (res.ratio) {
@@ -803,6 +853,180 @@ function updateEDOApproxs(toUpdate) {
   }
 }
 
+// ...
+function updateEDOResults(toUpdate) {
+  if (moreEDORat < 1 || (toUpdate && toUpdate !== "moreEDORat")) {
+    moreEDORat = defaultMoreEDORat;
+  }
+  if (moreEDOIntv < 1 || (toUpdate && toUpdate !== "moreEDOIntv")) {
+    moreEDOIntv = defaultMoreEDORat;
+  }
+
+  const edoPrimeLimit        = tryParseInt($('#edoPrimeLimit').val());
+  const edoRelCutoff         = $('#edoRelCutoff').val();
+  const edoBaseNote          = $('#edoBaseNote').val();
+  const edoOddLimit          = tryParseInt($('#edoOddLimit').val());
+  const edoApproxsPrimeLimit = tryParseInt($('#edoApproxsPrimeLimit').val());
+  const edoApproxsOddLimit   = tryParseInt($('#edoApproxsOddLimit').val());
+  updateDropdown($('#edoPrimeLimit')       , edoPrimeLimitOpts, edoPrimeLimit);
+  updateDropdown($('#edoRelCutoff')        , edoRelCutoffOpts, edoRelCutoff);
+  updateDropdown($('#edoBaseNote')         , edoBaseNoteOpts, edoBaseNote);
+  updateDropdown($('#edoOddLimit')         , edoOddLimitOpts, edoOddLimit);
+  updateDropdown($('#edoApproxsPrimeLimit'), edoApproxsPrimeLimitOpts, edoApproxsPrimeLimit);
+  updateDropdown($('#edoApproxsOddLimit')  , edoApproxsOddLimitOpts, edoApproxsOddLimit);
+
+  const edoRelCutoffVal = edoRelCutoffVals[edoRelCutoffOpts.indexOf(edoRelCutoff)];
+  const edoBaseNoteVal = microtonal_utils.parsePyNote(edoBaseNote);
+  let [noteOffset, refIntvToA4] = [microtonal_utils.edoPy(res.edo, edoBaseNoteVal), undefined];
+  if (res.edo % 7 == 0 && (edoBaseNote.includes("♯") || edoBaseNote.includes("♭"))) {
+    noteOffset = 0;
+    refIntvToA4 = edoBaseNoteVal;
+  }
+  const baseHertz = microtonal_utils.parseCvt(edoBaseNote + "\\" + res.edo + " where " + microtonal_utils.pyNote(res.ref.intvToA4) + " = " + res.ref.hertz + "Hz").hertz;
+
+  // EDO prime mappings
+  $('#edoPrimesTable').empty();
+  const primesHeaders = ["Prime",
+                         "Error (" + $('<a>').attr("href", "https://en.wikipedia.org/wiki/Cent_(music)")
+                                             .text("cents").prop("outerHTML") + ")",
+                         $('<a>').attr("href", "https://en.xen.wiki/w/Relative_interval_error")
+                                 .text("Error (relative)"),
+                         "Mapping",
+                         $('<a>').attr("href", "https://en.xen.wiki/w/Octave_reduction")
+                                 .text("Red.").prop("outerHTML") + " mapping",
+                         "Highest power allowed in approxs. below" + $('#edoRelCutoffExplQ').prop("outerHTML")];
+  let primesDat = [];
+  for (const p of microtonal_utils.primes()) {
+    if (p == 2) { continue; }
+    if (p > edoPrimeLimit) { break; }
+    const [n, err] = microtonal_utils.edoPrimeApprox(res.edo, p);
+    const relErr = err.valueOf_log() * res.edo;
+    let col = [p];
+    const errC = err.toCents();
+    col.push((errC < 0 ? "-" : "+") + fmtCents(Math.abs(errC), 2, true));
+    col.push((relErr < 0 ? "-" : "+") + (Math.abs(100*relErr).toFixed(1)) + "%");
+    col.push(fmtExtExprLink(n, n + "\\" + res.edo));
+    const nRed = microtonal_utils.mod(n, res.edo);
+    col.push(fmtExtExprLink(nRed, nRed + "\\" + res.edo));
+    col.push(Math.floor(edoRelCutoffVal / Math.abs(relErr)));
+    primesDat.push(col);
+  }
+  for (let j = 0; j < primesDat[0].length; j++) {
+    if (res.edo == 12 && j == 2) { continue; }
+    let row = $('<tr>');
+    row.append($('<th>').html(primesHeaders[j]).addClass("edoPrimesTableLeftHeader"));
+    for (let i = 0; i < primesDat.length; i++) {
+      row.append((j == 0 ? $('<th>') : $('<td>')).html(primesDat[i][j]));
+    }
+    $('#edoPrimesTable').append(row);
+  }
+
+  // EDO intervals
+  let opts = { primeLimit: edoPrimeLimit,
+               oddLimit: isNaN(edoOddLimit) ? undefined : edoOddLimit,
+               primeRelErrCutoff: 2*edoRelCutoffVal,
+               numIterations: moreEDOIntv };
+  let approxs = microtonal_utils.bestRationalApproxsOfEDOByStep(res.edo, opts);
+  $('#edoIntvsTable').empty();
+  let header = $('<tr>');
+  header.append($('<th>').html("Steps"));
+  header.append($('<th>').html("Cents"));
+  header.append($('<th>').html("Ups-and-downs notation").attr("colspan", 3));
+  header.append($('<th>').html($('<a>').attr("href", "https://en.xen.wiki/w/Consistent")
+                                       .text("Consistent").prop("outerHTML")
+                               + " rational approximations")
+                         .addClass("edoIntvsTableRightHeader"));
+  header.append($('<th>').html("Audio"));
+  $('#edoIntvsTable').append(header);
+  for (let {steps, cents, ups_and_downs, ups_and_downs_verbose} of res.intvs) {
+    let row = $('<tr>');
+    row.append($('<td>').html(fmtExtExprLink(steps, steps + "\\" + res.edo)));
+    row.append($('<td>').html(fmtExtExprLink(fmtCents(cents, 2), cents + "c")));
+    if (res.edo % 7 == 0) { ups_and_downs_verbose = ups_and_downs_verbose.map(x => x.replace("perfect", "")); }
+    row.append($('<td>').html(ups_and_downs_verbose.map(x => fmtExtExprLink(x, x + " \\ " + res.edo).prop("outerHTML")).join(",<br>")));
+    row.append($('<td>').html(ups_and_downs.map(x => fmtExtExprLink(x, x + "\\" + res.edo).prop("outerHTML")).join(",<br>")));
+    let udsNotes = microtonal_utils.updnsNote(res.edo, steps + noteOffset, {refIntvToA4: refIntvToA4, ignoreOctave: 1});
+    if (res.edo % 5 == 0) {
+      udsNotes = udsNotes.filter(s => edoBaseNote.includes("♯") ? s.includes("♯") :
+                                      edoBaseNote.includes("♭") ? s.includes("♭")
+                                        : !s.includes("♯") && !s.includes("♭"));
+    }
+    row.append($('<td>').html(udsNotes.map(x => fmtExtExprLink(x, x + "\\" + res.edo).prop("outerHTML")).join(",<br>")));
+    const apxCell = $('<td>').html(approxs[steps].map(x => fmtExtExprLink(x.ratio.toFraction()).prop("outerHTML")).join(", "));
+    apxCell.addClass("edoIntvsTableRightColumn");
+    row.append(apxCell);
+    const audioCell = $('<td>');
+    const topHertz = baseHertz * Math.pow(2, steps / res.edo);
+    const melButton = $('<button>').addClass("edoAudioButton").text("M");
+    melButton.click(function () {
+      synth.playFreq(9, baseHertz, percussive(1.75));
+      synth.stopFreqAfter(9, 10);
+      setTimeout(function() {
+        synth.playFreq(10+steps, topHertz, percussive(1.75));
+        synth.stopFreqAfter(10+steps, 10);
+      }, 700);
+    });
+    audioCell.append($('<div>').addClass("buttonContainer").html(melButton));
+    const harmButton = $('<button>').addClass("edoAudioButton").text("H");
+    harmButton.click(function () {
+      synth.playFreq(9, baseHertz, percussive(1.75));
+      synth.playFreq(10+steps, topHertz, percussive(1.75));
+      synth.stopFreqAfter(9, 10);
+      synth.stopFreqAfter(10+steps, 10);
+    });
+    audioCell.append($('<div>').addClass("buttonContainer").html(harmButton));
+    row.append(audioCell);
+    $('#edoIntvsTable').append(row);
+  }
+  const linkExtra = moreEDOIntv > 1 ? " (x" + moreEDOIntv + ")" : "";
+  let link = $('<a>').attr("href", "javascript:void(0)")
+                     .attr("id", "edoIntvsMoreLink")
+                     .html("load more approximations" + linkExtra);
+  link.click(function() { moreEDOIntv++; updateEDOResults("moreEDOIntv"); });
+  $('#edoIntvsMore').html(link);
+
+  // EDO best rational approximations
+  opts = { primeLimit: isNaN(edoApproxsPrimeLimit) ? undefined : edoApproxsPrimeLimit,
+           oddLimit: edoApproxsOddLimit,
+           primeRelErrCutoff: 2*edoRelCutoffVal };
+  const approxsOut = microtonal_utils.bestRationalApproxsOfEDOByDist(res.edo, opts);
+  approxs = approxsOut.slice(0,10*moreEDORat)
+  $('#edoApproxsTable').empty();
+  for (const {inconsistent, overErr, ratios, dist} of approxs) {
+    let row = $('<tr>');
+    const note = inconsistent && overErr ? "(p) (i)" : inconsistent ? "(i)" : overErr ? "(p)" : "";
+    row.append($('<td>').html(note));
+    const lhs = ratios.map(x => fmtExtExprLink(toRatioStr(x)).prop("outerHTML")).join(", ");
+    row.append($('<td>').addClass("approxsLeftColumn").html(lhs));
+    let distStr = "exact";
+    if (dist != 0) {
+      distStr = fmtCents(Math.abs(dist), 3, true);
+    }
+    row.append($('<td>').addClass("approxsRightColumn").html(distStr));
+    $('#edoApproxsTable').append(row);
+  }
+
+  if (approxsOut.length > 10*moreEDORat) {
+    let link = $('<a>').attr("href", "javascript:void(0)")
+                       .attr("id", "edoApproxsTableMoreLink")
+                       .html("show more");
+    link.click(function() { moreEDORat++; updateEDOResults("moreEDORat"); });
+    $('#edoApproxsTableMore').html(link);
+  }
+  else {
+    const text = "no " + (approxs.length > 0 ? "more " : "") + "results";
+    $('#edoApproxsTableMore').html(text);
+  }
+
+  if (toUpdate) {
+    let params = {"moreEDORat": moreEDORat == defaultMoreEDORat ? "" : moreEDORat,
+                  "moreEDOIntv": moreEDOIntv == defaultMoreEDOIntv ? "" : moreEDOIntv};
+    if ($('#' + toUpdate).val()) { params[toUpdate] = $('#' + toUpdate).val(); }
+    updateURLWithParams(params, moreRat != defaultMoreEDORat);
+  }
+  return baseHertz;
+}
+
 // The function to be called if the "Play/pause note" button is clicked
 function toggleNote() {
   if ($('#playNoteToggle').html()[0] == "▶") {
@@ -859,7 +1083,7 @@ function updateURLWithParams(paramsToUpdate, doReplace) {
 
 function updateURLTo(newURL, doReplace) {
   const newURLStr = reformatURL(newURL.toString());
-  const st = { html: $("#results").prop("outerHTML"), res: res };
+  const st = { html: $("#output").prop("outerHTML"), res: res };
   if (doReplace) {
     console.log(Date.now() + " [replaced] " + newURL.searchParams);
     console.log(res);
@@ -916,6 +1140,14 @@ function setStateFromParams(urlParams, e) {
   const sortEDO    = getWithDefault(urlParams, 'sortEDO'   , defaultSortEDO);
   moreRat          = getWithDefault(urlParams, 'moreRat'   , defaultMoreRat);
   moreEDO          = getWithDefault(urlParams, 'moreEDO'   , defaultMoreEDO);
+  const edoPrimeLimit        = getWithDefault(urlParams, 'edoPrimeLimit'       , defaultEDOPrimeLimit);
+  const edoRelCutoff         = getWithDefault(urlParams, 'edoRelCutoff'        , defaultEDORelCutoff);
+  const edoBaseNote          = getWithDefault(urlParams, 'edoBaseNote'         , defaultEDOBaseNote);
+  const edoOddLimit          = getWithDefault(urlParams, 'edoOddLimit'         , defaultEDOOddLimit);
+  const edoApproxsPrimeLimit = getWithDefault(urlParams, 'edoApproxsPrimeLimit', defaultEDOApproxsPrimeLimit);
+  const edoApproxsOddLimit   = getWithDefault(urlParams, 'edoApproxsOddLimit'  , defaultEDOApproxsOddLimit);
+  moreEDORat                 = getWithDefault(urlParams, 'moreEDORat'          , defaultMoreEDORat);
+  moreEDOIntv                = getWithDefault(urlParams, 'moreEDOIntv'         , defaultMoreEDOIntv);
   // update the expr fields and all the dropdowns based on the above
   $('#expr').val(expr);
   updateDropdown($('#primeLimit'), primeLimitOpts, primeLimit);
@@ -924,11 +1156,17 @@ function setStateFromParams(urlParams, e) {
   updateDropdown($('#loEDO')     , loEDOOpts(hiEDO), loEDO);
   updateDropdown($('#hiEDO')     , hiEDOOpts(loEDO), hiEDO);
   updateDropdown($('#sortEDO')   , sortEDOOpts(), sortEDO);
+  updateDropdown($('#edoPrimeLimit')       , edoPrimeLimitOpts, edoPrimeLimit);
+  updateDropdown($('#edoRelCutoff')        , edoRelCutoffOpts, edoRelCutoff);
+  updateDropdown($('#edoBaseNote')         , edoBaseNoteOpts, edoBaseNote);
+  updateDropdown($('#edoOddLimit')         , edoOddLimitOpts, edoOddLimit);
+  updateDropdown($('#edoApproxsPrimeLimit'), edoApproxsPrimeLimitOpts, edoApproxsPrimeLimit);
+  updateDropdown($('#edoApproxsOddLimit')  , edoApproxsOddLimitOpts, edoApproxsOddLimit);
   updateTitle();
-  // either directly set the results section html if we have a valid state, or
+  // either directly set the output div html if we have a valid state, or
   // call updateResults to generate it
   if (e && e.state && e.state.html && e.state.html.trim() !== "") {
-    $('#results').replaceWith(e.state.html);
+    $('#output').replaceWith(e.state.html);
     res = e.state.res;
     addXenWikiLink();
   }
@@ -936,7 +1174,7 @@ function setStateFromParams(urlParams, e) {
     updateResults();
   }
   // set (or refresh) the click/change events for all the interactables in the
-  // results section
+  // output div
   $('#playIntvMelodic') .click(() => playMelodic());
   $('#playNoteMelodic') .click(() => playMelodic());
   $('#playIntvHarmonic').click(() => playHarmonic());
@@ -950,6 +1188,14 @@ function setStateFromParams(urlParams, e) {
   $('#sortEDO')   .change(() => updateEDOApproxs('sortEDO'));
   $('#ratTableMoreLink').click(function() { moreRat++; updateRatApproxs("moreRat"); });
   $('#edoTableMoreLink').click(function() { moreEdo++; updateRatApproxs("moreEDO"); });
+  $('#edoPrimeLimit')       .change(() => updateEDOResults('edoPrimeLimit'));
+  $('#edoRelCutoff')        .change(() => updateEDOResults('edoRelCutoff'));
+  $('#edoBaseNote')         .change(() => updateEDOResults('edoBaseNote'));
+  $('#edoOddLimit')         .change(() => updateEDOResults('edoOddLimit'));
+  $('#edoApproxsPrimeLimit').change(() => updateEDOResults('edoApproxsPrimeLimit'));
+  $('#edoApproxsOddLimit')  .change(() => updateEDOResults('edoApproxsOddLimit'));
+  $('#edoIntvsMoreLink')       .click(function() { moreEDOIntv++; updateRatApproxs("moreEDOIntv"); });
+  $('#edoApproxsTableMoreLink').click(function() { moreEDORat++; updateRatApproxs("moreEDORat"); });
 }
 
 // ================================================================
@@ -1012,10 +1258,28 @@ $(document).ready(function() {
   // pressing enter!
   $('#enter').click(function() {
     moreRat = defaultMoreRat; moreEDO = defaultMoreEDO;
+    moreEDORat = defaultMoreEDORat; moreEDOIntv = defaultMoreEDOIntv;
     updateTitle();
     updateResults();
     let params = {q: $('#expr').val()};
     params["moreRat"] = ""; params["moreEDO"] = "";
+    params["moreEDORat"] = ""; params["moreEDOIntv"] = "";
+    if (res.type == "interval" || res.type == "note") {
+      params["edoPrimeLimit"] = "";
+      params["edoRelCutoff"] = "";
+      params["edoBaseNote"] = "";
+      params["edoOddLimit"] = "";
+      params["edoApproxsPrimeLimit"] = "";
+      params["edoApproxsOddLimit"] = "";
+    }
+    else {
+      params["primeLimit"] = "";
+      params["oddLimit"] = "";
+      params["sortRat"] = "";
+      params["loEDO"] = "";
+      params["hiEDO"] = "";
+      params["sortEDO"] = "";
+    }
     updateURLWithParams(params);
     logResultTypes(res);
   });
