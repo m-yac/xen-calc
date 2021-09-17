@@ -235,6 +235,25 @@
       </li>
     </ul>
   </li>
+  <li>
+    Get information about EDOs
+    (e.g. <a class="expr" href="./?q=22-EDO">22-EDO</a>)
+    including interactive tables of prime mappings, intervals, and rational
+    approximations. <span id="edoRelCutoffExpl">The rational approximations
+    shown in the table of intervals are constrained by the value of the
+    relative cutoff set in the prime mappings section. In particular, this
+    value determines the highest prime power which can appear in an
+    approxmiation. For example, in 22-EDO the prime 3 has a relative error
+    of 13.1%. If we set our relative cutoff to 33.3%, a factor of 3 can appear,
+    as can 3<sup>2</sup> (having a relative error of 26.2% < 33.3%), but
+    3<sup>3</sup> cannot (having a relative error of 39.3% > 33.3%). Thus, in
+    this example 3/2 and 9/8 would appear in the interval table as rational
+    approximations, but 32/27 would not. Rational approximations are loaded in
+    the order of their no-2s Tenney height (see above), and listed in order of
+    difference. Additionally, only intervals which are
+    <a href="https://en.xen.wiki/w/Consistent" class="alt">consistent</a>
+    in the chosen prime limit are shown.</span>
+  </li>
 </ul>
 
 <h3 id="tips">Tips</h3>

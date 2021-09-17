@@ -181,6 +181,48 @@ h4 {
   font-size: 92.5%;
 }
 
+.edoDesc {
+  font-size: 95%;
+  margin-bottom: 13px;
+}
+.edoTableWrap {
+  width: 100%;
+  overflow: scroll;
+  margin-bottom: 10px;
+}
+.edoTable {
+  width: auto;
+  margin-left: auto;
+  margin-right: auto;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 88%;
+}
+.edoTable th, .edoTable td {
+  border: 1px solid #BBBBBB;
+  padding-left: 9px;
+  padding-right: 9px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.edoTable th {
+  background-color: #D8D8D8;
+}
+.edoTable td {
+  background-color: #FFFFFF;
+}
+
+.edoPrimesTableLeftHeader {
+  max-width: 110px;
+  min-width: 103px;
+}
+.edoIntvsTableRightHeader {
+  min-width: 130px;
+}
+.edoIntvsTableRightColumn {
+  text-align: left;
+}
+
 .audioButtonsDiv {
   margin-bottom: 35px;
 }
@@ -264,6 +306,10 @@ button:active {
     background: #6AF;
 }
 
+.edoAudioButton {
+  padding: 2px 5px 2px 5px;
+}
+
 .selectContainer select {
   position: absolute;
   top: 0px;
@@ -332,6 +378,20 @@ button:active {
 }
 .sortEDOSelect {
   width: 90px;
+}
+
+.edoRelCutoffSelect select {
+  width: 70px;
+}
+.edoRelCutoffSelect {
+  width: 70px;
+}
+
+.edoBaseNoteSelect select {
+  width: 50px;
+}
+.edoBaseNoteSelect {
+  width: 50px;
 }
 
 .exprInput  {
