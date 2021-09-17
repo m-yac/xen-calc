@@ -936,8 +936,11 @@ function updateEDOResults(toUpdate) {
   $('#edoIntvsTable').empty();
   let header = $('<tr>');
   header.append($('<th>').html("Steps"));
-  header.append($('<th>').html("Cents"));
-  header.append($('<th>').html("Ups-and-downs notation").attr("colspan", 3));
+  header.append($('<th>').html($('<a>').attr("href", "https://en.wikipedia.org/wiki/Cent_(music)")
+                                       .text("Cents")));
+  header.append($('<th>').html($('<a>').attr("href", "https://en.xen.wiki/w/Ups_and_Downs_Notation")
+                                       .text("Ups-and-downs notation"))
+                         .attr("colspan", 3));
   header.append($('<th>').html($('<a>').attr("href", "https://en.xen.wiki/w/Consistent")
                                        .text("Consistent").prop("outerHTML")
                                + " rational approximations")
