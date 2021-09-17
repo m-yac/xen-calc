@@ -423,18 +423,24 @@ function getResults() {
       }
     }
     if (res.symb.ups_and_downs) {
+      const [steps, edo] = res.type == "interval" ? res.edoSteps : [res.edoStepsToRef[0] + res.ref.edoStepsToA4[0], res.edoStepsToRef[1]];
       const updnsLink = fmtInlineLink("Ups-and-downs notation", "https://en.xen.wiki/w/Ups_and_Downs_Notation");
-      let str = "";
+      const fn = (res.type == "interval" ? microtonal_utils.updnsSymb : microtonal_utils.updnsNote);
+      const offSymbs = fn(edo, steps, {useWordDesc:1, useExps:1, useHTMLExps:1});
+      let [str_on, str_off] = ["", ""];
       for (let i = 0; i < res.symb.ups_and_downs.length; i++) {
-        str += fmtExtExprLink(res.symb.ups_and_downs[i]).prop('outerHTML');
+        str_on  += fmtExtExprLink(res.symb.ups_and_downs[i]).prop('outerHTML');
+        str_off += fmtExtExprLink(offSymbs[i] + "\\" + edo, res.symb.ups_and_downs[i]).prop('outerHTML');
         if (res.symb.ups_and_downs_verbose && i < res.symb.ups_and_downs_verbose.length) {
-          str += " (" + fmtExtExprLink(res.symb.ups_and_downs_verbose[i]).prop('outerHTML') + ")";
+          str_on  += " (" + fmtExtExprLink(res.symb.ups_and_downs_verbose[i]).prop('outerHTML') + ")";
+          str_off += " (" + fmtExtExprLink(res.symb.ups_and_downs_verbose[i]).prop('outerHTML') + ")";
         }
         if (i < res.symb.ups_and_downs.length - 1) {
-          str += "<br>";
+          str_on  += "<br>";
+          str_off += "<br>";
         }
       }
-      rows.push([updnsLink, str]);
+      rows.push([updnsLink, { hoverSwap_off: str_off, hoverSwap_on: str_on }]);
     }
   }
   if (res.english && res.english.length > 0){
@@ -853,7 +859,7 @@ function updateEDOApproxs(toUpdate) {
   }
 }
 
-// ...
+// Update all EDO result tables
 function updateEDOResults(toUpdate) {
   if (moreEDORat < 1 || (toUpdate && toUpdate !== "moreEDORat")) {
     moreEDORat = defaultMoreEDORat;
@@ -939,19 +945,34 @@ function updateEDOResults(toUpdate) {
   header.append($('<th>').html("Audio"));
   $('#edoIntvsTable').append(header);
   for (let {steps, cents, ups_and_downs, ups_and_downs_verbose} of res.intvs) {
-    let row = $('<tr>');
+    let row = $('<tr>').addClass("hoverSwap");
     row.append($('<td>').html(fmtExtExprLink(steps, steps + "\\" + res.edo)));
     row.append($('<td>').html(fmtExtExprLink(fmtCents(cents, 2), cents + "c")));
     if (res.edo % 7 == 0) { ups_and_downs_verbose = ups_and_downs_verbose.map(x => x.replace("perfect", "")); }
     row.append($('<td>').html(ups_and_downs_verbose.map(x => fmtExtExprLink(x, x + " \\ " + res.edo).prop("outerHTML")).join(",<br>")));
-    row.append($('<td>').html(ups_and_downs.map(x => fmtExtExprLink(x, x + "\\" + res.edo).prop("outerHTML")).join(",<br>")));
-    let udsNotes = microtonal_utils.updnsNote(res.edo, steps + noteOffset, {refIntvToA4: refIntvToA4, ignoreOctave: 1});
+    const uds_on = ups_and_downs.map(x => fmtExtExprLink(x, x + "\\" + res.edo).prop("outerHTML")).join(",<br>");
+    const uds_off = microtonal_utils.updnsSymb(res.edo, steps, {useExps:1, useHTMLExps:1})
+                                    .map((x,i) => fmtExtExprLink(x, ups_and_downs[i] + "\\" + res.edo).prop("outerHTML")).join(",<br>");
+    const udsCell = $('<td>');
+    udsCell.append($('<span>').addClass("hoverSwap_on").html(uds_on));
+    udsCell.append($('<span>').addClass("hoverSwap_off").html(uds_off));
+    row.append(udsCell);
+    let udsNotes_on = microtonal_utils.updnsNote(res.edo, steps + noteOffset, {refIntvToA4: refIntvToA4, ignoreOctave: 1, useExps: 1});
+    let udsNotes_off = microtonal_utils.updnsNote(res.edo, steps + noteOffset, {refIntvToA4: refIntvToA4, ignoreOctave: 1, useExps: 1, useHTMLExps: 1});
     if (res.edo % 5 == 0) {
-      udsNotes = udsNotes.filter(s => edoBaseNote.includes("♯") ? s.includes("♯") :
-                                      edoBaseNote.includes("♭") ? s.includes("♭")
-                                        : !s.includes("♯") && !s.includes("♭"));
+      udsNotes_on = udsNotes_on.filter(s => edoBaseNote.includes("♯") ? s.includes("♯") :
+                                            edoBaseNote.includes("♭") ? s.includes("♭")
+                                              : !s.includes("♯") && !s.includes("♭"));
+      udsNotes_off = udsNotes_off.filter(s => edoBaseNote.includes("♯") ? s.includes("♯") :
+                                              edoBaseNote.includes("♭") ? s.includes("♭")
+                                                : !s.includes("♯") && !s.includes("♭"));
     }
-    row.append($('<td>').html(udsNotes.map(x => fmtExtExprLink(x, x + "\\" + res.edo).prop("outerHTML")).join(",<br>")));
+    const udsNote_on = udsNotes_on.map(x => fmtExtExprLink(x, x + "\\" + res.edo).prop("outerHTML")).join(",<br>");
+    const udsNote_off = udsNotes_off.map((x,i) => fmtExtExprLink(x, udsNotes_on[i] + "\\" + res.edo).prop("outerHTML")).join(",<br>");
+    const udsNoteCell = $('<td>');
+    udsNoteCell.append($('<span>').addClass("hoverSwap_on").html(udsNote_on));
+    udsNoteCell.append($('<span>').addClass("hoverSwap_off").html(udsNote_off));
+    row.append(udsNoteCell);
     const apxCell = $('<td>').html(approxs[steps].map(x => fmtExtExprLink(x.ratio.toFraction()).prop("outerHTML")).join(", "));
     apxCell.addClass("edoIntvsTableRightColumn");
     row.append(apxCell);
