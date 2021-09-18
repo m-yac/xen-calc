@@ -42,6 +42,8 @@ const queryTypeUnambigType = [
   "ratio", "monzo", "cents", "EDO step", "EDO TT", "hertz", "TT", "phi"
 ]
 
+const queryFlipWordOrder = ["function call", "name"];
+
 const logResStrMap = [
   ["square root", "sqrt"],
   ["isoharmonic interval", "iso"]

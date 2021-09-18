@@ -135,12 +135,15 @@
     List possible English names for an interval. <span id="englishNames">These
     names are automaticlly generated based on the interval's Neutral FJS name or
     ups-and-downs notation, e.g. "undecimal neutral third" for
-    <a class="expr" href="./?q=n3^11">n3^11</a> or "22-EDO downmajor third" for
-    <a class="expr" href="./?q=vM3%5C22">vM3\22</a>. Names are also
-    automatically generated for harmonics, e.g. "15th harmonic" for
-    <a class="expr" href="./?q=15/1">15/1</a>, and there are special cases for
-    the names "Pythagorean comma" and
-    "<a class="alt" href="https://en.xen.wiki/w/Acoustic_phi">phi</a>". See
+    <a class="expr" href="./?q=n3^11">n3^11</a> or "24-EDO neutral third" for
+    <a class="expr" href="./?q=%7E3%5C24">~3\24</a>. Names are also
+    automatically generated for <a class="alt" href="https://en.xen.wiki/w/Harmonic">harmonics</a>,
+    e.g. "15th harmonic" for
+    <a class="expr" href="./?q=15/1">15/1</a>, and there are special cases for the
+    <a class="alt" href="https://en.wikipedia.org/wiki/Pythagorean_comma">Pythagorean comma</a>
+    (<a class="expr" href="./?q=d-2">d-2</a>) and
+    <a class="alt" href="https://en.xen.wiki/w/Acoustic_phi">phi</a>
+    (<a class="expr" href="./?q=phi">phi</a>). See
     <a class="alt" href="https://github.com/m-yac/microtonal-utils/blob/main/lib/english.js">english.js</a> in
     <a class="alt" href="https://github.com/m-yac/microtonal-utils">microtonal-utils</a>
     for the exact algorithm.</span>
@@ -243,7 +246,7 @@
     shown in the table of intervals are constrained by the value of the
     relative cutoff set in the prime mappings section. In particular, this
     value determines the highest prime power which can appear in an
-    approxmiation. For example, in 22-EDO the prime 3 has a relative error
+    approximation. For example, in 22-EDO the prime 3 has a relative error
     of 13.1%. If we set our relative cutoff to 33.3%, a factor of 3 can appear,
     as can 3<sup>2</sup> (having a relative error of 26.2% < 33.3%), but
     3<sup>3</sup> cannot (having a relative error of 39.3% > 33.3%). Thus, in
