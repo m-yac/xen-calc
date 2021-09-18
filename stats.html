@@ -42,17 +42,18 @@
           for (const [s1,s2] of logQueryStrMap) {
             if (unabbr_s == s2) { unabbr_s = s1; break; }
           }
+          let vb_str = "";
           if (unabbr_s.substr(-10) == " (verbose)") {
-            unabbr_s = unabbr_s.slice(0, unabbr_s.length-10) +
-                       (s[2] == "i" ? " interval" : s[2] == "n" ? " note" : " EDO") + " (verbose)";
+            unabbr_s = unabbr_s.slice(0, unabbr_s.length-10);
+            vb_str = " (verbose)";
           }
-          else if (unabbr_s == "function call") {
+          if (queryFlipWordOrder.includes(unabbr_s)) {
             unabbr_s = (s[2] == "i" ? "interval" : s[2] == "n" ? "note" : "EDO") + " " + unabbr_s;
           }
           else if (!queryTypeUnambigType.includes(unabbr_s)) {
             unabbr_s = unabbr_s + " " + (s[2] == "i" ? "interval" : s[2] == "n" ? "note" : "EDO");
           }
-          qs.push([unabbr_s, res[s] || 0]);
+          qs.push([unabbr_s + vb_str, res[s] || 0]);
         }
         if (s[0] == "r") {
           let unabbr_s = s.slice(2);
