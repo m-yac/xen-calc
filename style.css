@@ -258,6 +258,14 @@ h4 {
 .hoverSwap:focus .hoverSwap_on { display: inline; }
 .hoverSwap:hover .hoverSwap_off { display: none; }
 .hoverSwap:focus .hoverSwap_off { display: none; }
+.hoverSwapPre .hoverSwap_on { display: inline; }
+.hoverSwapPre .hoverSwap_off { display: none; }
+
+.hoverSwapDetail .hoverSwapDetail_on { display: none; }
+.hoverSwapDetail:hover .hoverSwapDetail_on { display: inline; }
+.hoverSwapDetail:focus .hoverSwapDetail_on { display: inline; }
+.hoverSwapDetail:hover .hoverSwapDetail_off { display: none; }
+.hoverSwapDetail:focus .hoverSwapDetail_off { display: none; }
 
 sup, sub {
   margin-left: 2px;

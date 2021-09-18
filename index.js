@@ -948,7 +948,7 @@ function updateEDOResults(toUpdate) {
   header.append($('<th>').html("Audio"));
   $('#edoIntvsTable').append(header);
   for (let {steps, cents, ups_and_downs, ups_and_downs_verbose} of res.intvs) {
-    let row = $('<tr>').addClass("hoverSwap");
+    let row = $('<tr>').addClass("hoverSwapPre");
     row.append($('<td>').html(fmtExtExprLink(steps, steps + "\\" + res.edo)));
     row.append($('<td>').html(fmtExtExprLink(fmtCents(cents, 2), cents + "c")));
     if (res.edo % 7 == 0) { ups_and_downs_verbose = ups_and_downs_verbose.map(x => x.replace("perfect", "")); }
@@ -976,7 +976,17 @@ function updateEDOResults(toUpdate) {
     udsNoteCell.append($('<span>').addClass("hoverSwap_on").html(udsNote_on));
     udsNoteCell.append($('<span>').addClass("hoverSwap_off").html(udsNote_off));
     row.append(udsNoteCell);
-    const apxCell = $('<td>').html(approxs[steps].map(x => fmtExtExprLink(x.ratio.toFraction()).prop("outerHTML")).join(", "));
+    let approxSpans = [];
+    for (const {ratio, diff} of approxs[steps]) {
+      const span = $('<span>').addClass("hoverSwapDetail");
+      const link = fmtExtExprLink(ratio.toFraction()).prop("outerHTML");
+      const diffStr = (diff == 0 ? "±" : diff > 0 ? "+" : "-") + fmtCents(Math.abs(diff),1);
+      span.append($('<span>').addClass("hoverSwapDetail_off").html(link));
+      span.append($('<span>').addClass("hoverSwapDetail_on").html(link + " (" + diffStr + ")"));
+      approxSpans.push(span);
+    }
+    const apxCell = $('<td>').html(approxSpans.map(s => s.prop("outerHTML")).join(", "));
+    const dummyApx = $('<span>').html(" (+00.0c)").appendTo(apxCell);
     apxCell.addClass("edoIntvsTableRightColumn");
     row.append(apxCell);
     const audioCell = $('<td>');
@@ -1001,6 +1011,12 @@ function updateEDOResults(toUpdate) {
     audioCell.append($('<div>').addClass("buttonContainer").html(harmButton));
     row.append(audioCell);
     $('#edoIntvsTable').append(row);
+    // set `min-width`s to account for `hoverSwap`ing
+    apxCell.css({"min-width": apxCell.width()});
+    dummyApx.remove();
+    udsCell.css({"min-width": udsCell.width()});
+    udsNoteCell.css({"min-width": udsNoteCell.width()});
+    $(row).removeClass("hoverSwapPre").addClass("hoverSwap");
   }
   const linkExtra = moreEDOIntv > 1 ? " (x" + moreEDOIntv + ")" : "";
   let link = $('<a>').attr("href", "javascript:void(0)")
