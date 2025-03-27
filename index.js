@@ -237,7 +237,9 @@ function fmtExtExprLink(str, linkstr) {
 }
 // Wrap a given string in an <a> tag with the default class
 function fmtInlineLink(str, url, sameTab) {
-  const a = $('<a>').attr("href", url).html(str);
+  const a = (url.startsWith('https://en.xen.wiki')
+             ? $('<a>').addClass('xen-wiki-link')
+             : $('<a>').attr("href", url)).text(str);
   if (sameTab) { return a.prop('outerHTML'); }
   else { return a//.attr("target", "_blank")
                  .prop('outerHTML'); }
@@ -286,7 +288,7 @@ function getResults() {
     rows.push([centsLink, fmtExtExprLink(fmtCents(res.cents, k))]);
     if (res.ratio) {
       const ratioLink = fmtInlineLink("Ratio", "https://en.wikipedia.org/wiki/Just_intonation");
-      rows.push([ratioLink, fmtExtExprLink(toRatioStr(res.ratio))]);
+      rows.push([ratioLink, fmtExtExprLink(toRatioStr(res.intv.toFracBig()))]);
     }
     else {
       try {
@@ -495,12 +497,12 @@ function getResults() {
   // Format the interval for use in Scale Workshop
   if (res.type == "interval") {
     if (res.edoSteps) { scaleWorkshopData = fmtEDOStep(res.edoSteps); }
-    else if (res.ratio) { scaleWorkshopData = toRatioStr(res.ratio); }
+    else if (res.ratio) { scaleWorkshopData = toRatioStr(res.intv.toFracBig()); }
     else { scaleWorkshopData = res.cents; }
   }
   if (res.type == "note") {
     if (res.edoStepsToRef) { scaleWorkshopData = fmtEDOStep(res.edoStepsToRef); }
-    else if (res.intvToRef.isFrac()) { scaleWorkshopData = toRatioStr(res.intvToRef.toFrac()); }
+    else if (res.intvToRef.isFrac()) { scaleWorkshopData = toRatioStr(res.intvToRef.toFracBig()); }
     else { scaleWorkshopData = res.intvToRef.toCents().toFixed(13); }
   }
   return [typeStr, rows, scaleWorkshopData];
@@ -694,7 +696,7 @@ function addXenWikiLink() {
     xenPageName = "Acoustic_phi";
   }
   else if (res.ratio) {
-    xenPageName = toRatioStr(res.ratio);
+    xenPageName = toRatioStr(res.intv.toFracBig());
   }
   else if (res.edoSteps) {
     xenPageName = res.edoSteps[1] + "edo";
@@ -707,8 +709,9 @@ function addXenWikiLink() {
   if (pageExists) {
     pageExists.then(function(exists) {
       if (exists) {
-        let link = $('<a>')//.attr("target", "_blank")
-                           .attr("href", xenURL)
+        let link = $('<a>').addClass('xen-wiki-link')
+        // let link = $('<a>')//.attr("target", "_blank")
+        //                    .attr("href", xenURL)
                            .append(xenURL.replace("https://",""));
         let row = $('<tr id="xenWikiLinkRow">');
         row.append($('<td>').addClass("resLeftColumn").html("Xenharmonic wiki page:"));
@@ -893,13 +896,10 @@ function updateEDOResults(toUpdate) {
   // EDO prime mappings
   $('#edoPrimesTable').empty();
   const primesHeaders = ["Prime",
-                         "Error (" + $('<a>').attr("href", "https://en.wikipedia.org/wiki/Cent_(music)")
-                                             .text("cents").prop("outerHTML") + ")",
-                         $('<a>').attr("href", "https://en.xen.wiki/w/Relative_interval_error")
-                                 .text("Error (relative)"),
+                         "Error (" + fmtInlineLink("cents", "https://en.wikipedia.org/wiki/Cent_(music)") + ")",
+                         fmtInlineLink("Error (relative)", "https://en.xen.wiki/w/Relative_interval_error"),
                          "Mapping",
-                         $('<a>').attr("href", "https://en.xen.wiki/w/Octave_reduction")
-                                 .text("Red.").prop("outerHTML") + " mapping",
+                         fmtInlineLink("Red.", "https://en.xen.wiki/w/Octave_reduction") + " mapping",
                          "Highest power allowed in approxs. below" + $('#edoRelCutoffExplQ').prop("outerHTML")];
   let primesDat = [];
   for (const p of microtonal_utils.primes()) {
@@ -936,13 +936,10 @@ function updateEDOResults(toUpdate) {
   $('#edoIntvsTable').empty();
   let header = $('<tr>');
   header.append($('<th>').html("Steps"));
-  header.append($('<th>').html($('<a>').attr("href", "https://en.wikipedia.org/wiki/Cent_(music)")
-                                       .text("Cents")));
-  header.append($('<th>').html($('<a>').attr("href", "https://en.xen.wiki/w/Ups_and_Downs_Notation")
-                                       .text("Ups-and-downs notation"))
+  header.append($('<th>').html(fmtInlineLink("Cents", "https://en.wikipedia.org/wiki/Cent_(music)")));
+  header.append($('<th>').html(fmtInlineLink("Ups-and-downs notation", "https://en.xen.wiki/w/Ups_and_Downs_Notation"))
                          .attr("colspan", 3));
-  header.append($('<th>').html($('<a>').attr("href", "https://en.xen.wiki/w/Consistent")
-                                       .text("Consistent").prop("outerHTML")
+  header.append($('<th>').html(fmtInlineLink("Consistent", "https://en.xen.wiki/w/Consistent")
                                + " rational approximations")
                          .addClass("edoIntvsTableRightHeader"));
   header.append($('<th>').html("Audio"));
