@@ -487,6 +487,32 @@ a.expr:visited:focus {
   white-space: nowrap;
 }
 
+.xen-wiki-link {
+  position: relative;
+}
+.xen-wiki-link:hover {
+  text-decoration: line-through;
+}
+.xen-wiki-link:hover:after {
+  content: "xen-wiki links are temporarily disabled due to a google search issue - sorry!";
+  color: #222;
+  font-size: 80%;
+  position: absolute;
+  text-align: left;
+  font-weight: normal;
+  top: 1.75em;
+  left: 0;
+  padding: 5px;
+  border: 1px solid #666;
+  border-radius: 5px;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  padding: 0.5em 0.6em 0.5em 0.6em;
+  background-color: #EEE;
+  z-index: 10;
+  width: 12.5em;
+}
+
 .centerimg {
   display: block;
   margin-left: auto;
