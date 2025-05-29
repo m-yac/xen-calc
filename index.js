@@ -237,9 +237,7 @@ function fmtExtExprLink(str, linkstr) {
 }
 // Wrap a given string in an <a> tag with the default class
 function fmtInlineLink(str, url, sameTab) {
-  const a = (url.startsWith('https://en.xen.wiki')
-             ? $('<a>').addClass('xen-wiki-link')
-             : $('<a>').attr("href", url)).text(str);
+  const a = $('<a>').attr("href", url).html(str);
   if (sameTab) { return a.prop('outerHTML'); }
   else { return a//.attr("target", "_blank")
                  .prop('outerHTML'); }
@@ -709,9 +707,8 @@ function addXenWikiLink() {
   if (pageExists) {
     pageExists.then(function(exists) {
       if (exists) {
-        let link = $('<a>').addClass('xen-wiki-link')
-        // let link = $('<a>')//.attr("target", "_blank")
-        //                    .attr("href", xenURL)
+        let link = $('<a>')//.attr("target", "_blank")
+                           .attr("href", xenURL)
                            .append(xenURL.replace("https://",""));
         let row = $('<tr id="xenWikiLinkRow">');
         row.append($('<td>').addClass("resLeftColumn").html("Xenharmonic wiki page:"));
