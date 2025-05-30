@@ -4962,14 +4962,14 @@ var grammar = {
     {"name": "pyNoteAccs$ebnf$4$subexpression$2", "symbols": [{"literal":"b"}]},
     {"name": "pyNoteAccs$ebnf$4", "symbols": ["pyNoteAccs$ebnf$4", "pyNoteAccs$ebnf$4$subexpression$2"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "pyNoteAccs", "symbols": ["pyNoteAccs$ebnf$4"], "postprocess": d => pyInterval(-1, d[0].length)},
-    {"name": "pyNoteAccs$ebnf$5", "symbols": []},
-    {"name": "pyNoteAccs$ebnf$5$subexpression$1", "symbols": [{"literal":"♭"}]},
-    {"name": "pyNoteAccs$ebnf$5$subexpression$1", "symbols": [{"literal":"b"}]},
-    {"name": "pyNoteAccs$ebnf$5", "symbols": ["pyNoteAccs$ebnf$5", "pyNoteAccs$ebnf$5$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "pyNoteAccs$ebnf$6$string$1", "symbols": [{"literal":"\ud834"}, {"literal":"\udd2b"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "pyNoteAccs$ebnf$6", "symbols": ["pyNoteAccs$ebnf$6$string$1"]},
-    {"name": "pyNoteAccs$ebnf$6$string$2", "symbols": [{"literal":"\ud834"}, {"literal":"\udd2b"}], "postprocess": function joiner(d) {return d.join('');}},
-    {"name": "pyNoteAccs$ebnf$6", "symbols": ["pyNoteAccs$ebnf$6", "pyNoteAccs$ebnf$6$string$2"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "pyNoteAccs$ebnf$5$string$1", "symbols": [{"literal":"\ud834"}, {"literal":"\udd2b"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "pyNoteAccs$ebnf$5", "symbols": ["pyNoteAccs$ebnf$5$string$1"]},
+    {"name": "pyNoteAccs$ebnf$5$string$2", "symbols": [{"literal":"\ud834"}, {"literal":"\udd2b"}], "postprocess": function joiner(d) {return d.join('');}},
+    {"name": "pyNoteAccs$ebnf$5", "symbols": ["pyNoteAccs$ebnf$5", "pyNoteAccs$ebnf$5$string$2"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "pyNoteAccs$ebnf$6", "symbols": []},
+    {"name": "pyNoteAccs$ebnf$6$subexpression$1", "symbols": [{"literal":"♭"}]},
+    {"name": "pyNoteAccs$ebnf$6$subexpression$1", "symbols": [{"literal":"b"}]},
+    {"name": "pyNoteAccs$ebnf$6", "symbols": ["pyNoteAccs$ebnf$6", "pyNoteAccs$ebnf$6$subexpression$1"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "pyNoteAccs", "symbols": ["pyNoteAccs$ebnf$5", "pyNoteAccs$ebnf$6"], "postprocess": d => pyInterval(-1, 2*d[0].length + d[1].length)},
     {"name": "npyNote$macrocall$2", "symbols": [/[A-G]/]},
     {"name": "npyNote$macrocall$3", "symbols": ["npyNoteAccs"]},
@@ -5791,18 +5791,6 @@ function baseNoteIntvToA(x) {
 }
 
 /**
-  * Returns the octave in scientific pitch notation of the given interval to A4
-  *
-  * @param {Interval} intvToA4
-  * @returns {integer}
-  */
-function octaveOfIntvToA4(a,b) {
-  const intvToA4 = Interval(a,b);
-  const intvToC4 = intvToA4.div(baseNoteIntvToA("C"));
-  return 4 + Math.floor(intvToC4.valueOf_log(2));
-}
-
-/**
   * Returns the note name of the given non-neutral pythagorean interval to A4.
   * The returned string uses ASCII instead of uniode wherever possible iff the
   * second argument is given and is true
@@ -5815,16 +5803,14 @@ function octaveOfIntvToA4(a,b) {
   */
 function pyNote(intvToA4, opts) {
   const {ignoreOctave, useASCII} = opts || {};
-  const intvToF4 = Interval(intvToA4).div(baseNoteIntvToA("F"));
-  if (!isPythagorean(intvToF4) || (intvToF4['3'] && intvToF4['3'].d != 1)) {
+  intvToA4 = Interval(intvToA4);
+  const intvToF4 = intvToA4.div(baseNoteIntvToA("F"));
+  if (!isPythagorean(intvToF4) || (intvToF4.expOf(3).d != 1)) {
     throw new Error("interval is not a non-neutral pythagorean interval");
   }
   const e3 = intvToF4.expOf(3).s * intvToF4.expOf(3).n;
   const zd = mod(4*e3, 7);
   let o = Math.floor(e3 / 7);
-
-  let octave = octaveOfIntvToA4(intvToA4);
-  if (ignoreOctave || octave == 4) { octave = ""; }
 
   let baseNote;
   if (zd == 0) { baseNote = "F"; }
@@ -5834,6 +5820,12 @@ function pyNote(intvToA4, opts) {
   if (zd == 4) { baseNote = "C"; }
   if (zd == 5) { baseNote = "D"; }
   if (zd == 6) { baseNote = "E"; }
+
+  const e2 = intvToA4.div(baseNoteIntvToA(baseNote))
+                     .div(pyInterval(o == 0 ? 1 : Math.sign(o), Math.abs(o)))
+                     .expOf(2);
+  let octave = 4 + e2.s * e2.n;
+  if (ignoreOctave || octave == 4) { octave = ""; }
 
   let accidentals = "";
   if (o == 0 && baseNote == "A" && octave != "") {
@@ -5876,7 +5868,6 @@ module['exports'].pyQuality = pyQuality;
 module['exports'].pyDegreeString = pyDegreeString;
 module['exports'].pySymb = pySymb;
 module['exports'].baseNoteIntvToA = baseNoteIntvToA;
-module['exports'].octaveOfIntvToA4 = octaveOfIntvToA4;
 module['exports'].pyNote = pyNote;
 
 },{"./interval.js":7,"./utils.js":13,"fraction.js":16,"number-to-words":19,"primes-and-factors":20}],12:[function(require,module,exports){
